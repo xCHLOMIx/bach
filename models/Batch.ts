@@ -18,4 +18,10 @@ const batchSchema = new Schema(
 
 export type BatchDocument = InferSchemaType<typeof batchSchema> & { _id: string }
 
+const existingBatchModel = models.Batch
+
+if (existingBatchModel?.schema?.path("exchangeRate")) {
+  delete models.Batch
+}
+
 export const BatchModel = models.Batch || model("Batch", batchSchema)

@@ -4,8 +4,6 @@ import * as React from "react"
 
 import { Button } from "@/components/ui/button"
 import {
-    Card,
-    CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
@@ -93,24 +91,26 @@ export function CategoriesPage() {
 
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Categories</CardTitle>
-                    <CardDescription>Create, update, and delete categories.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form className="mb-4 flex gap-2" onSubmit={createCategory}>
-                        <Input
-                            placeholder="Category name"
-                            value={newName}
-                            onChange={(event) => setNewName(event.target.value)}
-                        />
-                        <Button type="submit">Add</Button>
-                    </form>
+            <CardHeader className="px-0">
+                <CardTitle className="text-2xl font-bold">Categories</CardTitle>
+                <CardDescription>Create, update, and delete categories.</CardDescription>
+            </CardHeader>
 
-                    {errors.name ? <p className="mb-3 text-sm text-destructive">{errors.name}</p> : null}
-                    {errors.general ? <p className="mb-3 text-sm text-destructive">{errors.general}</p> : null}
+            <section className="space-y-4">
+                <form className="flex gap-2" onSubmit={createCategory}>
+                    <Input
+                        placeholder="Category name"
+                        className="h-10"
+                        value={newName}
+                        onChange={(event) => setNewName(event.target.value)}
+                    />
+                    <Button type="submit" size={"lg"} className="px-6 h-10">Add</Button>
+                </form>
 
+                {errors.name ? <p className="text-sm text-destructive">{errors.name}</p> : null}
+                {errors.general ? <p className="text-sm text-destructive">{errors.general}</p> : null}
+
+                <div className="overflow-hidden rounded-xl border">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -163,8 +163,8 @@ export function CategoriesPage() {
                             ))}
                         </TableBody>
                     </Table>
-                </CardContent>
-            </Card>
+                </div>
+            </section>
         </div>
     )
 }

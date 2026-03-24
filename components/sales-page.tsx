@@ -3,8 +3,6 @@
 import * as React from "react"
 
 import {
-    Card,
-    CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
@@ -52,15 +50,16 @@ export function SalesPage() {
 
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Sales</CardTitle>
-                    <CardDescription>All recorded product sales.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p className="mb-4 text-sm text-muted-foreground">
-                        Total profit: {totalProfit.toLocaleString()} RWF
-                    </p>
+            <CardHeader className="px-0">
+                <CardTitle className="text-2xl font-bold">Sales</CardTitle>
+                <CardDescription>All recorded product sales.</CardDescription>
+            </CardHeader>
+
+            <section className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                    Total profit: {totalProfit.toLocaleString()} RWF
+                </p>
+                <div className="overflow-hidden rounded-xl border">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -87,8 +86,8 @@ export function SalesPage() {
                             ))}
                         </TableBody>
                     </Table>
-                </CardContent>
-            </Card>
+                </div>
+            </section>
         </div>
     )
 }

@@ -1,23 +1,30 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import {
-    Card,
-    CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
+import {
+    Empty,
+    EmptyContent,
+    EmptyDescription,
+    EmptyHeader,
+    EmptyTitle,
+} from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "@/components/ui/sheet"
 import {
     Table,
     TableBody,
@@ -26,6 +33,8 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import { cn } from "@/lib/utils"
+import { CheckIcon, PackageSearchIcon } from "lucide-react"
 
 type Batch = {
     _id: string
@@ -50,7 +59,7 @@ type Batch = {
 
 type Product = { _id: string; name: string; batchId?: { _id?: string } | null }
 
-const initialCostForm = {
+const initialBatchForm = {
     batchName: "",
     intlShipping: "0",
     taxValue: "0",
@@ -63,15 +72,95 @@ const initialCostForm = {
     miscellaneous: "0",
 }
 
+const expenseFieldKeys = [
+    "intlShipping",
+    "taxValue",
+    "customsDuties",
+    "declaration",
+    "arrivalNotif",
+    "warehouseStorage",
+    "amazonPrime",
+    "warehouseUSA",
+    "miscellaneous",
+] as const
+
 export function BatchesPage() {
+    const router = useRouter()
+
     const [batches, setBatches] = React.useState<Batch[]>([])
     const [products, setProducts] = React.useState<Product[]>([])
-    const [costForm, setCostForm] = React.useState(initialCostForm)
-    const [errors, setErrors] = React.useState<Record<string, string>>({})
 
-    const [selectedBatchId, setSelectedBatchId] = React.useState("")
-    const [selectedProductIds, setSelectedProductIds] = React.useState<string[]>([])
-    const [itemErrors, setItemErrors] = React.useState<Record<string, string>>({})
+    const [isAddSheetOpen, setIsAddSheetOpen] = React.useState(false)
+    const [addForm, setAddForm] = React.useState(initialBatchForm)
+    const [addSelectedProductIds, setAddSelectedProductIds] = React.useState<string[]>([])
+    const [addErrors, setAddErrors] = React.useState<Record<string, string>>({})
+    const [isAddSubmitting, setIsAddSubmitting] = React.useState(false)
+
+    const stripCommas = (value: string) => value.replace(/,/g, "")
+
+    const formatDecimalWithCommas = (value: string) => {
+        if (!value) {
+            return ""
+        }
+
+        const [integerPart, decimalPart] = value.split(".")
+        const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+
+        if (decimalPart !== undefined) {
+            return `${formattedInteger}.${decimalPart}`
+        }
+
+        return formattedInteger
+    }
+
+    const toDecimalInput = (value: string) => {
+        const digitsAndDotsOnly = stripCommas(value).replace(/[^\d.]/g, "")
+        const firstDotIndex = digitsAndDotsOnly.indexOf(".")
+
+        if (firstDotIndex === -1) {
+            return formatDecimalWithCommas(digitsAndDotsOnly)
+        }
+
+        const beforeDot = digitsAndDotsOnly.slice(0, firstDotIndex + 1)
+        const afterDot = digitsAndDotsOnly.slice(firstDotIndex + 1).replace(/\./g, "")
+
+        return formatDecimalWithCommas(`${beforeDot}${afterDot}`)
+    }
+
+    const safeReadJson = async (response: Response) => {
+        const text = await response.text()
+        if (!text) {
+            return null
+        }
+
+        try {
+            return JSON.parse(text) as Record<string, unknown>
+        } catch {
+            return null
+        }
+    }
+
+    const batchIdToName = React.useMemo(() => {
+        return new Map(batches.map((batch) => [batch._id, batch.batchName]))
+    }, [batches])
+
+    const hasAnyExpenseAmount = React.useCallback(
+        (form: typeof initialBatchForm) => {
+            return expenseFieldKeys.some((key) => Number(stripCommas(form[key]) || 0) > 0)
+        },
+        []
+    )
+
+    const hasSelectedProducts = addSelectedProductIds.length > 0
+    const canCreateBatch = hasAnyExpenseAmount(addForm) && hasSelectedProducts
+
+    const renderFieldError = (errors: Record<string, string>, field: string) => {
+        if (!errors[field]) {
+            return null
+        }
+
+        return <p className="text-xs text-destructive">{errors[field]}</p>
+    }
 
     const load = React.useCallback(async () => {
         const [batchesRes, productsRes] = await Promise.all([
@@ -94,246 +183,317 @@ export function BatchesPage() {
         load()
     }, [load])
 
-    const onCreateBatch = async (event: React.FormEvent<HTMLFormElement>) => {
+    const submitAddBatch = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
-        setErrors({})
+        setIsAddSubmitting(true)
+        setAddErrors({})
 
-        const payload = Object.fromEntries(
-            Object.entries(costForm).map(([key, value]) => {
-                if (key === "batchName") return [key, value]
-                return [key, Number(value)]
+        try {
+            if (!hasAnyExpenseAmount(addForm)) {
+                setAddErrors({ general: "Add at least one expense amount" })
+                return
+            }
+
+            if (addSelectedProductIds.length === 0) {
+                setAddErrors({ general: "Select at least one product" })
+                return
+            }
+
+            const payload = Object.fromEntries(
+                Object.entries(addForm).map(([key, value]) => {
+                    if (key === "batchName") return [key, value]
+                    return [key, Number(stripCommas(value) || 0)]
+                })
+            )
+
+            const response = await fetch("/api/batches", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
             })
-        )
 
-        const response = await fetch("/api/batches", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-        })
+            const data = await safeReadJson(response)
+            if (!response.ok) {
+                const apiErrors = (data?.errors ?? null) as Record<string, string> | null
+                setAddErrors(apiErrors ?? { general: "Failed to create batch" })
+                return
+            }
 
-        const data = await response.json()
-        if (!response.ok) {
-            setErrors(data.errors ?? { general: "Failed to create batch" })
-            return
+            const createdBatchId = (data?.batch as { _id?: string } | undefined)?._id
+            if (createdBatchId) {
+                const syncResponse = await fetch(`/api/batches/${createdBatchId}/products`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ productIds: addSelectedProductIds }),
+                })
+
+                if (!syncResponse.ok) {
+                    const syncData = await safeReadJson(syncResponse)
+                    const syncErrors = (syncData?.errors ?? null) as Record<string, string> | null
+                    setAddErrors(syncErrors ?? { general: "Batch created, but product assignment failed" })
+                    return
+                }
+            }
+
+            setAddForm(initialBatchForm)
+            setAddSelectedProductIds([])
+            setIsAddSheetOpen(false)
+            await load()
+        } finally {
+            setIsAddSubmitting(false)
         }
-
-        setCostForm(initialCostForm)
-        await load()
     }
 
-    const submitBatchProducts = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault()
-        setItemErrors({})
-
-        if (!selectedBatchId) {
-            setItemErrors({ batchId: "Batch is required" })
-            return
+    const renderProductSelector = (
+        selectedProductIds: string[],
+        setSelectedProductIds: React.Dispatch<React.SetStateAction<string[]>>
+    ) => {
+        if (products.length === 0) {
+            return (
+                <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                    No products available yet.
+                </div>
+            )
         }
 
-        if (selectedProductIds.length === 0) {
-            setItemErrors({ productIds: "Select at least one product" })
-            return
-        }
+        return (
+            <div className="overflow-hidden rounded-md border">
+                {products.map((product, index) => {
+                    const isSelected = selectedProductIds.includes(product._id)
+                    const assignedBatchId = product.batchId?._id
+                    const assignedBatchName = assignedBatchId ? batchIdToName.get(assignedBatchId) : null
 
-        const response = await fetch(`/api/batches/${selectedBatchId}/products`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ productIds: selectedProductIds }),
-        })
-
-        const data = await response.json()
-        if (!response.ok) {
-            setItemErrors(data.errors ?? { general: "Failed to add products" })
-            return
-        }
-
-        setSelectedProductIds([])
-        setSelectedBatchId("")
-        await load()
+                    return (
+                        <button
+                            key={product._id}
+                            type="button"
+                            onClick={() => {
+                                setSelectedProductIds((current) =>
+                                    current.includes(product._id)
+                                        ? current.filter((id) => id !== product._id)
+                                        : [...current, product._id]
+                                )
+                            }}
+                            className={cn(
+                                "flex w-full items-center gap-2 border-b px-3 py-2 text-left text-sm last:border-b-0",
+                                index === 0 && "rounded-t-md",
+                                index === products.length - 1 && "rounded-b-md",
+                                isSelected ? "bg-border/60" : "hover:bg-muted/40"
+                            )}
+                        >
+                            <span className="truncate">{product.name}</span>
+                            {assignedBatchName ? (
+                                <span className="text-xs text-muted-foreground">({assignedBatchName})</span>
+                            ) : null}
+                            {isSelected ? <CheckIcon className="ml-auto h-4 w-4" /> : null}
+                        </button>
+                    )
+                })}
+            </div>
+        )
     }
 
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Create Batch</CardTitle>
-                    <CardDescription>Enter shipment and cost details.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form className="grid gap-3 md:grid-cols-2 xl:grid-cols-4" onSubmit={onCreateBatch}>
-                        <Input
-                            placeholder="Batch name"
-                            value={costForm.batchName}
-                            onChange={(event) =>
-                                setCostForm((current) => ({ ...current, batchName: event.target.value }))
-                            }
-                        />
-                        <Input
-                            placeholder="Intl shipping"
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={costForm.intlShipping}
-                            onChange={(event) =>
-                                setCostForm((current) => ({ ...current, intlShipping: event.target.value }))
-                            }
-                        />
-                        <Input
-                            placeholder="Tax value"
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={costForm.taxValue}
-                            onChange={(event) =>
-                                setCostForm((current) => ({ ...current, taxValue: event.target.value }))
-                            }
-                        />
-                        <Input
-                            placeholder="Customs duties"
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={costForm.customsDuties}
-                            onChange={(event) =>
-                                setCostForm((current) => ({ ...current, customsDuties: event.target.value }))
-                            }
-                        />
-                        <Input
-                            placeholder="Declaration"
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={costForm.declaration}
-                            onChange={(event) =>
-                                setCostForm((current) => ({ ...current, declaration: event.target.value }))
-                            }
-                        />
-                        <Input
-                            placeholder="Arrival notif"
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={costForm.arrivalNotif}
-                            onChange={(event) =>
-                                setCostForm((current) => ({ ...current, arrivalNotif: event.target.value }))
-                            }
-                        />
-                        <Input
-                            placeholder="Warehouse storage"
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={costForm.warehouseStorage}
-                            onChange={(event) =>
-                                setCostForm((current) => ({ ...current, warehouseStorage: event.target.value }))
-                            }
-                        />
-                        <Input
-                            placeholder="Amazon Prime"
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={costForm.amazonPrime}
-                            onChange={(event) =>
-                                setCostForm((current) => ({ ...current, amazonPrime: event.target.value }))
-                            }
-                        />
-                        <Input
-                            placeholder="Warehouse USA"
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={costForm.warehouseUSA}
-                            onChange={(event) =>
-                                setCostForm((current) => ({ ...current, warehouseUSA: event.target.value }))
-                            }
-                        />
-                        <Input
-                            placeholder="Miscellaneous"
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={costForm.miscellaneous}
-                            onChange={(event) =>
-                                setCostForm((current) => ({ ...current, miscellaneous: event.target.value }))
-                            }
-                        />
-                        <Button type="submit">Create Batch</Button>
-                    </form>
-                    {errors.general ? <p className="mt-2 text-sm text-destructive">{errors.general}</p> : null}
-                    {errors.batchName ? <p className="mt-2 text-sm text-destructive">{errors.batchName}</p> : null}
-                </CardContent>
-            </Card>
+            <CardHeader className="flex items-center justify-between gap-3 px-0">
+                <div>
+                    <CardTitle className="text-2xl font-bold">Batches</CardTitle>
+                    <CardDescription>Create, edit, and manage products in each batch.</CardDescription>
+                </div>
+                <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
+                    <SheetTrigger asChild>
+                        <Button className="h-10 px-6" size={"lg"}>Add Batch</Button>
+                    </SheetTrigger>
+                    <SheetContent className="p-0">
+                        <div className="flex h-full flex-col">
+                            <SheetHeader className="border-b">
+                                <SheetTitle>Add Batch</SheetTitle>
+                                <SheetDescription>Enter batch details and select products.</SheetDescription>
+                            </SheetHeader>
+                            <form className="grid flex-1 gap-3 overflow-y-auto p-4" onSubmit={submitAddBatch}>
+                                <div className="grid gap-1.5">
+                                    <label htmlFor="add-batch-name" className="text-sm font-medium">Batch name</label>
+                                    <Input
+                                        id="add-batch-name"
+                                        placeholder="Batch name"
+                                        value={addForm.batchName}
+                                        onChange={(event) =>
+                                            setAddForm((current) => ({ ...current, batchName: event.target.value }))
+                                        }
+                                    />
+                                    {renderFieldError(addErrors, "batchName")}
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <div className="grid gap-1.5">
+                                        <label htmlFor="add-intl-shipping" className="text-sm font-medium">Intl shipping</label>
+                                        <Input
+                                            id="add-intl-shipping"
+                                            placeholder="Intl shipping"
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={addForm.intlShipping}
+                                            onChange={(event) =>
+                                                setAddForm((current) => ({ ...current, intlShipping: toDecimalInput(event.target.value) }))
+                                            }
+                                        />
+                                        {renderFieldError(addErrors, "intlShipping")}
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        <label htmlFor="add-tax-value" className="text-sm font-medium">Tax value</label>
+                                        <Input
+                                            id="add-tax-value"
+                                            placeholder="Tax value"
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={addForm.taxValue}
+                                            onChange={(event) =>
+                                                setAddForm((current) => ({ ...current, taxValue: toDecimalInput(event.target.value) }))
+                                            }
+                                        />
+                                        {renderFieldError(addErrors, "taxValue")}
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        <label htmlFor="add-customs-duties" className="text-sm font-medium">Customs duties</label>
+                                        <Input
+                                            id="add-customs-duties"
+                                            placeholder="Customs duties"
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={addForm.customsDuties}
+                                            onChange={(event) =>
+                                                setAddForm((current) => ({ ...current, customsDuties: toDecimalInput(event.target.value) }))
+                                            }
+                                        />
+                                        {renderFieldError(addErrors, "customsDuties")}
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        <label htmlFor="add-declaration" className="text-sm font-medium">Declaration</label>
+                                        <Input
+                                            id="add-declaration"
+                                            placeholder="Declaration"
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={addForm.declaration}
+                                            onChange={(event) =>
+                                                setAddForm((current) => ({ ...current, declaration: toDecimalInput(event.target.value) }))
+                                            }
+                                        />
+                                        {renderFieldError(addErrors, "declaration")}
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        <label htmlFor="add-arrival-notif" className="text-sm font-medium">Arrival notification</label>
+                                        <Input
+                                            id="add-arrival-notif"
+                                            placeholder="Arrival notif"
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={addForm.arrivalNotif}
+                                            onChange={(event) =>
+                                                setAddForm((current) => ({ ...current, arrivalNotif: toDecimalInput(event.target.value) }))
+                                            }
+                                        />
+                                        {renderFieldError(addErrors, "arrivalNotif")}
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        <label htmlFor="add-warehouse-storage" className="text-sm font-medium">Warehouse storage</label>
+                                        <Input
+                                            id="add-warehouse-storage"
+                                            placeholder="Warehouse storage"
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={addForm.warehouseStorage}
+                                            onChange={(event) =>
+                                                setAddForm((current) => ({ ...current, warehouseStorage: toDecimalInput(event.target.value) }))
+                                            }
+                                        />
+                                        {renderFieldError(addErrors, "warehouseStorage")}
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        <label htmlFor="add-amazon-prime" className="text-sm font-medium">Amazon Prime</label>
+                                        <Input
+                                            id="add-amazon-prime"
+                                            placeholder="Amazon Prime"
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={addForm.amazonPrime}
+                                            onChange={(event) =>
+                                                setAddForm((current) => ({ ...current, amazonPrime: toDecimalInput(event.target.value) }))
+                                            }
+                                        />
+                                        {renderFieldError(addErrors, "amazonPrime")}
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        <label htmlFor="add-warehouse-usa" className="text-sm font-medium">Warehouse USA</label>
+                                        <Input
+                                            id="add-warehouse-usa"
+                                            placeholder="Warehouse USA"
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={addForm.warehouseUSA}
+                                            onChange={(event) =>
+                                                setAddForm((current) => ({ ...current, warehouseUSA: toDecimalInput(event.target.value) }))
+                                            }
+                                        />
+                                        {renderFieldError(addErrors, "warehouseUSA")}
+                                    </div>
+                                    <div className="grid gap-1.5 sm:col-span-2">
+                                        <label htmlFor="add-miscellaneous" className="text-sm font-medium">Miscellaneous</label>
+                                        <Input
+                                            id="add-miscellaneous"
+                                            placeholder="Miscellaneous"
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={addForm.miscellaneous}
+                                            onChange={(event) =>
+                                                setAddForm((current) => ({ ...current, miscellaneous: toDecimalInput(event.target.value) }))
+                                            }
+                                        />
+                                        {renderFieldError(addErrors, "miscellaneous")}
+                                    </div>
+                                </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Add Products To Batch</CardTitle>
-                    <CardDescription>Assign existing products directly to a batch.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form className="grid gap-3" onSubmit={submitBatchProducts}>
-                        <Select value={selectedBatchId} onValueChange={setSelectedBatchId}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select batch" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {batches.map((batch) => (
-                                    <SelectItem key={batch._id} value={batch._id}>
-                                        {batch.batchName}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {itemErrors.batchId ? (
-                            <p className="text-sm text-destructive">{itemErrors.batchId}</p>
-                        ) : null}
+                                <div className="space-y-2">
+                                    <p className="text-sm font-medium">Select Products</p>
+                                    {renderProductSelector(addSelectedProductIds, setAddSelectedProductIds)}
+                                </div>
 
-                        <div className="grid gap-2 md:grid-cols-2">
-                            {products.map((product) => {
-                                const checked = selectedProductIds.includes(product._id)
-                                const isAssignedElsewhere = !!product.batchId?._id && product.batchId._id !== selectedBatchId
+                                {addErrors.general ? <p className="text-sm text-destructive">{addErrors.general}</p> : null}
 
-                                return (
-                                    <Button
-                                        key={product._id}
-                                        type="button"
-                                        variant={checked ? "default" : "outline"}
-                                        disabled={isAssignedElsewhere}
-                                        onClick={() => {
-                                            setSelectedProductIds((current) =>
-                                                current.includes(product._id)
-                                                    ? current.filter((id) => id !== product._id)
-                                                    : [...current, product._id]
-                                            )
-                                        }}
-                                        className="justify-start"
-                                    >
-                                        {product.name}
-                                    </Button>
-                                )
-                            })}
+                                <Button
+                                    type="submit"
+                                    disabled={isAddSubmitting || !canCreateBatch}
+                                    className="disabled:opacity-50"
+                                >
+                                    {isAddSubmitting ? "Saving..." : "Create Batch"}
+                                </Button>
+                                {!canCreateBatch ? (
+                                    <p className="text-xs text-muted-foreground">
+                                        Add at least one expense amount and select at least one product.
+                                    </p>
+                                ) : null}
+                            </form>
                         </div>
-                        {itemErrors.productIds ? (
-                            <p className="text-sm text-destructive">{itemErrors.productIds}</p>
-                        ) : null}
+                    </SheetContent>
+                </Sheet>
+            </CardHeader>
 
-                        <div className="flex gap-2">
-                            <Button type="submit">Assign Selected Products</Button>
+            {batches.length === 0 ? (
+                <Empty className="-translate-y-5">
+                    <EmptyHeader>
+                        <div className="bg-border/40 mb-4 rounded-lg p-3">
+                            <PackageSearchIcon className="size-10" />
                         </div>
-
-                        {itemErrors.general ? (
-                            <p className="text-sm text-destructive">{itemErrors.general}</p>
-                        ) : null}
-                    </form>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Batches</CardTitle>
-                    <CardDescription>All imported shipments.</CardDescription>
-                </CardHeader>
-                <CardContent>
+                        <EmptyTitle>No batches yet</EmptyTitle>
+                        <EmptyDescription>
+                            There are no shipment batches yet. Create your first batch to start organizing imported products.
+                        </EmptyDescription>
+                    </EmptyHeader>
+                    <EmptyContent className="flex-row justify-center gap-2">
+                        <Button onClick={() => setIsAddSheetOpen(true)} className="h-9 px-4">Add your first batch</Button>
+                    </EmptyContent>
+                </Empty>
+            ) : (
+                <div className="overflow-hidden rounded-xl border">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -346,8 +506,12 @@ export function BatchesPage() {
                         </TableHeader>
                         <TableBody>
                             {batches.map((batch) => (
-                                <TableRow key={batch._id}>
-                                    <TableCell>{batch.batchName}</TableCell>
+                                <TableRow
+                                    key={batch._id}
+                                    className="cursor-pointer"
+                                    onClick={() => router.push(`/app/batches/${batch._id}`)}
+                                >
+                                    <TableCell className="font-medium">{batch.batchName}</TableCell>
                                     <TableCell>{batch.intlShipping.toLocaleString()}</TableCell>
                                     <TableCell>{batch.productCount ?? 0}</TableCell>
                                     <TableCell>
@@ -360,8 +524,8 @@ export function BatchesPage() {
                             ))}
                         </TableBody>
                     </Table>
-                </CardContent>
-            </Card>
+                </div>
+            )}
         </div>
     )
 }

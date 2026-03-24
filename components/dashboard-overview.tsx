@@ -3,8 +3,6 @@
 import * as React from "react"
 
 import {
-    Card,
-    CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
@@ -60,38 +58,36 @@ export function DashboardOverview() {
             <SectionCards stats={data?.stats} />
 
             <div className="px-4 lg:px-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Recent Sales</CardTitle>
-                        <CardDescription>Latest sales with profit per unit</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Product</TableHead>
-                                    <TableHead>Qty</TableHead>
-                                    <TableHead>Selling Price</TableHead>
-                                    <TableHead>Landed Cost</TableHead>
-                                    <TableHead>Profit</TableHead>
-                                    <TableHead>Sold At</TableHead>
+                <CardHeader className="px-0">
+                    <CardTitle className="text-2xl font-bold">Recent Sales</CardTitle>
+                    <CardDescription>Latest sales with profit per unit</CardDescription>
+                </CardHeader>
+                <div className="overflow-hidden rounded-xl border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Product</TableHead>
+                                <TableHead>Qty</TableHead>
+                                <TableHead>Selling Price</TableHead>
+                                <TableHead>Landed Cost</TableHead>
+                                <TableHead>Profit</TableHead>
+                                <TableHead>Sold At</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {(data?.latestSales ?? []).map((sale) => (
+                                <TableRow key={sale._id}>
+                                    <TableCell>{sale.productId?.name ?? "Unknown product"}</TableCell>
+                                    <TableCell>{sale.quantity}</TableCell>
+                                    <TableCell>{sale.sellingPrice.toLocaleString()}</TableCell>
+                                    <TableCell>{sale.landedCost.toLocaleString()}</TableCell>
+                                    <TableCell>{sale.profit.toLocaleString()}</TableCell>
+                                    <TableCell>{new Date(sale.soldAt).toLocaleString()}</TableCell>
                                 </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {(data?.latestSales ?? []).map((sale) => (
-                                    <TableRow key={sale._id}>
-                                        <TableCell>{sale.productId?.name ?? "Unknown product"}</TableCell>
-                                        <TableCell>{sale.quantity}</TableCell>
-                                        <TableCell>{sale.sellingPrice.toLocaleString()}</TableCell>
-                                        <TableCell>{sale.landedCost.toLocaleString()}</TableCell>
-                                        <TableCell>{sale.profit.toLocaleString()}</TableCell>
-                                        <TableCell>{new Date(sale.soldAt).toLocaleString()}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
             </div>
         </div>
     )

@@ -28,6 +28,13 @@ import {
     SheetTrigger,
 } from "@/components/ui/sheet"
 import {
+    Empty,
+    EmptyContent,
+    EmptyDescription,
+    EmptyHeader,
+    EmptyTitle,
+} from "@/components/ui/empty"
+import {
     Table,
     TableBody,
     TableCell,
@@ -35,7 +42,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { ImagePlusIcon } from "lucide-react"
+import { ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon } from "lucide-react"
 
 const SOURCE_CURRENCY_OPTIONS = ["RWF", "USD", "KSH", "UGX", "AED", "EUR", "GBP"]
 
@@ -63,6 +70,8 @@ export function ProductsPage() {
     const [products, setProducts] = React.useState<Product[]>([])
     const [categories, setCategories] = React.useState<Category[]>([])
     const [batches, setBatches] = React.useState<Batch[]>([])
+    const [viewMode, setViewMode] = React.useState<"list" | "grid">("list")
+    const [isAddProductSheetOpen, setIsAddProductSheetOpen] = React.useState(false)
     const [errors, setErrors] = React.useState<Record<string, string>>({})
     const [isSubmitting, setIsSubmitting] = React.useState(false)
 
@@ -83,6 +92,39 @@ export function ProductsPage() {
     const [assignProductId, setAssignProductId] = React.useState("")
     const [assignBatchId, setAssignBatchId] = React.useState("")
     const [assignErrors, setAssignErrors] = React.useState<Record<string, string>>({})
+
+    const toIntegerInput = (value: string) => value.replace(/\D/g, "")
+
+    const stripCommas = (value: string) => value.replace(/,/g, "")
+
+    const formatDecimalWithCommas = (value: string) => {
+        if (!value) {
+            return ""
+        }
+
+        const [integerPart, decimalPart] = value.split(".")
+        const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+
+        if (decimalPart !== undefined) {
+            return `${formattedInteger}.${decimalPart}`
+        }
+
+        return formattedInteger
+    }
+
+    const toDecimalInput = (value: string) => {
+        const digitsAndDotsOnly = stripCommas(value).replace(/[^\d.]/g, "")
+        const firstDotIndex = digitsAndDotsOnly.indexOf(".")
+
+        if (firstDotIndex === -1) {
+            return formatDecimalWithCommas(digitsAndDotsOnly)
+        }
+
+        const beforeDot = digitsAndDotsOnly.slice(0, firstDotIndex + 1)
+        const afterDot = digitsAndDotsOnly.slice(firstDotIndex + 1).replace(/\./g, "")
+
+        return formatDecimalWithCommas(`${beforeDot}${afterDot}`)
+    }
 
     const load = React.useCallback(async () => {
         const [productsResponse, categoriesResponse, batchesResponse] = await Promise.all([
@@ -136,9 +178,9 @@ export function ProductsPage() {
             formData.append("name", productName)
             formData.append("categoryId", categoryId)
             formData.append("quantityInitial", quantityInitial)
-            formData.append("unitPriceForeign", unitPriceForeign)
+            formData.append("unitPriceForeign", stripCommas(unitPriceForeign))
             formData.append("sourceCurrency", sourceCurrency)
-            formData.append("exchangeRate", exchangeRate)
+            formData.append("exchangeRate", stripCommas(exchangeRate))
 
             for (const file of imageFiles) {
                 formData.append("images", file)
@@ -178,7 +220,7 @@ export function ProductsPage() {
             body: JSON.stringify({
                 productId: sellProductId,
                 quantity: Number(sellQuantity),
-                sellingPrice: Number(sellPrice),
+                sellingPrice: Number(stripCommas(sellPrice)),
             }),
         })
 
@@ -215,6 +257,108 @@ export function ProductsPage() {
         await load()
     }
 
+    const renderProductActions = (product: Product) => (
+        <div className="flex gap-2">
+            <Sheet>
+                <SheetTrigger asChild>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                            setAssignProductId(product._id)
+                            setAssignErrors({})
+                        }}
+                    >
+                        Assign Batch
+                    </Button>
+                </SheetTrigger>
+                <SheetContent>
+                    <SheetHeader>
+                        <SheetTitle>Assign {product.name}</SheetTitle>
+                        <SheetDescription>
+                            Assign product to one shipment batch.
+                        </SheetDescription>
+                    </SheetHeader>
+                    <form className="grid gap-3 p-4" onSubmit={submitAssignBatch}>
+                        <Select value={assignBatchId} onValueChange={setAssignBatchId}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select batch" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {batches.map((batch) => (
+                                    <SelectItem key={batch._id} value={batch._id}>
+                                        {batch.batchName}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {assignErrors.batchId ? (
+                            <p className="text-sm text-destructive">{assignErrors.batchId}</p>
+                        ) : null}
+                        {assignErrors.general ? (
+                            <p className="text-sm text-destructive">{assignErrors.general}</p>
+                        ) : null}
+                        <Button type="submit">Save Assignment</Button>
+                    </form>
+                </SheetContent>
+            </Sheet>
+
+            <Sheet>
+                <SheetTrigger asChild>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                            setSellProductId(product._id)
+                            setSellErrors({})
+                        }}
+                    >
+                        Sell
+                    </Button>
+                </SheetTrigger>
+                <SheetContent>
+                    <SheetHeader>
+                        <SheetTitle>Sell {product.name}</SheetTitle>
+                        <SheetDescription>
+                            Record a direct product sale and update stock.
+                        </SheetDescription>
+                    </SheetHeader>
+                    <form className="grid gap-3 p-4" onSubmit={submitSale}>
+                        <Input
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            placeholder="Quantity"
+                            value={sellQuantity}
+                            onChange={(event) => setSellQuantity(toIntegerInput(event.target.value))}
+                        />
+                        {sellErrors.quantity ? (
+                            <p className="text-sm text-destructive">{sellErrors.quantity}</p>
+                        ) : null}
+
+                        <Input
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
+                            placeholder="Selling price per unit"
+                            value={sellPrice}
+                            onChange={(event) => setSellPrice(toDecimalInput(event.target.value))}
+                        />
+                        {sellErrors.sellingPrice ? (
+                            <p className="text-sm text-destructive">{sellErrors.sellingPrice}</p>
+                        ) : null}
+
+                        {sellErrors.general ? (
+                            <p className="text-sm text-destructive">{sellErrors.general}</p>
+                        ) : null}
+
+                        <Button type="submit">Save Sale</Button>
+                    </form>
+                </SheetContent>
+            </Sheet>
+        </div>
+    )
+
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
             <CardHeader className="flex items-center justify-between gap-3">
@@ -222,306 +366,284 @@ export function ProductsPage() {
                     <CardTitle className="text-2xl font-bold">Products</CardTitle>
                     <CardDescription>Manage products, stock, and batch assignment</CardDescription>
                 </div>
-                <Sheet>
-                    <SheetTrigger asChild>
-                        <Button>Add Product</Button>
-                    </SheetTrigger>
-                    <SheetContent className="p-0">
-                        <div className="flex h-full flex-col">
-                            <SheetHeader className="border-b">
-                                <SheetTitle>Add Product</SheetTitle>
-                                <SheetDescription>Create a new product entry.</SheetDescription>
-                            </SheetHeader>
-                            <form className="flex-1 overflow-y-auto grid gap-3 p-4 pb-8" onSubmit={submitProduct}>
-                                <Field>
-                                    <div className="flex items-center justify-between">
-                                        <FieldLabel htmlFor="product-images">Product images</FieldLabel>
-                                    </div>
-                                    <label
-                                        htmlFor="product-images"
-                                        className="group relative flex aspect-square w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 transition-colors hover:border-primary/60 hover:bg-muted/50"
-                                    >
-                                        {imagePreviews[0] ? (
-                                            <img
-                                                src={imagePreviews[0]}
-                                                alt="Selected product preview"
-                                                className="h-full w-full object-cover"
-                                            />
-                                        ) : (
-                                            <div className="flex flex-col items-center gap-2 px-3 text-center">
-                                                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70 transition-colors group-hover:border-primary/50">
-                                                    <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+                <div className="flex items-center gap-2">
+                    <div className="flex rounded-md border p-1">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={viewMode === "list" ? "default" : "ghost"}
+                            onClick={() => setViewMode("list")}
+                            aria-label="List view"
+                            title="List view"
+                            className="h-8 gap-1 rounded-sm px-2"
+                        >
+                            <ListIcon className="h-4 w-4" />
+                            <span>List</span>
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={viewMode === "grid" ? "default" : "ghost"}
+                            onClick={() => setViewMode("grid")}
+                            aria-label="Grid view"
+                            title="Grid view"
+                            className="h-8 gap-1 rounded-sm px-2"
+                        >
+                            <LayoutGridIcon className="h-4 w-4" />
+                            <span>Grid</span>
+                        </Button>
+                    </div>
+                    <Sheet open={isAddProductSheetOpen} onOpenChange={setIsAddProductSheetOpen}>
+                        <SheetTrigger asChild>
+                            <Button size={"lg"} className="px-6 h-10">Add Product</Button>
+                        </SheetTrigger>
+                        <SheetContent className="p-0">
+                            <div className="flex h-full flex-col">
+                                <SheetHeader className="border-b">
+                                    <SheetTitle>Add Product</SheetTitle>
+                                    <SheetDescription>Create a new product entry.</SheetDescription>
+                                </SheetHeader>
+                                <form className="flex-1 overflow-y-auto grid gap-3 p-4" onSubmit={submitProduct}>
+                                    <Field>
+                                        <div className="flex items-center justify-between">
+                                            <FieldLabel htmlFor="product-images">Product image</FieldLabel>
+                                        </div>
+                                        <label
+                                            htmlFor="product-images"
+                                            className="group relative flex h-50 w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 transition-colors hover:border-primary/60 hover:bg-muted/50"
+                                        >
+                                            {imagePreviews[0] ? (
+                                                <img
+                                                    src={imagePreviews[0]}
+                                                    alt="Selected product preview"
+                                                    className="h-full w-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-2 px-3 text-center">
+                                                    <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70 transition-colors group-hover:border-primary/50">
+                                                        <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+                                                    </div>
+                                                    <div className="text-sm font-medium text-foreground">Add product image</div>
+                                                    <div className="text-xs text-muted-foreground">Click to upload (PNG, JPG, WEBP)</div>
                                                 </div>
-                                                <div className="text-sm font-medium text-foreground">Add product image</div>
-                                                <div className="text-xs text-muted-foreground">Click to upload (PNG, JPG, WEBP)</div>
-                                            </div>
-                                        )}
-                                    </label>
-                                    <Input
-                                        id="product-images"
-                                        type="file"
-                                        multiple
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={(event) => {
-                                            setImageFiles(Array.from(event.target.files ?? []))
-                                        }}
-                                    />
-                                </Field>
+                                            )}
+                                        </label>
+                                        <Input
+                                            id="product-images"
+                                            type="file"
+                                            multiple
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(event) => {
+                                                setImageFiles(Array.from(event.target.files ?? []))
+                                            }}
+                                        />
+                                    </Field>
 
-                                <Field>
-                                    <div className="flex items-center justify-between">
-                                        <FieldLabel htmlFor="product-name">Product name</FieldLabel>
-                                        <FieldError className="text-red-400 text-xs">{errors.name}</FieldError>
-                                    </div>
-                                    <Input
-                                        id="product-name"
-                                        placeholder="Product name"
-                                        value={productName}
-                                        onChange={(event) => setProductName(event.target.value)}
-                                    />
-                                </Field>
+                                    <Field>
+                                        <div className="flex items-center justify-between">
+                                            <FieldLabel htmlFor="product-name">Product name</FieldLabel>
+                                            <FieldError className="text-red-400 text-xs">{errors.name}</FieldError>
+                                        </div>
+                                        <Input
+                                            id="product-name"
+                                            placeholder="Product name"
+                                            value={productName}
+                                            onChange={(event) => setProductName(event.target.value)}
+                                        />
+                                    </Field>
 
-                                <Field>
-                                    <div className="flex items-center justify-between">
-                                        <FieldLabel htmlFor="product-category">Category</FieldLabel>
-                                        <FieldError className="text-red-400 text-xs">{errors.categoryId}</FieldError>
-                                    </div>
-                                    <Select value={categoryId} onValueChange={setCategoryId}>
-                                        <SelectTrigger id="product-category">
-                                            <SelectValue placeholder="Choose category" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {categories.map((category) => (
-                                                <SelectItem key={category._id} value={category._id}>
-                                                    {category.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </Field>
+                                    <Field>
+                                        <div className="flex items-center justify-between">
+                                            <FieldLabel htmlFor="product-category">Category</FieldLabel>
+                                            <FieldError className="text-red-400 text-xs">{errors.categoryId}</FieldError>
+                                        </div>
+                                        <Select value={categoryId} onValueChange={setCategoryId}>
+                                            <SelectTrigger id="product-category">
+                                                <SelectValue placeholder="Choose category" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {categories.map((category) => (
+                                                    <SelectItem key={category._id} value={category._id}>
+                                                        {category.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </Field>
 
-                                <Field>
-                                    <div className="flex items-center justify-between">
-                                        <FieldLabel htmlFor="product-quantity">Initial stock</FieldLabel>
-                                        <FieldError className="text-red-400 text-xs">{errors.quantityInitial}</FieldError>
-                                    </div>
-                                    <Input
-                                        id="product-quantity"
-                                        type="number"
-                                        min={0}
-                                        placeholder="Initial stock"
-                                        value={quantityInitial}
-                                        onChange={(event) => setQuantityInitial(event.target.value)}
-                                    />
-                                </Field>
+                                    <Field>
+                                        <div className="flex items-center justify-between">
+                                            <FieldLabel htmlFor="product-quantity">Initial stock</FieldLabel>
+                                            <FieldError className="text-red-400 text-xs">{errors.quantityInitial}</FieldError>
+                                        </div>
+                                        <Input
+                                            id="product-quantity"
+                                            type="text"
+                                            inputMode="numeric"
+                                            autoComplete="off"
+                                            placeholder="Initial stock"
+                                            value={quantityInitial}
+                                            onChange={(event) => setQuantityInitial(toIntegerInput(event.target.value))}
+                                        />
+                                    </Field>
 
-                                <Field>
-                                    <div className="flex items-center justify-between">
-                                        <FieldLabel htmlFor="product-unit-price">Unit price</FieldLabel>
-                                        <FieldError className="text-red-400 text-xs">{errors.unitPriceForeign}</FieldError>
-                                    </div>
-                                    <Input
-                                        id="product-unit-price"
-                                        type="number"
-                                        min={0}
-                                        step="0.01"
-                                        placeholder="Unit price in source currency"
-                                        value={unitPriceForeign}
-                                        onChange={(event) => setUnitPriceForeign(event.target.value)}
-                                    />
-                                </Field>
+                                    <Field>
+                                        <div className="flex items-center justify-between">
+                                            <FieldLabel htmlFor="product-unit-price">Unit price</FieldLabel>
+                                            <FieldError className="text-red-400 text-xs">{errors.unitPriceForeign}</FieldError>
+                                        </div>
+                                        <Input
+                                            id="product-unit-price"
+                                            type="text"
+                                            inputMode="decimal"
+                                            autoComplete="off"
+                                            placeholder="Unit price in source currency"
+                                            value={unitPriceForeign}
+                                            onChange={(event) => setUnitPriceForeign(toDecimalInput(event.target.value))}
+                                        />
+                                    </Field>
 
-                                <Field>
-                                    <div className="flex items-center justify-between">
-                                        <FieldLabel htmlFor="product-currency">Source currency</FieldLabel>
-                                        <FieldError className="text-red-400 text-xs">{errors.sourceCurrency}</FieldError>
-                                    </div>
-                                    <Select value={sourceCurrency} onValueChange={setSourceCurrency}>
-                                        <SelectTrigger id="product-currency">
-                                            <SelectValue placeholder="Choose source currency" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {SOURCE_CURRENCY_OPTIONS.map((currency) => (
-                                                <SelectItem key={currency} value={currency}>
-                                                    {currency}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </Field>
+                                    <Field>
+                                        <div className="flex items-center justify-between">
+                                            <FieldLabel htmlFor="product-currency">Source currency</FieldLabel>
+                                            <FieldError className="text-red-400 text-xs">{errors.sourceCurrency}</FieldError>
+                                        </div>
+                                        <Select value={sourceCurrency} onValueChange={setSourceCurrency}>
+                                            <SelectTrigger id="product-currency">
+                                                <SelectValue placeholder="Choose source currency" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {SOURCE_CURRENCY_OPTIONS.map((currency) => (
+                                                    <SelectItem key={currency} value={currency}>
+                                                        {currency}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </Field>
 
-                                <Field>
-                                    <div className="flex items-center justify-between">
-                                        <FieldLabel htmlFor="product-exchange-rate">Exchange rate to RWF</FieldLabel>
-                                        <FieldError className="text-red-400 text-xs">{errors.exchangeRate}</FieldError>
-                                    </div>
-                                    <Input
-                                        id="product-exchange-rate"
-                                        type="number"
-                                        min={0}
-                                        step="0.0001"
-                                        placeholder="Exchange rate to RWF"
-                                        value={exchangeRate}
-                                        disabled={sourceCurrency === "RWF"}
-                                        onChange={(event) => setExchangeRate(event.target.value)}
-                                    />
-                                </Field>
+                                    <Field>
+                                        <div className="flex items-center justify-between">
+                                            <FieldLabel htmlFor="product-exchange-rate">Exchange rate to RWF</FieldLabel>
+                                            <FieldError className="text-red-400 text-xs">{errors.exchangeRate}</FieldError>
+                                        </div>
+                                        <Input
+                                            id="product-exchange-rate"
+                                            type="text"
+                                            inputMode="decimal"
+                                            autoComplete="off"
+                                            placeholder="Exchange rate to RWF"
+                                            value={exchangeRate}
+                                            disabled={sourceCurrency === "RWF"}
+                                            onChange={(event) => setExchangeRate(toDecimalInput(event.target.value))}
+                                        />
+                                    </Field>
 
-                                {errors.general ? <FieldError className="text-red-400 text-xs">{errors.general}</FieldError> : null}
+                                    {errors.general ? <FieldError className="text-red-400 text-xs">{errors.general}</FieldError> : null}
 
-                                <Button type="submit" disabled={isSubmitting}>
-                                    {isSubmitting ? "Saving..." : "Create Product"}
-                                </Button>
-                            </form>
-                        </div>
-                    </SheetContent>
-                </Sheet>
+                                    <Button type="submit" disabled={isSubmitting}>
+                                        {isSubmitting ? "Saving..." : "Add Product"}
+                                    </Button>
+                                </form>
+                            </div>
+                        </SheetContent>
+                    </Sheet>
+                </div>
             </CardHeader>
             <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Image</TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Category</TableHead>
-                            <TableHead>Batch</TableHead>
-                            <TableHead>Remaining</TableHead>
-                            <TableHead>Unit Price (RWF)</TableHead>
-                            <TableHead>Currency</TableHead>
-                            <TableHead>Rate</TableHead>
-                            <TableHead>Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                {products.length === 0 ? (
+                    <Empty className="mt-16">
+                        <EmptyHeader>
+                            <div className="bg-border/40 mb-4 rounded-lg p-3">
+                                <PackageSearchIcon className="size-10" />
+                            </div>
+                            <EmptyTitle>No products yet</EmptyTitle>
+                            <EmptyDescription>
+                                There are no products in inventory right now. Create your first product to start tracking stock and sales.
+                            </EmptyDescription>
+                        </EmptyHeader>
+                        <EmptyContent className="flex-row justify-center gap-2">
+                            <Button onClick={() => setIsAddProductSheetOpen(true)}>Add your first product</Button>
+                        </EmptyContent>
+                    </Empty>
+                ) : viewMode === "list" ? (
+                    <div className="overflow-hidden rounded-xl border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Image</TableHead>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Category</TableHead>
+                                    <TableHead>Batch</TableHead>
+                                    <TableHead>Remaining</TableHead>
+                                    <TableHead>Buying Price (RWF)</TableHead>
+                                    <TableHead>Landed Price (RWF)</TableHead>
+                                    <TableHead>Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {products.map((product) => (
+                                    <TableRow key={product._id}>
+                                        <TableCell>
+                                            {product.images?.[0] ? (
+                                                <img
+                                                    src={product.images[0]}
+                                                    alt={product.name}
+                                                    className="h-10 w-10 rounded-md object-cover"
+                                                />
+                                            ) : (
+                                                <div className="h-10 w-10 rounded-md bg-muted" />
+                                            )}
+                                        </TableCell>
+                                        <TableCell>{product.name}</TableCell>
+                                        <TableCell>{product.categoryId?.name ?? "-"}</TableCell>
+                                        <TableCell>{product.batchId?.batchName ?? "Unassigned"}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
+                                                {product.quantityRemaining}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>{product.purchasePriceRWF.toLocaleString()}</TableCell>
+                                        <TableCell>{product.landedCost.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                        <TableCell>{renderProductActions(product)}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                ) : (
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         {products.map((product) => (
-                            <TableRow key={product._id}>
-                                <TableCell>
+                            <div key={product._id} className="rounded-lg border bg-card p-4">
+                                <div className="mb-3 overflow-hidden rounded-md border bg-muted">
                                     {product.images?.[0] ? (
                                         <img
                                             src={product.images[0]}
                                             alt={product.name}
-                                            className="h-10 w-10 rounded-md object-cover"
+                                            className="h-36 w-full object-cover"
                                         />
                                     ) : (
-                                        <div className="h-10 w-10 rounded-md bg-muted" />
+                                        <div className="h-36 w-full" />
                                     )}
-                                </TableCell>
-                                <TableCell>{product.name}</TableCell>
-                                <TableCell>{product.categoryId?.name ?? "-"}</TableCell>
-                                <TableCell>{product.batchId?.batchName ?? "Unassigned"}</TableCell>
-                                <TableCell>
+                                </div>
+                                <div className="mb-1 text-base font-semibold text-card-foreground">{product.name}</div>
+                                <div className="text-sm text-muted-foreground">Category: {product.categoryId?.name ?? "-"}</div>
+                                <div className="text-sm text-muted-foreground">Batch: {product.batchId?.batchName ?? "Unassigned"}</div>
+                                <div className="mt-3 flex flex-wrap items-center gap-2">
                                     <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
-                                        {product.quantityRemaining}
+                                        Stock: {product.quantityRemaining}
                                     </Badge>
-                                </TableCell>
-                                <TableCell>{(product.unitPriceLocalRWF ?? product.purchasePriceRWF).toLocaleString()}</TableCell>
-                                <TableCell>{product.sourceCurrency}</TableCell>
-                                <TableCell>{(product.exchangeRate ?? 1).toLocaleString()}</TableCell>
-                                <TableCell>
-                                    <div className="flex gap-2">
-                                        <Sheet>
-                                            <SheetTrigger asChild>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => {
-                                                        setAssignProductId(product._id)
-                                                        setAssignErrors({})
-                                                    }}
-                                                >
-                                                    Assign Batch
-                                                </Button>
-                                            </SheetTrigger>
-                                            <SheetContent>
-                                                <SheetHeader>
-                                                    <SheetTitle>Assign {product.name}</SheetTitle>
-                                                    <SheetDescription>
-                                                        Assign product to one shipment batch.
-                                                    </SheetDescription>
-                                                </SheetHeader>
-                                                <form className="grid gap-3 p-4" onSubmit={submitAssignBatch}>
-                                                    <Select value={assignBatchId} onValueChange={setAssignBatchId}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Select batch" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {batches.map((batch) => (
-                                                                <SelectItem key={batch._id} value={batch._id}>
-                                                                    {batch.batchName}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                    {assignErrors.batchId ? (
-                                                        <p className="text-sm text-destructive">{assignErrors.batchId}</p>
-                                                    ) : null}
-                                                    {assignErrors.general ? (
-                                                        <p className="text-sm text-destructive">{assignErrors.general}</p>
-                                                    ) : null}
-                                                    <Button type="submit">Save Assignment</Button>
-                                                </form>
-                                            </SheetContent>
-                                        </Sheet>
-
-                                        <Sheet>
-                                            <SheetTrigger asChild>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => {
-                                                        setSellProductId(product._id)
-                                                        setSellErrors({})
-                                                    }}
-                                                >
-                                                    Sell
-                                                </Button>
-                                            </SheetTrigger>
-                                            <SheetContent>
-                                                <SheetHeader>
-                                                    <SheetTitle>Sell {product.name}</SheetTitle>
-                                                    <SheetDescription>
-                                                        Record a direct product sale and update stock.
-                                                    </SheetDescription>
-                                                </SheetHeader>
-                                                <form className="grid gap-3 p-4" onSubmit={submitSale}>
-                                                    <Input
-                                                        type="number"
-                                                        min={1}
-                                                        placeholder="Quantity"
-                                                        value={sellQuantity}
-                                                        onChange={(event) => setSellQuantity(event.target.value)}
-                                                    />
-                                                    {sellErrors.quantity ? (
-                                                        <p className="text-sm text-destructive">{sellErrors.quantity}</p>
-                                                    ) : null}
-
-                                                    <Input
-                                                        type="number"
-                                                        min={0}
-                                                        step="0.01"
-                                                        placeholder="Selling price per unit"
-                                                        value={sellPrice}
-                                                        onChange={(event) => setSellPrice(event.target.value)}
-                                                    />
-                                                    {sellErrors.sellingPrice ? (
-                                                        <p className="text-sm text-destructive">{sellErrors.sellingPrice}</p>
-                                                    ) : null}
-
-                                                    {sellErrors.general ? (
-                                                        <p className="text-sm text-destructive">{sellErrors.general}</p>
-                                                    ) : null}
-
-                                                    <Button type="submit">Save Sale</Button>
-                                                </form>
-                                            </SheetContent>
-                                        </Sheet>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
+                                    <Badge variant="secondary">Buying Price: RWF {product.purchasePriceRWF.toLocaleString()}</Badge>
+                                </div>
+                                <div className="mt-3 text-xs text-muted-foreground">
+                                    Landed Price (RWF): {product.landedCost.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                </div>
+                                <div className="mt-4">{renderProductActions(product)}</div>
+                            </div>
                         ))}
-                    </TableBody>
-                </Table>
+                    </div>
+                )}
             </CardContent>
         </div>
     )

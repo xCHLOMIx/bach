@@ -1,8 +1,10 @@
 import { NextRequest } from "next/server"
+import { Types } from "mongoose"
 
 import { connectToDatabase } from "@/lib/db"
 import { errorResponse, successResponse, type FieldErrors } from "@/lib/api"
 import { getAuthorizedUser } from "@/lib/auth-guard"
+import { calculateBatchProductLandedCosts } from "@/lib/costs"
 import { BatchModel } from "@/models/Batch"
 import { ProductModel } from "@/models/Product"
 
@@ -27,64 +29,73 @@ function mapBatchPersistenceError(error: unknown) {
   }
 
   if (Object.keys(errors).length === 0) {
-    errors.general = "Failed to create batch"
+    errors.general = "Failed to update batch"
   }
 
   return errors
 }
 
-export async function GET(request: NextRequest) {
-  await connectToDatabase()
+async function recalculateBatchProducts(batchId: string) {
+  const batch = await BatchModel.findById(batchId).lean()
+  if (!batch) {
+    return
+  }
 
-  const user = await getAuthorizedUser(request)
-  if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
-
-  const batches = await BatchModel.find().sort({ createdAt: -1 }).lean()
-
-  const batchIds = batches.map((batch) => batch._id)
-  const itemCounts = await ProductModel.aggregate<{ _id: string; count: number }>([
-    { $match: { batchId: { $in: batchIds } } },
-    { $group: { _id: "$batchId", count: { $sum: 1 } } },
-  ])
-
-  const groupedProducts = await ProductModel.aggregate<{
-    _id: string
-    products: Array<{ _id: string; name: string; quantityRemaining: number }>
-  }>([
-    { $match: { batchId: { $in: batchIds } } },
+  const batchProducts = await ProductModel.find({ batchId }).lean()
+  const allocations = calculateBatchProductLandedCosts(
+    batchProducts.map((product) => ({
+      productId: String(product._id),
+      quantityInitial: product.quantityInitial,
+      unitPriceLocalRWF: product.unitPriceLocalRWF ?? product.purchasePriceRWF,
+    })),
     {
-      $group: {
-        _id: "$batchId",
-        products: {
-          $push: {
-            _id: "$_id",
-            name: "$name",
-            quantityRemaining: "$quantityRemaining",
-          },
+      intlShipping: batch.intlShipping,
+      taxValue: batch.taxValue,
+      customsDuties: batch.customsDuties,
+      declaration: batch.declaration,
+      arrivalNotif: batch.arrivalNotif,
+      warehouseStorage: batch.warehouseStorage,
+      amazonPrime: batch.amazonPrime,
+      warehouseUSA: batch.warehouseUSA,
+      miscellaneous: batch.miscellaneous,
+    }
+  )
+
+  const operations = allocations.map((allocation) => ({
+    updateOne: {
+      filter: { _id: new Types.ObjectId(allocation.productId) },
+      update: {
+        $set: {
+          purchasePriceRWF: allocation.purchasePriceRWF,
+          landedCost: allocation.landedCost,
         },
       },
     },
-  ])
+  }))
 
-  const countsMap = new Map(itemCounts.map((entry) => [String(entry._id), entry.count]))
-  const productsMap = new Map(
-    groupedProducts.map((entry) => [String(entry._id), entry.products])
-  )
-
-  return successResponse({
-    batches: batches.map((batch) => ({
-      ...batch,
-      productCount: countsMap.get(String(batch._id)) ?? 0,
-      products: productsMap.get(String(batch._id)) ?? [],
-    })),
-  })
+  if (operations.length > 0) {
+    await ProductModel.bulkWrite(operations)
+  }
 }
 
-export async function POST(request: NextRequest) {
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   await connectToDatabase()
 
   const user = await getAuthorizedUser(request)
   if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
+
+  const { id } = await context.params
+  if (!Types.ObjectId.isValid(id)) {
+    return errorResponse({ batchId: "Invalid batch id" }, 400)
+  }
+
+  const batch = await BatchModel.findById(id)
+  if (!batch) {
+    return errorResponse({ batchId: "Batch not found" }, 404)
+  }
 
   const body = await request.json()
 
@@ -130,20 +141,22 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const batch = await BatchModel.create({
-      batchName,
-      intlShipping,
-      taxValue,
-      customsDuties,
-      declaration,
-      arrivalNotif,
-      warehouseStorage,
-      amazonPrime,
-      warehouseUSA,
-      miscellaneous,
-    })
+    batch.batchName = batchName
+    batch.intlShipping = intlShipping
+    batch.taxValue = taxValue
+    batch.customsDuties = customsDuties
+    batch.declaration = declaration
+    batch.arrivalNotif = arrivalNotif
+    batch.warehouseStorage = warehouseStorage
+    batch.amazonPrime = amazonPrime
+    batch.warehouseUSA = warehouseUSA
+    batch.miscellaneous = miscellaneous
 
-    return successResponse({ batch }, 201)
+    await batch.save()
+    await recalculateBatchProducts(id)
+
+    const hydratedBatch = await BatchModel.findById(id).lean()
+    return successResponse({ batch: hydratedBatch })
   } catch (error) {
     return errorResponse(mapBatchPersistenceError(error), 400)
   }
