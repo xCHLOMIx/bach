@@ -11,99 +11,108 @@ import {
 } from "@/components/ui/card"
 import { TrendingUpIcon, TrendingDownIcon } from "lucide-react"
 
-export function SectionCards() {
+type SectionCardStats = {
+  products: number
+  categories: number
+  batches: number
+  sales: number
+  totalProfit: number
+  totalStock: number
+}
+
+export function SectionCards({ stats }: { stats?: SectionCardStats }) {
   return (
-    <div className="grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4 dark:*:data-[slot=card]:bg-card">
+    <div className="grid grid-cols-4 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4 dark:*:data-[slot=card]:bg-card">
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>Total Revenue</CardDescription>
+          <CardDescription>Products</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            $1,250.00
+            {stats?.products ?? 0}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
               <TrendingUpIcon
               />
-              +12.5%
+              Live
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            Trending up this month{" "}
+            Total product records{" "}
             <TrendingUpIcon className="size-4" />
           </div>
           <div className="text-muted-foreground">
-            Visitors for the last 6 months
+            Inventory catalog size
           </div>
         </CardFooter>
       </Card>
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>New Customers</CardDescription>
+          <CardDescription>Categories</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            1,234
+            {stats?.categories ?? 0}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
               <TrendingDownIcon
               />
-              -20%
+              Live
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            Down 20% this period{" "}
+            Product grouping coverage{" "}
             <TrendingDownIcon className="size-4" />
           </div>
           <div className="text-muted-foreground">
-            Acquisition needs attention
+            Active category definitions
           </div>
         </CardFooter>
       </Card>
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>Active Accounts</CardDescription>
+          <CardDescription>Batches</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            45,678
+            {stats?.batches ?? 0}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
               <TrendingUpIcon
               />
-              +12.5%
+              Live
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            Strong user retention{" "}
+            Total shipment batches{" "}
             <TrendingUpIcon className="size-4" />
           </div>
-          <div className="text-muted-foreground">Engagement exceed targets</div>
+          <div className="text-muted-foreground">Imported inventory groups</div>
         </CardFooter>
       </Card>
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>Growth Rate</CardDescription>
+          <CardDescription>Total Profit</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            4.5%
+            {(stats?.totalProfit ?? 0).toLocaleString()} RWF
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
               <TrendingUpIcon
               />
-              +4.5%
+              Live
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            Steady performance increase{" "}
+            Based on recorded sales{" "}
             <TrendingUpIcon className="size-4" />
           </div>
-          <div className="text-muted-foreground">Meets growth projections</div>
+          <div className="text-muted-foreground">Net unit profit x sold quantity</div>
         </CardFooter>
       </Card>
     </div>

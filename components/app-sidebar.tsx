@@ -15,7 +15,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { LayoutDashboardIcon, ListIcon, ChartBarIcon, FolderIcon, UsersIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, CommandIcon, Box, Boxes } from "lucide-react"
+import { LayoutDashboardIcon, ListIcon, ChartBarIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, CommandIcon, Box, Boxes } from "lucide-react"
 
 const data = {
   user: {
@@ -34,14 +34,14 @@ const data = {
     },
     {
       title: "Products",
-      url: "#",
+      url: "/app/products",
       icon: (
         <Box />
       ),
     },
     {
       title: "Categories",
-      url: "#",
+      url: "/app/categories",
       icon: (
         <ListIcon
         />
@@ -49,9 +49,16 @@ const data = {
     },
     {
       title: "Batches",
-      url: "#",
+      url: "/app/batches",
       icon: (
         <Boxes />
+      ),
+    },
+    {
+      title: "Sales",
+      url: "/app/sales",
+      icon: (
+        <ChartBarIcon />
       ),
     },
   ],

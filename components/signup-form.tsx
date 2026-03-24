@@ -1,12 +1,17 @@
+"use client"
+
+import * as React from "react"
+import { useRouter } from "next/navigation"
+
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
+  FieldError,
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
-  FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
@@ -15,45 +20,121 @@ export function SignupForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
+  const router = useRouter()
+  const [firstName, setFirstName] = React.useState("")
+  const [lastName, setLastName] = React.useState("")
+  const [phoneNumber, setPhoneNumber] = React.useState("")
+  const [password, setPassword] = React.useState("")
+  const [errors, setErrors] = React.useState<Record<string, string>>({})
+  const [isLoading, setIsLoading] = React.useState(false)
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setErrors({})
+    setIsLoading(true)
+
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ firstName, lastName, phoneNumber, password }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        setErrors(data.errors ?? { general: "Unable to create account" })
+        return
+      }
+
+      router.push("/app/dashboard")
+      router.refresh()
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="overflow-hidden p-0">
         <CardContent className="grid p-0 md:grid-cols-2">
-          <form className="p-6 md:p-8">
+          <form className="p-6 md:p-8" onSubmit={handleSubmit}>
             <FieldGroup>
               <div className="flex flex-col items-center gap-2 text-center">
                 <h1 className="text-2xl font-bold">Create your account</h1>
                 <p className="text-sm text-balance text-muted-foreground">
-                  Enter your email below to create your account
+                  Use your phone number and password to create your account
                 </p>
               </div>
               <Field>
-                <FieldLabel htmlFor="full-name">Full name</FieldLabel>
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor="first-name">First name</FieldLabel>
+                  <FieldError className="text-red-400 text-xs">
+                    {errors.firstName}
+                  </FieldError>
+                </div>
                 <Input
-                  id="full-name"
+                  id="first-name"
                   type="text"
-                  placeholder="John Doe"
-                  required
+                  placeholder="John"
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="phone-number">Phone number</FieldLabel>
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor="last-name">Last name</FieldLabel>
+                  <FieldError className="text-red-400 text-xs">
+                    {errors.lastName}
+                  </FieldError>
+                </div>
+                <Input
+                  id="last-name"
+                  type="text"
+                  placeholder="Doe"
+                  value={lastName}
+                  onChange={(event) => setLastName(event.target.value)}
+                />
+              </Field>
+              <Field>
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor="phone-number">Phone number</FieldLabel>
+                  <FieldError className="text-red-400 text-xs">
+                    {errors.phoneNumber}
+                  </FieldError>
+                </div>
                 <Input
                   id="phone-number"
                   type="tel"
                   placeholder="0788 888 888"
-                  required
+                  value={phoneNumber}
+                  onChange={(event) => setPhoneNumber(event.target.value)}
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="password">Password</FieldLabel>
-                <Input id="password" type="password" placeholder="••••••••••" required />
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor="password">Password</FieldLabel>
+                  <FieldError className="text-red-400 text-xs">
+                    {errors.password}
+                  </FieldError>
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••••"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
                 <FieldDescription>
                   Must be at least 8 characters long.
                 </FieldDescription>
               </Field>
+              {errors.general ? (
+                <FieldError className="text-red-400 text-xs">{errors.general}</FieldError>
+              ) : null}
               <Field>
-                <Button type="submit">Create Account</Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Creating account..." : "Create Account"}
+                </Button>
               </Field>
               <FieldDescription className="text-center">
                 Already have an account? <Link href="/signin">Sign in</Link>
