@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
   const unitPriceForeign = Number(formData.get("unitPriceForeign") ?? 0)
   const sourceCurrency = String(formData.get("sourceCurrency") ?? "").trim().toUpperCase()
   const exchangeRate = Number(formData.get("exchangeRate") ?? 1)
+  const externalLink = String(formData.get("externalLink") ?? "").trim()
   const images = formData.getAll("images").filter((entry) => entry instanceof File) as File[]
 
   const errors: FieldErrors = {}
@@ -59,6 +60,13 @@ export async function POST(request: NextRequest) {
   }
   if (!Number.isFinite(exchangeRate) || exchangeRate <= 0) {
     errors.exchangeRate = "Exchange rate must be greater than 0"
+  }
+  if (externalLink) {
+    try {
+      new URL(externalLink)
+    } catch {
+      errors.externalLink = "Enter a valid URL"
+    }
   }
 
   if (Object.keys(errors).length > 0) {
@@ -86,6 +94,7 @@ export async function POST(request: NextRequest) {
     unitPriceLocalRWF,
     purchasePriceRWF: unitPriceLocalRWF,
     landedCost: unitPriceLocalRWF,
+    externalLink,
     images: uploadedUrls,
   })
 

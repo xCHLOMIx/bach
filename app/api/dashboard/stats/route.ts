@@ -23,6 +23,40 @@ export async function GET(request: NextRequest) {
   ])
 
   const totalProfit = sales.reduce((sum, sale) => sum + sale.profit * sale.quantity, 0)
+
+  const now = new Date()
+  const DAYS_WINDOW = 7
+  const currentPeriodStart = new Date(now)
+  currentPeriodStart.setDate(now.getDate() - DAYS_WINDOW)
+  const previousPeriodStart = new Date(currentPeriodStart)
+  previousPeriodStart.setDate(currentPeriodStart.getDate() - DAYS_WINDOW)
+
+  const currentPeriodProfit = sales.reduce((sum, sale) => {
+    const soldAt = new Date(sale.soldAt)
+    if (soldAt >= currentPeriodStart) {
+      return sum + sale.profit * sale.quantity
+    }
+    return sum
+  }, 0)
+
+  const previousPeriodProfit = sales.reduce((sum, sale) => {
+    const soldAt = new Date(sale.soldAt)
+    if (soldAt >= previousPeriodStart && soldAt < currentPeriodStart) {
+      return sum + sale.profit * sale.quantity
+    }
+    return sum
+  }, 0)
+
+  let profitChangePercent = 0
+  if (previousPeriodProfit === 0) {
+    profitChangePercent = currentPeriodProfit === 0 ? 0 : 100
+  } else {
+    profitChangePercent = ((currentPeriodProfit - previousPeriodProfit) / Math.abs(previousPeriodProfit)) * 100
+  }
+
+  const profitTrend: "up" | "down" | "stable" =
+    profitChangePercent > 0 ? "up" : profitChangePercent < 0 ? "down" : "stable"
+
   const totalStock = await ProductModel.aggregate<{ total: number }>([
     { $group: { _id: null, total: { $sum: "$quantityRemaining" } } },
   ])
@@ -34,6 +68,8 @@ export async function GET(request: NextRequest) {
       batches,
       sales: sales.length,
       totalProfit,
+      profitChangePercent,
+      profitTrend,
       totalStock: totalStock[0]?.total ?? 0,
     },
     latestSales,

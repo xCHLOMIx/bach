@@ -24,6 +24,8 @@ type StatsResponse = {
         batches: number
         sales: number
         totalProfit: number
+        profitChangePercent: number
+        profitTrend: "up" | "down" | "stable"
         totalStock: number
     }
     latestSales: Array<{
@@ -62,7 +64,7 @@ export function DashboardOverview() {
                     <CardTitle className="text-2xl font-bold">Recent Sales</CardTitle>
                     <CardDescription>Latest sales with profit per unit</CardDescription>
                 </CardHeader>
-                <div className="overflow-hidden rounded-xl border">
+                <div className="overflow-hidden mt-4 rounded-xl border">
                     <Table>
                         <TableHeader>
                             <TableRow>

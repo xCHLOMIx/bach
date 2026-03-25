@@ -33,6 +33,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { CheckIcon, PackageSearchIcon } from "lucide-react"
 
@@ -89,6 +90,7 @@ export function BatchesPage() {
 
     const [batches, setBatches] = React.useState<Batch[]>([])
     const [products, setProducts] = React.useState<Product[]>([])
+    const [isLoading, setIsLoading] = React.useState(true)
 
     const [isAddSheetOpen, setIsAddSheetOpen] = React.useState(false)
     const [addForm, setAddForm] = React.useState(initialBatchForm)
@@ -140,16 +142,16 @@ export function BatchesPage() {
         }
     }
 
-    const batchIdToName = React.useMemo(() => {
-        return new Map(batches.map((batch) => [batch._id, batch.batchName]))
-    }, [batches])
-
     const hasAnyExpenseAmount = React.useCallback(
         (form: typeof initialBatchForm) => {
             return expenseFieldKeys.some((key) => Number(stripCommas(form[key]) || 0) > 0)
         },
         []
     )
+
+    const unassignedProducts = React.useMemo(() => {
+        return products.filter((product) => !product.batchId?._id)
+    }, [products])
 
     const hasSelectedProducts = addSelectedProductIds.length > 0
     const canCreateBatch = hasAnyExpenseAmount(addForm) && hasSelectedProducts
@@ -163,19 +165,24 @@ export function BatchesPage() {
     }
 
     const load = React.useCallback(async () => {
-        const [batchesRes, productsRes] = await Promise.all([
-            fetch("/api/batches"),
-            fetch("/api/products"),
-        ])
+        setIsLoading(true)
+        try {
+            const [batchesRes, productsRes] = await Promise.all([
+                fetch("/api/batches"),
+                fetch("/api/products"),
+            ])
 
-        if (batchesRes.ok) {
-            const data = await batchesRes.json()
-            setBatches(data.batches ?? [])
-        }
+            if (batchesRes.ok) {
+                const data = await batchesRes.json()
+                setBatches(data.batches ?? [])
+            }
 
-        if (productsRes.ok) {
-            const data = await productsRes.json()
-            setProducts(data.products ?? [])
+            if (productsRes.ok) {
+                const data = await productsRes.json()
+                setProducts(data.products ?? [])
+            }
+        } finally {
+            setIsLoading(false)
         }
     }, [])
 
@@ -248,20 +255,18 @@ export function BatchesPage() {
         selectedProductIds: string[],
         setSelectedProductIds: React.Dispatch<React.SetStateAction<string[]>>
     ) => {
-        if (products.length === 0) {
+        if (unassignedProducts.length === 0) {
             return (
                 <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                    No products available yet.
+                    No unassigned products available yet.
                 </div>
             )
         }
 
         return (
             <div className="overflow-hidden rounded-md border">
-                {products.map((product, index) => {
+                {unassignedProducts.map((product, index) => {
                     const isSelected = selectedProductIds.includes(product._id)
-                    const assignedBatchId = product.batchId?._id
-                    const assignedBatchName = assignedBatchId ? batchIdToName.get(assignedBatchId) : null
 
                     return (
                         <button
@@ -282,9 +287,6 @@ export function BatchesPage() {
                             )}
                         >
                             <span className="truncate">{product.name}</span>
-                            {assignedBatchName ? (
-                                <span className="text-xs text-muted-foreground">({assignedBatchName})</span>
-                            ) : null}
                             {isSelected ? <CheckIcon className="ml-auto h-4 w-4" /> : null}
                         </button>
                     )
@@ -477,7 +479,32 @@ export function BatchesPage() {
                 </Sheet>
             </CardHeader>
 
-            {batches.length === 0 ? (
+            {isLoading ? (
+                <div className="overflow-hidden rounded-xl border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Intl Shipping</TableHead>
+                                <TableHead>Products</TableHead>
+                                <TableHead>Product Names</TableHead>
+                                <TableHead>Created</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {Array.from({ length: 6 }).map((_, index) => (
+                                <TableRow key={`batches-loading-${index}`}>
+                                    <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-10" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            ) : batches.length === 0 ? (
                 <Empty className="-translate-y-5">
                     <EmptyHeader>
                         <div className="bg-border/40 mb-4 rounded-lg p-3">
