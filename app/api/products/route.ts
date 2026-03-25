@@ -15,6 +15,12 @@ export async function GET(request: NextRequest) {
   const user = await getAuthorizedUser(request)
   if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
 
+  // Backfill legacy documents created before externalLink existed.
+  await ProductModel.updateMany(
+    { externalLink: { $exists: false } },
+    { $set: { externalLink: "" } }
+  )
+
   const products = await ProductModel.find()
     .populate("categoryId", "name")
     .populate("batchId", "batchName")

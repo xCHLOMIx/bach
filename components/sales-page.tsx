@@ -254,9 +254,9 @@ export function SalesPage() {
             {!isLoading && sales.length === 0 ? (
                 <Empty className="border-dashed">
                     <EmptyHeader>
-                        <EmptyMedia variant="icon">
-                            <PackageSearchIcon />
-                        </EmptyMedia>
+                        <div className="bg-border/40 mb-4 rounded-lg p-3">
+                            <PackageSearchIcon className="size-10" />
+                        </div>
                         <EmptyTitle>No sales recorded</EmptyTitle>
                         <EmptyDescription>
                             Start recording your first product sale
@@ -392,7 +392,7 @@ export function SalesPage() {
                                                             : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900"
                                                             }`}
                                                     >
-                                                        <p className="font-medium text-slate-900 dark:text-slate-50">
+                                                        <p className="truncate font-medium text-slate-900 dark:text-slate-50">
                                                             {product.name}
                                                         </p>
                                                         <p className="text-xs text-slate-600 dark:text-slate-400">

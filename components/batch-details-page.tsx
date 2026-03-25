@@ -378,7 +378,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                             aria-label={`Select ${product.name}`}
                                         />
                                     </TableCell>
-                                    <TableCell className="font-medium">{product.name}</TableCell>
+                                    <TableCell className="truncate max-w-xs font-medium">{product.name}</TableCell>
                                     <TableCell>{assignedBatchName ?? "Unassigned"}</TableCell>
                                     <TableCell className="text-right">{baseUnitPrice.toLocaleString()}</TableCell>
                                     <TableCell className="text-right">

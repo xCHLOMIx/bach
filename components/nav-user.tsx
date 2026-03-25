@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 import {
   Avatar,
@@ -24,7 +25,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { EllipsisVerticalIcon, CircleUserRoundIcon, CreditCardIcon, BellIcon, LogOutIcon } from "lucide-react"
+import { EllipsisVerticalIcon, CircleUserRoundIcon, SettingsIcon, LogOutIcon } from "lucide-react"
 
 export function NavUser({
   user,
@@ -119,10 +120,17 @@ export function NavUser({
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem>
-                  <CircleUserRoundIcon
-                  />
-                  Account
+                <DropdownMenuItem asChild>
+                  <Link href="/app/account">
+                    <CircleUserRoundIcon />
+                    Account
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/app/account?tab=settings">
+                    <SettingsIcon />
+                    Security
+                  </Link>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />

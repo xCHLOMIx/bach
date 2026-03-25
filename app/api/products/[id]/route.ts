@@ -6,6 +6,7 @@ import { errorResponse, successResponse, type FieldErrors } from "@/lib/api"
 import { getAuthorizedUser } from "@/lib/auth-guard"
 import { uploadImageFile } from "@/lib/cloudinary"
 import { ProductModel } from "@/models/Product"
+import { SaleModel } from "@/models/Sale"
 
 const SUPPORTED_SOURCE_CURRENCIES = ["RWF", "USD", "KSH", "UGX", "AED", "EUR", "GBP"]
 
@@ -125,5 +126,60 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return successResponse({ product })
   } catch (error) {
     return errorResponse(mapProductPersistenceError(error), 400)
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  await connectToDatabase()
+
+  const user = await getAuthorizedUser(request)
+  if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
+
+  const productId = (await params).id
+  if (!Types.ObjectId.isValid(productId)) {
+    return errorResponse({ id: "Invalid product ID" }, 400)
+  }
+
+  try {
+    // Get product with batch info
+    const product = await ProductModel.findById(productId).populate("batchId", "batchName")
+
+    if (!product) {
+      return errorResponse({ id: "Product not found" }, 404)
+    }
+
+    // Check for sales
+    const salesCount = await SaleModel.countDocuments({ productId })
+
+    // Prepare deletion data
+    const deletionData = {
+      productName: product.name,
+      hasActiveSales: salesCount > 0,
+      salesCount,
+      isInBatch: Boolean(product.batchId),
+      batchName: product.batchId?.batchName ?? null,
+    }
+
+    // Check if this is a confirmation deletion (from the delete button with ?confirm=true)
+    const { searchParams } = new URL(request.url)
+    const isConfirmed = searchParams.get("confirm") === "true"
+
+    if (!isConfirmed) {
+      // First call - return deletion info without deleting
+      return successResponse({
+        message: "Product deletion check",
+        deletionInfo: deletionData,
+      })
+    }
+
+    // Delete the product
+    await ProductModel.findByIdAndDelete(productId)
+
+    return successResponse({
+      message: "Product deleted successfully",
+    })
+  } catch (error) {
+    console.error("Error deleting product:", error)
+    return errorResponse({ message: "Failed to delete product" }, 500)
   }
 }

@@ -541,7 +541,7 @@ export function BatchesPage() {
                                     <TableCell className="font-medium">{batch.batchName}</TableCell>
                                     <TableCell>{batch.intlShipping.toLocaleString()}</TableCell>
                                     <TableCell>{batch.productCount ?? 0}</TableCell>
-                                    <TableCell>
+                                    <TableCell className="truncate max-w-xs">
                                         {batch.products?.length
                                             ? batch.products.map((product) => product.name).join(", ")
                                             : "-"}

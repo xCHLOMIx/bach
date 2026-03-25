@@ -44,7 +44,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon, PencilIcon, XIcon } from "lucide-react"
+import { ExternalLinkIcon, ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon, PencilIcon, XIcon } from "lucide-react"
 
 const SOURCE_CURRENCY_OPTIONS = ["RWF", "USD", "KSH", "UGX", "AED", "EUR", "GBP"]
 
@@ -81,6 +81,8 @@ export function ProductsPage() {
     const [viewMode, setViewMode] = React.useState<"list" | "grid">("list")
     const [isAddProductSheetOpen, setIsAddProductSheetOpen] = React.useState(false)
     const [isEditProductSheetOpen, setIsEditProductSheetOpen] = React.useState(false)
+    const [isProductDetailsSheetOpen, setIsProductDetailsSheetOpen] = React.useState(false)
+    const [detailsProduct, setDetailsProduct] = React.useState<Product | null>(null)
     const [errors, setErrors] = React.useState<Record<string, string>>({})
     const [isSubmitting, setIsSubmitting] = React.useState(false)
 
@@ -117,6 +119,17 @@ export function ProductsPage() {
     const [editExistingImage, setEditExistingImage] = React.useState<string>("")
     const [editErrors, setEditErrors] = React.useState<Record<string, string>>({})
     const [isEditSubmitting, setIsEditSubmitting] = React.useState(false)
+
+    const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false)
+    const [deleteConfirmData, setDeleteConfirmData] = React.useState<{
+        productId: string
+        productName: string
+        hasActiveSales: boolean
+        salesCount: number
+        isInBatch: boolean
+        batchName: string | null
+    } | null>(null)
+    const [isDeleting, setIsDeleting] = React.useState(false)
 
     const toIntegerInput = (value: string) => value.replace(/\D/g, "")
 
@@ -252,10 +265,32 @@ export function ProductsPage() {
             setSourceCurrency("USD")
             setExchangeRate("1")
             setImageFiles([])
+            setIsAddProductSheetOpen(false)
             await load()
         } finally {
             setIsSubmitting(false)
         }
+    }
+
+    const openProductDetailsSheet = (product: Product) => {
+        setDetailsProduct(product)
+        setIsProductDetailsSheetOpen(true)
+    }
+
+    const openEditProductSheet = (product: Product) => {
+        setEditProductId(product._id)
+        setEditProductName(product.name)
+        setEditQuantityInitial(String(product.quantityInitial))
+        setEditUnitPriceForeign(formatDecimalWithCommas(String(product.unitPriceForeign)))
+        setEditExternalLink(product.externalLink ?? "")
+        setEditSourceCurrency(product.sourceCurrency)
+        setEditExchangeRate(formatDecimalWithCommas(String(product.exchangeRate ?? 1)))
+        setEditBatchId(product.batchId?._id ?? "")
+        setEditImageFile(null)
+        setEditImagePreview("")
+        setEditExistingImage(product.images?.[0] ?? "")
+        setEditErrors({})
+        setIsEditProductSheetOpen(true)
     }
 
     const resetSaleDraft = () => {
@@ -409,6 +444,59 @@ export function ProductsPage() {
         }
     }
 
+    const handleDeleteProduct = async (product: Product) => {
+        try {
+            const response = await fetch(`/api/products/${product._id}`, {
+                method: "DELETE",
+            })
+
+            const data = await response.json()
+            if (!response.ok) {
+                alert("Failed to get deletion info")
+                return
+            }
+
+            setDeleteConfirmData({
+                productId: product._id,
+                productName: product.name,
+                hasActiveSales: data.deletionInfo.hasActiveSales,
+                salesCount: data.deletionInfo.salesCount,
+                isInBatch: data.deletionInfo.isInBatch,
+                batchName: data.deletionInfo.batchName,
+            })
+            setShowDeleteConfirm(true)
+        } catch (error) {
+            alert("Failed to get deletion info")
+            console.error(error)
+        }
+    }
+
+    const confirmDeleteProduct = async () => {
+        if (!deleteConfirmData) return
+
+        setIsDeleting(true)
+        try {
+            const response = await fetch(`/api/products/${deleteConfirmData.productId}?confirm=true`, {
+                method: "DELETE",
+            })
+
+            if (!response.ok) {
+                alert("Failed to delete product")
+                return
+            }
+
+            setShowDeleteConfirm(false)
+            setDeleteConfirmData(null)
+            setIsProductDetailsSheetOpen(false)
+            await load()
+        } catch (error) {
+            alert("Failed to delete product")
+            console.error(error)
+        } finally {
+            setIsDeleting(false)
+        }
+    }
+
     const saleFilteredProducts = products.filter((product) =>
         product.name.toLowerCase().includes(saleProductSearch.toLowerCase())
     )
@@ -431,28 +519,14 @@ export function ProductsPage() {
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                            setEditProductId(product._id)
-                            setEditProductName(product.name)
-                            setEditQuantityInitial(String(product.quantityInitial))
-                            setEditUnitPriceForeign(formatDecimalWithCommas(String(product.unitPriceForeign)))
-                            setEditExternalLink(product.externalLink ?? "")
-                            setEditSourceCurrency(product.sourceCurrency)
-                            setEditExchangeRate(formatDecimalWithCommas(String(product.exchangeRate ?? 1)))
-                            setEditBatchId(product.batchId?._id ?? "")
-                            setEditImageFile(null)
-                            setEditImagePreview("")
-                            setEditExistingImage(product.images?.[0] ?? "")
-                            setEditErrors({})
-                            setIsEditProductSheetOpen(true)
-                        }}
+                        onClick={() => openEditProductSheet(product)}
                     >
                         Edit
                     </Button>
                 </SheetTrigger>
                 <SheetContent className="overflow-y-auto">
                     <SheetHeader>
-                        <SheetTitle>Edit {product.name}</SheetTitle>
+                        <SheetTitle className="truncate">Edit {product.name}</SheetTitle>
                         <SheetDescription>
                             Update product details and batch assignment.
                         </SheetDescription>
@@ -927,7 +1001,11 @@ export function ProductsPage() {
                             </TableHeader>
                             <TableBody>
                                 {products.map((product) => (
-                                    <TableRow key={product._id}>
+                                    <TableRow
+                                        key={product._id}
+                                        className="cursor-pointer"
+                                        onClick={() => openProductDetailsSheet(product)}
+                                    >
                                         <TableCell>
                                             {product.images?.[0] ? (
                                                 <img
@@ -939,7 +1017,7 @@ export function ProductsPage() {
                                                 <div className="h-10 w-10 rounded-md bg-muted" />
                                             )}
                                         </TableCell>
-                                        <TableCell>{product.name}</TableCell>
+                                        <TableCell className="truncate max-w-xs">{product.name}</TableCell>
                                         <TableCell>{product.categoryId?.name ?? "-"}</TableCell>
                                         <TableCell>{product.batchId?.batchName ?? "Unassigned"}</TableCell>
                                         <TableCell>
@@ -949,7 +1027,7 @@ export function ProductsPage() {
                                         </TableCell>
                                         <TableCell>{product.purchasePriceRWF.toLocaleString()}</TableCell>
                                         <TableCell>{product.landedCost.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                                        <TableCell>{renderProductActions(product)}</TableCell>
+                                        <TableCell onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -958,7 +1036,11 @@ export function ProductsPage() {
                 ) : (
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         {products.map((product) => (
-                            <div key={product._id} className="rounded-lg border bg-card p-4">
+                            <div
+                                key={product._id}
+                                className="rounded-lg border bg-card p-4 cursor-pointer"
+                                onClick={() => openProductDetailsSheet(product)}
+                            >
                                 <div className="mb-3 overflow-hidden rounded-md border bg-muted">
                                     {product.images?.[0] ? (
                                         <img
@@ -970,7 +1052,7 @@ export function ProductsPage() {
                                         <div className="h-36 w-full" />
                                     )}
                                 </div>
-                                <div className="mb-1 text-base font-semibold text-card-foreground">{product.name}</div>
+                                <div className="mb-1 truncate text-base font-semibold text-card-foreground">{product.name}</div>
                                 <div className="text-sm text-muted-foreground">Category: {product.categoryId?.name ?? "-"}</div>
                                 <div className="text-sm text-muted-foreground">Batch: {product.batchId?.batchName ?? "Unassigned"}</div>
                                 <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -982,12 +1064,115 @@ export function ProductsPage() {
                                 <div className="mt-3 text-xs text-muted-foreground">
                                     Landed Price (RWF): {product.landedCost.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                                 </div>
-                                <div className="mt-4">{renderProductActions(product)}</div>
+                                <div className="mt-4" onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</div>
                             </div>
                         ))}
                     </div>
                 )}
             </CardContent>
+
+            <Sheet open={isProductDetailsSheetOpen} onOpenChange={setIsProductDetailsSheetOpen}>
+                <SheetContent className="overflow-y-auto">
+                    <SheetHeader>
+                        <SheetTitle>{detailsProduct?.name ?? "Product details"}</SheetTitle>
+                        <SheetDescription>
+                            Full product details and quick actions.
+                        </SheetDescription>
+                    </SheetHeader>
+
+                    {detailsProduct ? (
+                        <div className="grid gap-4 p-4">
+                            {detailsProduct.images?.[0] ? (
+                                <img
+                                    src={detailsProduct.images[0]}
+                                    alt={detailsProduct.name}
+                                    className="aspect-square w-full rounded-md object-cover border"
+                                />
+                            ) : (
+                                <div className="h-44 w-full rounded-md border bg-muted" />
+                            )}
+
+                            <div className="grid gap-3 text-sm sm:grid-cols-2">
+                                <div className="space-y-1">
+                                    <p className="font-medium text-muted-foreground">Name:</p>
+                                    <p className="mt-1 truncate font-medium">{detailsProduct.name}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="font-medium text-muted-foreground">Category:</p>
+                                    <p className="mt-1 font-medium">{detailsProduct.categoryId?.name ?? "-"}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="font-medium text-muted-foreground">Batch:</p>
+                                    <p className="mt-1 font-medium">{detailsProduct.batchId?.batchName ?? "Unassigned"}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="font-medium text-muted-foreground">Created:</p>
+                                    <p className="mt-1 font-medium">{new Date(detailsProduct.createdAt).toLocaleString()}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="font-medium text-muted-foreground">Initial stock:</p>
+                                    <p className="mt-1 font-medium">{detailsProduct.quantityInitial}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="font-medium text-muted-foreground">Remaining stock:</p>
+                                    <p className="mt-1 font-medium">{detailsProduct.quantityRemaining}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="font-medium text-muted-foreground">Unit price:</p>
+                                    <p className="mt-1 font-medium">{detailsProduct.unitPriceForeign.toLocaleString()} {detailsProduct.sourceCurrency}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="font-medium text-muted-foreground">Exchange rate:</p>
+                                    <p className="mt-1 font-medium">{(detailsProduct.exchangeRate ?? 1).toLocaleString()}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="font-medium text-muted-foreground">Buying price (RWF):</p>
+                                    <p className="mt-1 font-medium">{detailsProduct.purchasePriceRWF.toLocaleString()}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="font-medium text-muted-foreground">Landed cost (RWF):</p>
+                                    <p className="mt-1 font-medium">{detailsProduct.landedCost.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setIsProductDetailsSheetOpen(false)
+                                        openEditProductSheet(detailsProduct)
+                                    }}
+                                >
+                                    Edit Product
+                                </Button>
+
+                                {detailsProduct.externalLink ? (
+                                    <Button asChild type="button" variant="outline">
+                                        <a href={detailsProduct.externalLink} target="_blank" rel="noreferrer">
+                                            <ExternalLinkIcon className="h-4 w-4" />
+                                            External Link
+                                        </a>
+                                    </Button>
+                                ) : (
+                                    <Button type="button" variant="outline" disabled>
+                                        <ExternalLinkIcon className="h-4 w-4" />
+                                        External Link
+                                    </Button>
+                                )}
+
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={() => handleDeleteProduct(detailsProduct)}
+                                >
+                                    Delete
+                                </Button>
+                            </div>
+                        </div>
+                    ) : null}
+                </SheetContent>
+            </Sheet>
 
             {showSaleModal && (
                 <div
@@ -1041,7 +1226,7 @@ export function ProductsPage() {
                                                             : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900"
                                                             }`}
                                                     >
-                                                        <p className="font-medium text-slate-900 dark:text-slate-50">{product.name}</p>
+                                                        <p className="truncate font-medium text-slate-900 dark:text-slate-50">{product.name}</p>
                                                         <p className="text-xs text-slate-600 dark:text-slate-400">
                                                             In stock: {product.quantityRemaining}
                                                             {isOutOfStock ? <span className="ml-2 font-medium text-red-600 dark:text-red-400">(Out of stock)</span> : null}
@@ -1169,6 +1354,65 @@ export function ProductsPage() {
                             </Button>
                             <Button type="button" variant="destructive" onClick={discardSaleDraftAndClose}>
                                 Discard and close
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showDeleteConfirm && deleteConfirmData && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 animate-in fade-in duration-150">
+                    <div className="modal-pop-in w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-950">
+                        <h3 className="text-lg font-semibold text-red-600 dark:text-red-400">Delete Product?</h3>
+                        <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">
+                            You are about to permanently delete <span className="font-semibold text-slate-900 dark:text-slate-50">&quot;{deleteConfirmData.productName}&quot;</span>.
+                        </p>
+
+                        {(deleteConfirmData.hasActiveSales || deleteConfirmData.isInBatch) && (
+                            <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-950">
+                                <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Warning:</p>
+                                <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                                    {deleteConfirmData.hasActiveSales && (
+                                        <p>• This product has <span className="font-semibold">{deleteConfirmData.salesCount}</span> sale(s) recorded.</p>
+                                    )}
+                                    {deleteConfirmData.isInBatch && (
+                                        <p>• This product is assigned to batch <span className="font-semibold">{deleteConfirmData.batchName}</span>.</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
+                            This action cannot be undone.
+                        </p>
+
+                        <div className="mt-6 flex justify-end gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    setShowDeleteConfirm(false)
+                                    setDeleteConfirmData(null)
+                                }}
+                                disabled={isDeleting}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                onClick={confirmDeleteProduct}
+                                disabled={isDeleting}
+                                className="gap-2"
+                            >
+                                {isDeleting ? (
+                                    <>
+                                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                        Deleting...
+                                    </>
+                                ) : (
+                                    "Delete Permanently"
+                                )}
                             </Button>
                         </div>
                     </div>

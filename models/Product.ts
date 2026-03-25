@@ -23,4 +23,8 @@ export type ProductDocument = InferSchemaType<typeof productSchema> & {
   _id: string
 }
 
-export const ProductModel = models.Product || model("Product", productSchema)
+if (models.Product) {
+  delete models.Product
+}
+
+export const ProductModel = model("Product", productSchema)
