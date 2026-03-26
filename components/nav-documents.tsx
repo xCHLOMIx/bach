@@ -41,7 +41,7 @@ export function NavDocuments({
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))
-        ) : (
+        ) : (items || []).length > 0 ? (
           (items || []).map((item) => (
             <SidebarMenuItem key={item.name} className="mt-1 first:mt-0">
               <SidebarMenuButton asChild>
@@ -64,6 +64,10 @@ export function NavDocuments({
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))
+        ) : (
+          <div className="text-center py-6 text-sm text-muted-foreground">
+            <p>No products yet</p>
+          </div>
         )}
         {hasMore && !isLoading && (
           <SidebarMenuItem>

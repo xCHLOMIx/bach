@@ -6,6 +6,8 @@ import { errorResponse, successResponse, type FieldErrors } from "@/lib/api"
 import { getAuthorizedUser } from "@/lib/auth-guard"
 import { uploadImageFile } from "@/lib/cloudinary"
 import { ProductModel } from "@/models/Product"
+import "@/models/Category"
+import "@/models/Batch"
 
 const SUPPORTED_SOURCE_CURRENCIES = ["RWF", "USD", "KSH", "UGX", "AED", "EUR", "GBP"]
 
