@@ -23,6 +23,11 @@ export const metadata: Metadata = {
     template: "Bach",
   },
   description: "Inventory, batch costing, and sales tracking for import-driven teams.",
+  icons: {
+    icon: "/logo.svg",
+    shortcut: "/logo.svg",
+    apple: "/logo.svg",
+  },
 };
 
 export default function RootLayout({

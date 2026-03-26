@@ -150,6 +150,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     // Check for sales
     const salesCount = await SaleModel.countDocuments({ productId })
+    const populatedBatch = product.batchId as { batchName?: string } | null
 
     // Prepare deletion data
     const deletionData = {
@@ -157,7 +158,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       hasActiveSales: salesCount > 0,
       salesCount,
       isInBatch: Boolean(product.batchId),
-      batchName: product.batchId?.batchName ?? null,
+      batchName: populatedBatch?.batchName ?? null,
     }
 
     // Check if this is a confirmation deletion (from the delete button with ?confirm=true)
