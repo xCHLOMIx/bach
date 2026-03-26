@@ -56,7 +56,7 @@ export function NavDocuments({
                     />
                   ) : (
                     <div className="h-8 w-8 rounded bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground">
-                      {item.name.trim().substring(0, 2).toUpperCase()}
+                      {item.name.replace(/\s+/g, "").slice(0, 2).toUpperCase()}
                     </div>
                   )}
                   <span className="truncate">{item.name}</span>

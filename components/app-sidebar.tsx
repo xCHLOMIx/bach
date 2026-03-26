@@ -11,10 +11,10 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { Box, Boxes, ChartBarIcon, CommandIcon, LayoutDashboardIcon, ListIcon } from "lucide-react"
+import { Box, Boxes, ChartBarIcon, LayoutDashboardIcon, ListIcon } from "lucide-react"
+import Image from "next/image"
 
 type ProductApiItem = {
   _id: string
@@ -74,6 +74,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
         const products = (json.products ?? []) as ProductApiItem[]
         setRecentProducts(products)
+      } catch (error) {
+        console.error("Failed to load recent products:", error)
       } finally {
         if (active) {
           setIsLoadingRecentProducts(false)
@@ -99,15 +101,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:p-1.5!"
-            >
-              <a href="#">
-                <CommandIcon className="size-5!" />
-                <span className="text-base font-semibold">Bach Inc.</span>
-              </a>
-            </SidebarMenuButton>
+            <div className="flex items-center gap-2 p-1.5">
+              <Image
+                src="/logos/logo_black.svg"
+                alt="Bach"
+                width={22}
+                height={22}
+                className="size-8"
+                priority
+              />
+              <span className="text-base font-semibold">Bach Inc.</span>
+            </div>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>

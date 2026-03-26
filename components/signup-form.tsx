@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
+import Image from "next/image"
+import { formatPhoneNumberInput, normalizePhoneNumber } from "@/lib/phone"
 
 export function SignupForm({
   className,
@@ -37,7 +39,12 @@ export function SignupForm({
       const response = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName, lastName, phoneNumber, password }),
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          phoneNumber: normalizePhoneNumber(phoneNumber),
+          password,
+        }),
       })
 
       const data = await response.json()
@@ -60,6 +67,14 @@ export function SignupForm({
           <form className="p-6 md:p-8" onSubmit={handleSubmit}>
             <FieldGroup>
               <div className="flex flex-col items-center gap-2 text-center">
+                <Image
+                  src="/logos/logo_no_bg.svg"
+                  alt="Bach"
+                  width={28}
+                  height={28}
+                  className="size-7"
+                  priority
+                />
                 <h1 className="text-2xl font-bold">Create your account</h1>
                 <p className="text-sm text-balance text-muted-foreground">
                   Use your phone number and password to create your account
@@ -107,7 +122,7 @@ export function SignupForm({
                   type="tel"
                   placeholder="0788 888 888"
                   value={phoneNumber}
-                  onChange={(event) => setPhoneNumber(event.target.value)}
+                  onChange={(event) => setPhoneNumber(formatPhoneNumberInput(event.target.value))}
                 />
               </Field>
               <Field>
@@ -120,7 +135,7 @@ export function SignupForm({
                 <Input
                   id="password"
                   type="password"
-                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                  placeholder="••••••••••"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                 />
@@ -141,12 +156,7 @@ export function SignupForm({
               </FieldDescription>
             </FieldGroup>
           </form>
-          <div className="relative hidden bg-muted md:block">
-            <img
-              src="/placeholder.svg"
-              alt="Image"
-              className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
-            />
+          <div className="relative hidden items-center w-ful justify-center bg-primary/20 md:flex">
           </div>
         </CardContent>
       </Card>

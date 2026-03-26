@@ -45,16 +45,22 @@ export function NavUser({
     let active = true
 
     const loadMe = async () => {
-      const response = await fetch("/api/auth/me")
-      if (!response.ok || !active) return
-      const data = await response.json()
-      if (!active || !data?.user) return
+      try {
+        const response = await fetch("/api/auth/me", { cache: "no-store" })
+        if (!response.ok || !active) return
 
-      setCurrentUser({
-        name: `${data.user.firstName} ${data.user.lastName}`,
-        email: data.user.phoneNumber,
-        avatar: user.avatar,
-      })
+        const data = await response.json()
+        if (!active || !data?.user) return
+
+        setCurrentUser({
+          name: `${data.user.firstName} ${data.user.lastName}`,
+          email: data.user.phoneNumber,
+          avatar: user.avatar,
+        })
+      } catch (error) {
+        // Keep fallback sidebar user data if network/auth lookup fails.
+        console.error("Failed to load current user:", error)
+      }
     }
 
     loadMe()

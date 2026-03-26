@@ -13,8 +13,9 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { GalleryVerticalEndIcon } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
+import { formatPhoneNumberInput, normalizePhoneNumber } from "@/lib/phone"
 
 export function LoginForm({
   className,
@@ -35,7 +36,7 @@ export function LoginForm({
       const response = await fetch("/api/auth/signin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phoneNumber, password }),
+        body: JSON.stringify({ phoneNumber: normalizePhoneNumber(phoneNumber), password }),
       })
 
       const data = await response.json()
@@ -61,7 +62,14 @@ export function LoginForm({
               className="flex flex-col items-center gap-2 font-medium"
             >
               <div className="flex size-8 items-center justify-center rounded-md">
-                <GalleryVerticalEndIcon className="size-6" />
+                <Image
+                  src="/logos/logo_no_bg.svg"
+                  alt="Bach"
+                  width={24}
+                  height={24}
+                  className="size-8"
+                  priority
+                />
               </div>
               <span className="sr-only">Bach Inc.</span>
             </a>
@@ -82,7 +90,7 @@ export function LoginForm({
               type="tel"
               placeholder="0788 888 888"
               value={phoneNumber}
-              onChange={(event) => setPhoneNumber(event.target.value)}
+              onChange={(event) => setPhoneNumber(formatPhoneNumberInput(event.target.value))}
             />
           </Field>
           <Field>
@@ -95,7 +103,7 @@ export function LoginForm({
             <Input
               id="password"
               type="password"
-              placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+              placeholder="•••••••••"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
             />

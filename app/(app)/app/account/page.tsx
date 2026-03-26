@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { formatPhoneNumberInput, normalizePhoneNumber } from "@/lib/phone"
 
 interface User {
     id: string
@@ -60,7 +61,7 @@ export default function AccountPage() {
                 setProfileData({
                     firstName: data.user.firstName,
                     lastName: data.user.lastName,
-                    phoneNumber: data.user.phoneNumber,
+                    phoneNumber: formatPhoneNumberInput(data.user.phoneNumber),
                 })
             } catch (error) {
                 console.error("Failed to load user:", error)
@@ -87,7 +88,7 @@ export default function AccountPage() {
         const { id, value } = e.target
         setProfileData((prev) => ({
             ...prev,
-            [id]: value,
+            [id]: id === "phoneNumber" ? formatPhoneNumberInput(value) : value,
         }))
     }
 
@@ -103,7 +104,10 @@ export default function AccountPage() {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify(profileData),
+                body: JSON.stringify({
+                    ...profileData,
+                    phoneNumber: normalizePhoneNumber(profileData.phoneNumber),
+                }),
             })
 
             const data = await response.json()
@@ -283,7 +287,7 @@ export default function AccountPage() {
                                                 setProfileData({
                                                     firstName: user.firstName,
                                                     lastName: user.lastName,
-                                                    phoneNumber: user.phoneNumber,
+                                                    phoneNumber: formatPhoneNumberInput(user.phoneNumber),
                                                 })
                                             }}
                                         >
