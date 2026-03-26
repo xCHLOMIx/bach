@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   const user = await getAuthorizedUser(request)
   if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
 
-  const sales = await SaleModel.find()
+  const sales = await SaleModel.find({ userId: user._id })
     .populate("productId", "name")
     .sort({ soldAt: -1 })
     .lean()
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     return errorResponse(errors, 400)
   }
 
-  const product = await ProductModel.findById(productId)
+  const product = await ProductModel.findOne({ _id: productId, userId: user._id })
   if (!product) {
     return errorResponse({ productId: "Product not found" }, 404)
   }
@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
   const profit = sellingPrice - landedCost
 
   const sale = await SaleModel.create({
+    userId: user._id,
     productId,
     quantity,
     sellingPrice,

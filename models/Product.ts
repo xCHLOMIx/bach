@@ -2,6 +2,7 @@ import { Schema, model, models, type InferSchemaType, Types } from "mongoose"
 
 const productSchema = new Schema(
   {
+    userId: { type: Types.ObjectId, ref: "User", required: true, index: true },
     name: { type: String, required: true, trim: true },
     categoryId: { type: Types.ObjectId, ref: "Category", required: true },
     batchId: { type: Types.ObjectId, ref: "Batch", default: null },

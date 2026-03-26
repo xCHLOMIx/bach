@@ -1,7 +1,8 @@
-import { Schema, model, models, type InferSchemaType } from "mongoose"
+import { Schema, model, models, type InferSchemaType, Types } from "mongoose"
 
 const batchSchema = new Schema(
   {
+    userId: { type: Types.ObjectId, ref: "User", required: true, index: true },
     batchName: { type: String, required: true, trim: true },
     intlShipping: { type: Number, required: true, min: 0, default: 0 },
     taxValue: { type: Number, required: true, min: 0, default: 0 },

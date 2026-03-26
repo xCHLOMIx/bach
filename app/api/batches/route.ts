@@ -39,11 +39,11 @@ export async function GET(request: NextRequest) {
   const user = await getAuthorizedUser(request)
   if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
 
-  const batches = await BatchModel.find().sort({ createdAt: -1 }).lean()
+  const batches = await BatchModel.find({ userId: user._id }).sort({ createdAt: -1 }).lean()
 
   const batchIds = batches.map((batch) => batch._id)
   const itemCounts = await ProductModel.aggregate<{ _id: string; count: number }>([
-    { $match: { batchId: { $in: batchIds } } },
+    { $match: { userId: user._id, batchId: { $in: batchIds } } },
     { $group: { _id: "$batchId", count: { $sum: 1 } } },
   ])
 
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     _id: string
     products: Array<{ _id: string; name: string; quantityRemaining: number }>
   }>([
-    { $match: { batchId: { $in: batchIds } } },
+    { $match: { userId: user._id, batchId: { $in: batchIds } } },
     {
       $group: {
         _id: "$batchId",
@@ -131,6 +131,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const batch = await BatchModel.create({
+      userId: user._id,
       batchName,
       intlShipping,
       taxValue,

@@ -15,11 +15,11 @@ export async function GET(request: NextRequest) {
   if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
 
   const [products, categories, batches, sales, latestSales] = await Promise.all([
-    ProductModel.countDocuments(),
-    CategoryModel.countDocuments(),
-    BatchModel.countDocuments(),
-    SaleModel.find().lean(),
-    SaleModel.find().populate("productId", "name").sort({ soldAt: -1 }).limit(8).lean(),
+    ProductModel.countDocuments({ userId: user._id }),
+    CategoryModel.countDocuments({ userId: user._id }),
+    BatchModel.countDocuments({ userId: user._id }),
+    SaleModel.find({ userId: user._id }).lean(),
+    SaleModel.find({ userId: user._id }).populate("productId", "name").sort({ soldAt: -1 }).limit(8).lean(),
   ])
 
   const totalProfit = sales.reduce((sum, sale) => sum + sale.profit * sale.quantity, 0)
@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
     profitChangePercent > 0 ? "up" : profitChangePercent < 0 ? "down" : "stable"
 
   const totalStock = await ProductModel.aggregate<{ total: number }>([
+    { $match: { userId: user._id } },
     { $group: { _id: null, total: { $sum: "$quantityRemaining" } } },
   ])
 

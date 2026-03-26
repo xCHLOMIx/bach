@@ -19,11 +19,11 @@ export async function GET(request: NextRequest) {
 
   // Backfill legacy documents created before externalLink existed.
   await ProductModel.updateMany(
-    { externalLink: { $exists: false } },
+    { userId: user._id, externalLink: { $exists: false } },
     { $set: { externalLink: "" } }
   )
 
-  const products = await ProductModel.find()
+  const products = await ProductModel.find({ userId: user._id })
     .populate("categoryId", "name")
     .populate("batchId", "batchName")
     .sort({ createdAt: -1 })
@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
   const unitPriceLocalRWF = unitPriceForeign * resolvedExchangeRate
 
   const product = await ProductModel.create({
+    userId: user._id,
     name,
     categoryId,
     batchId: null,

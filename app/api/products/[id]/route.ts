@@ -89,6 +89,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   try {
+    // Verify product belongs to user
+    const existingProduct = await ProductModel.findOne({ _id: productId, userId: user._id })
+    if (!existingProduct) {
+      return errorResponse({ id: "Product not found" }, 404)
+    }
+
     const updateData: Record<string, unknown> = {}
 
     if (name !== undefined) updateData.name = name
@@ -143,15 +149,15 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   }
 
   try {
-    // Get product with batch info
-    const product = await ProductModel.findById(productId).populate("batchId", "batchName")
+    // Verify product belongs to user
+    const product = await ProductModel.findOne({ _id: productId, userId: user._id }).populate("batchId", "batchName")
 
     if (!product) {
       return errorResponse({ id: "Product not found" }, 404)
     }
 
     // Check for sales
-    const salesCount = await SaleModel.countDocuments({ productId })
+    const salesCount = await SaleModel.countDocuments({ productId, userId: user._id })
     const populatedBatch = product.batchId as { batchName?: string } | null
 
     // Prepare deletion data

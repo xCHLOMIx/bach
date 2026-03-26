@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   const user = await getAuthorizedUser(request)
   if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
 
-  const categories = await CategoryModel.find().sort({ createdAt: -1 }).lean()
+  const categories = await CategoryModel.find({ userId: user._id }).sort({ createdAt: -1 }).lean()
   return successResponse({ categories })
 }
 
@@ -31,11 +31,11 @@ export async function POST(request: NextRequest) {
     return errorResponse(errors, 400)
   }
 
-  const exists = await CategoryModel.findOne({ name }).lean()
+  const exists = await CategoryModel.findOne({ userId: user._id, name }).lean()
   if (exists) {
     return errorResponse({ name: "Category already exists" }, 409)
   }
 
-  const category = await CategoryModel.create({ name })
+  const category = await CategoryModel.create({ userId: user._id, name })
   return successResponse({ category }, 201)
 }
