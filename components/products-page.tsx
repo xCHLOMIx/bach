@@ -582,7 +582,7 @@ export function ProductsPage() {
                             <Field>
                                 <div className="flex items-center justify-between">
                                     <FieldLabel htmlFor="edit-name">Product name</FieldLabel>
-                                    <FieldError className="text-red-400 text-xs">{editErrors.name}</FieldError>
+                                    <FieldError className="text-destructive text-xs">{editErrors.name}</FieldError>
                                 </div>
                                 <Input
                                     id="edit-name"
@@ -595,7 +595,7 @@ export function ProductsPage() {
                             <Field>
                                 <div className="flex items-center justify-between">
                                     <FieldLabel htmlFor="edit-external-link">External link (optional)</FieldLabel>
-                                    <FieldError className="text-red-400 text-xs">{editErrors.externalLink}</FieldError>
+                                    <FieldError className="text-destructive text-xs">{editErrors.externalLink}</FieldError>
                                 </div>
                                 <Input
                                     id="edit-external-link"
@@ -609,7 +609,7 @@ export function ProductsPage() {
                             <Field>
                                 <div className="flex items-center justify-between">
                                     <FieldLabel htmlFor="edit-quantity">Initial stock</FieldLabel>
-                                    <FieldError className="text-red-400 text-xs">{editErrors.quantityInitial}</FieldError>
+                                    <FieldError className="text-destructive text-xs">{editErrors.quantityInitial}</FieldError>
                                 </div>
                                 <Input
                                     id="edit-quantity"
@@ -625,7 +625,7 @@ export function ProductsPage() {
                             <Field>
                                 <div className="flex items-center justify-between">
                                     <FieldLabel htmlFor="edit-unit-price">Unit price</FieldLabel>
-                                    <FieldError className="text-red-400 text-xs">{editErrors.unitPriceForeign}</FieldError>
+                                    <FieldError className="text-destructive text-xs">{editErrors.unitPriceForeign}</FieldError>
                                 </div>
                                 <Input
                                     id="edit-unit-price"
@@ -641,7 +641,7 @@ export function ProductsPage() {
                             <Field>
                                 <div className="flex items-center justify-between">
                                     <FieldLabel htmlFor="edit-currency">Source currency</FieldLabel>
-                                    <FieldError className="text-red-400 text-xs">{editErrors.sourceCurrency}</FieldError>
+                                    <FieldError className="text-destructive text-xs">{editErrors.sourceCurrency}</FieldError>
                                 </div>
                                 <Select value={editSourceCurrency} onValueChange={setEditSourceCurrency}>
                                     <SelectTrigger id="edit-currency">
@@ -660,7 +660,7 @@ export function ProductsPage() {
                             <Field>
                                 <div className="flex items-center justify-between">
                                     <FieldLabel htmlFor="edit-exchange-rate">Exchange rate to RWF</FieldLabel>
-                                    <FieldError className="text-red-400 text-xs">{editErrors.exchangeRate}</FieldError>
+                                    <FieldError className="text-destructive text-xs">{editErrors.exchangeRate}</FieldError>
                                 </div>
                                 <Input
                                     id="edit-exchange-rate"
@@ -682,7 +682,7 @@ export function ProductsPage() {
                             <Field>
                                 <div className="flex items-center justify-between">
                                     <FieldLabel htmlFor="edit-batch">Batch</FieldLabel>
-                                    <FieldError className="text-red-400 text-xs">{editErrors.batchId}</FieldError>
+                                    <FieldError className="text-destructive text-xs">{editErrors.batchId}</FieldError>
                                 </div>
                                 <div className="flex gap-2">
                                     <Select value={editBatchId} onValueChange={setEditBatchId}>
@@ -815,7 +815,7 @@ export function ProductsPage() {
                                     <Field>
                                         <div className="flex items-center justify-between">
                                             <FieldLabel htmlFor="product-name">Product name</FieldLabel>
-                                            <FieldError className="text-red-400 text-xs">{errors.name}</FieldError>
+                                            <FieldError className="text-destructive text-xs">{errors.name}</FieldError>
                                         </div>
                                         <Input
                                             id="product-name"
@@ -828,7 +828,7 @@ export function ProductsPage() {
                                     <Field>
                                         <div className="flex items-center justify-between">
                                             <FieldLabel htmlFor="product-external-link">External link (optional)</FieldLabel>
-                                            <FieldError className="text-red-400 text-xs">{errors.externalLink}</FieldError>
+                                            <FieldError className="text-destructive text-xs">{errors.externalLink}</FieldError>
                                         </div>
                                         <Input
                                             id="product-external-link"
@@ -842,7 +842,7 @@ export function ProductsPage() {
                                     <Field>
                                         <div className="flex items-center justify-between">
                                             <FieldLabel htmlFor="product-category">Category</FieldLabel>
-                                            <FieldError className="text-red-400 text-xs">{errors.categoryId}</FieldError>
+                                            <FieldError className="text-destructive text-xs">{errors.categoryId}</FieldError>
                                         </div>
                                         <Select value={categoryId} onValueChange={setCategoryId}>
                                             <SelectTrigger id="product-category">
@@ -861,7 +861,7 @@ export function ProductsPage() {
                                     <Field>
                                         <div className="flex items-center justify-between">
                                             <FieldLabel htmlFor="product-quantity">Initial stock</FieldLabel>
-                                            <FieldError className="text-red-400 text-xs">{errors.quantityInitial}</FieldError>
+                                            <FieldError className="text-destructive text-xs">{errors.quantityInitial}</FieldError>
                                         </div>
                                         <Input
                                             id="product-quantity"
@@ -877,7 +877,7 @@ export function ProductsPage() {
                                     <Field>
                                         <div className="flex items-center justify-between">
                                             <FieldLabel htmlFor="product-unit-price">Unit price</FieldLabel>
-                                            <FieldError className="text-red-400 text-xs">{errors.unitPriceForeign}</FieldError>
+                                            <FieldError className="text-destructive text-xs">{errors.unitPriceForeign}</FieldError>
                                         </div>
                                         <Input
                                             id="product-unit-price"
@@ -893,7 +893,7 @@ export function ProductsPage() {
                                     <Field>
                                         <div className="flex items-center justify-between">
                                             <FieldLabel htmlFor="product-currency">Source currency</FieldLabel>
-                                            <FieldError className="text-red-400 text-xs">{errors.sourceCurrency}</FieldError>
+                                            <FieldError className="text-destructive text-xs">{errors.sourceCurrency}</FieldError>
                                         </div>
                                         <Select value={sourceCurrency} onValueChange={setSourceCurrency}>
                                             <SelectTrigger id="product-currency">
@@ -912,7 +912,7 @@ export function ProductsPage() {
                                     <Field>
                                         <div className="flex items-center justify-between">
                                             <FieldLabel htmlFor="product-exchange-rate">Exchange rate to RWF</FieldLabel>
-                                            <FieldError className="text-red-400 text-xs">{errors.exchangeRate}</FieldError>
+                                            <FieldError className="text-destructive text-xs">{errors.exchangeRate}</FieldError>
                                         </div>
                                         <Input
                                             id="product-exchange-rate"
@@ -926,7 +926,7 @@ export function ProductsPage() {
                                         />
                                     </Field>
 
-                                    {errors.general ? <FieldError className="text-red-400 text-xs">{errors.general}</FieldError> : null}
+                                    {errors.general ? <FieldError className="text-destructive text-xs">{errors.general}</FieldError> : null}
 
                                     <Button type="submit" disabled={isSubmitting}>
                                         {isSubmitting ? "Saving..." : "Add Product"}
@@ -1180,18 +1180,18 @@ export function ProductsPage() {
                     onClick={requestCloseSaleModal}
                 >
                     <div
-                        className="modal-pop-in bg-white dark:bg-slate-950 rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800"
+                        className="modal-pop-in bg-card rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto border border-border"
                         onClick={(event) => event.stopPropagation()}
                     >
                         <form className="p-6" onSubmit={submitSaleFromModal}>
                             <div className="mb-4 flex items-center justify-between">
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+                                <h2 className="text-lg font-semibold text-foreground">
                                     {saleStep === "product" ? "Select Product" : "Record Sale"}
                                 </h2>
                                 <button
                                     type="button"
                                     onClick={requestCloseSaleModal}
-                                    className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+                                    className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                                     aria-label="Close sale modal"
                                 >
                                     <XIcon className="h-4 w-4" />
@@ -1209,7 +1209,7 @@ export function ProductsPage() {
 
                                     <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
                                         {saleFilteredProducts.length === 0 ? (
-                                            <p className="text-sm text-slate-600 dark:text-slate-400 text-center py-4">
+                                            <p className="text-sm text-muted-foreground text-center py-4">
                                                 No products found
                                             </p>
                                         ) : (
@@ -1222,14 +1222,14 @@ export function ProductsPage() {
                                                         onClick={() => handleSelectSaleProduct(product)}
                                                         disabled={isOutOfStock}
                                                         className={`w-full text-left p-3 rounded-lg border transition-colors ${isOutOfStock
-                                                            ? "cursor-not-allowed opacity-50 border-slate-200 dark:border-slate-800"
-                                                            : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900"
+                                                            ? "cursor-not-allowed opacity-50 border-border"
+                                                            : "border-border hover:bg-muted"
                                                             }`}
                                                     >
-                                                        <p className="truncate font-medium text-slate-900 dark:text-slate-50">{product.name}</p>
-                                                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                        <p className="truncate font-medium text-foreground">{product.name}</p>
+                                                        <p className="text-xs text-muted-foreground">
                                                             In stock: {product.quantityRemaining}
-                                                            {isOutOfStock ? <span className="ml-2 font-medium text-red-600 dark:text-red-400">(Out of stock)</span> : null}
+                                                            {isOutOfStock ? <span className="ml-2 font-medium text-destructive">(Out of stock)</span> : null}
                                                         </p>
                                                     </button>
                                                 )
@@ -1244,17 +1244,17 @@ export function ProductsPage() {
                             ) : (
                                 <>
                                     <div className="mb-6">
-                                        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50 mb-2">
+                                        <h2 className="text-lg font-semibold text-foreground mb-2">
                                             {saleSelectedProduct?.name}
                                         </h2>
-                                        <p className="text-sm text-slate-600 dark:text-slate-400">
-                                            Available quantity: <span className="font-semibold text-slate-900 dark:text-slate-50">{saleAvailableQuantity}</span>
+                                        <p className="text-sm text-muted-foreground">
+                                            Available quantity: <span className="font-semibold text-foreground">{saleAvailableQuantity}</span>
                                         </p>
                                     </div>
 
                                     <div className="space-y-4 mb-6">
                                         <div>
-                                            <label className="text-sm font-medium text-slate-900 dark:text-slate-50 block mb-2">
+                                            <label className="text-sm font-medium text-foreground block mb-2">
                                                 Quantity
                                             </label>
                                             <Input
@@ -1265,15 +1265,15 @@ export function ProductsPage() {
                                                 onChange={(event) => setSaleQuantity(toIntegerInput(event.target.value))}
                                             />
                                             {saleIsQuantityAboveAvailable ? (
-                                                <p className="mt-2 text-xs font-medium text-red-600 dark:text-red-400">
+                                                <p className="mt-2 text-xs font-medium text-destructive">
                                                     Requested quantity is higher than available stock.
                                                 </p>
                                             ) : null}
-                                            {saleErrors.quantity ? <FieldError className="text-red-400 text-xs mt-2">{saleErrors.quantity}</FieldError> : null}
+                                            {saleErrors.quantity ? <FieldError className="text-destructive text-xs mt-2">{saleErrors.quantity}</FieldError> : null}
                                         </div>
 
                                         <div>
-                                            <label className="text-sm font-medium text-slate-900 dark:text-slate-50 block mb-2">
+                                            <label className="text-sm font-medium text-foreground block mb-2">
                                                 Selling Price per Unit
                                             </label>
                                             <Input
@@ -1283,21 +1283,21 @@ export function ProductsPage() {
                                                 value={salePrice}
                                                 onChange={(event) => setSalePrice(toDecimalInput(event.target.value))}
                                             />
-                                            {saleErrors.sellingPrice ? <FieldError className="text-red-400 text-xs mt-2">{saleErrors.sellingPrice}</FieldError> : null}
+                                            {saleErrors.sellingPrice ? <FieldError className="text-destructive text-xs mt-2">{saleErrors.sellingPrice}</FieldError> : null}
                                         </div>
 
                                         {salePrice ? (
-                                            <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                                            <div className="p-3 rounded-lg bg-muted border border-border">
                                                 {saleProfitPerUnit > 0 ? (
-                                                    <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                                                    <p className="text-sm font-medium text-primary">
                                                         Profit: {saleProfitPerUnit.toLocaleString()} RWF per unit
                                                     </p>
                                                 ) : saleProfitPerUnit < 0 ? (
-                                                    <p className="text-sm font-medium text-red-600 dark:text-red-400">
+                                                    <p className="text-sm font-medium text-destructive">
                                                         Loss: {Math.abs(saleProfitPerUnit).toLocaleString()} RWF per unit
                                                     </p>
                                                 ) : (
-                                                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                                                    <p className="text-sm font-medium text-muted-foreground">
                                                         Break-even price
                                                     </p>
                                                 )}
@@ -1305,18 +1305,18 @@ export function ProductsPage() {
                                         ) : null}
 
                                         <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
-                                            <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                Quantity selected: <span className="font-semibold text-slate-900 dark:text-slate-50">{saleSelectedQuantity || 0}</span>
+                                            <p className="text-sm text-muted-foreground">
+                                                Quantity selected: <span className="font-semibold text-foreground">{saleSelectedQuantity || 0}</span>
                                             </p>
-                                            <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                Landed cost per unit: <span className="font-semibold text-slate-900 dark:text-slate-50">{(saleSelectedProduct?.landedCost ?? 0).toLocaleString()} RWF</span>
+                                            <p className="text-sm text-muted-foreground">
+                                                Landed cost per unit: <span className="font-semibold text-foreground">{(saleSelectedProduct?.landedCost ?? 0).toLocaleString()} RWF</span>
                                             </p>
-                                            <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                Total landed cost: <span className="font-semibold text-slate-900 dark:text-slate-50">{saleTotalLandedCost.toLocaleString()} RWF</span>
+                                            <p className="text-sm text-muted-foreground">
+                                                Total landed cost: <span className="font-semibold text-foreground">{saleTotalLandedCost.toLocaleString()} RWF</span>
                                             </p>
                                         </div>
 
-                                        {saleErrors.general ? <FieldError className="text-red-400 text-xs">{saleErrors.general}</FieldError> : null}
+                                        {saleErrors.general ? <FieldError className="text-destructive text-xs">{saleErrors.general}</FieldError> : null}
                                     </div>
 
                                     <div className="flex gap-3">
@@ -1342,10 +1342,10 @@ export function ProductsPage() {
             )}
 
             {showDiscardSaleConfirm && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 animate-in fade-in duration-150">
+                <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 animate-in fade-in duration-150">
                     <div className="modal-pop-in w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-lg dark:border-slate-800 dark:bg-slate-950">
-                        <h3 className="text-base font-semibold text-slate-900 dark:text-slate-50">Discard sale draft?</h3>
-                        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                        <h3 className="text-base font-semibold text-foreground">Discard sale draft?</h3>
+                        <p className="mt-2 text-sm text-muted-foreground">
                             You have unsaved sale changes. Do you want to discard them and close?
                         </p>
                         <div className="mt-4 flex justify-end gap-2">
@@ -1361,28 +1361,28 @@ export function ProductsPage() {
             )}
 
             {showDeleteConfirm && deleteConfirmData && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 animate-in fade-in duration-150">
+                <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 animate-in fade-in duration-150">
                     <div className="modal-pop-in w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-950">
-                        <h3 className="text-lg font-semibold text-red-600 dark:text-red-400">Delete Product?</h3>
-                        <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">
-                            You are about to permanently delete <span className="font-semibold text-slate-900 dark:text-slate-50">&quot;{deleteConfirmData.productName}&quot;</span>.
+                        <h3 className="text-lg font-semibold text-destructive">Delete Product?</h3>
+                        <p className="mt-3 text-sm text-muted-foreground">
+                            You are about to permanently delete <span className="font-semibold text-foreground">&quot;{deleteConfirmData.productName}&quot;</span>.
                         </p>
 
                         {(deleteConfirmData.hasActiveSales || deleteConfirmData.isInBatch) && (
                             <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-950">
-                                <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Warning:</p>
-                                <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                                <p className="text-sm font-semibold text-accent-foreground mb-2">Warning:</p>
+                                <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
                                     {deleteConfirmData.hasActiveSales && (
-                                        <p>• This product has <span className="font-semibold">{deleteConfirmData.salesCount}</span> sale(s) recorded.</p>
+                                        <li>This product has <span className="font-semibold">{deleteConfirmData.salesCount}</span> sale(s) recorded.</li>
                                     )}
                                     {deleteConfirmData.isInBatch && (
-                                        <p>• This product is assigned to batch <span className="font-semibold">{deleteConfirmData.batchName}</span>.</p>
+                                        <li>This product is assigned to batch <span className="font-semibold">{deleteConfirmData.batchName}</span>.</li>
                                     )}
-                                </div>
+                                </ul>
                             </div>
                         )}
 
-                        <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
+                        <p className="mt-4 text-xs text-muted-foreground">
                             This action cannot be undone.
                         </p>
 

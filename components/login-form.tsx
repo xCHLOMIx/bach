@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
@@ -73,7 +73,7 @@ export function LoginForm({
           <Field>
             <div className="flex items-center justify-between">
               <FieldLabel htmlFor="phone-number">Phone number</FieldLabel>
-              <FieldError className="text-red-400 text-xs">
+              <FieldError className="text-destructive text-xs">
                 {errors.phoneNumber}
               </FieldError>
             </div>
@@ -88,14 +88,14 @@ export function LoginForm({
           <Field>
             <div className="flex items-center justify-between">
               <FieldLabel htmlFor="password">Password</FieldLabel>
-              <FieldError className="text-red-400 text-xs">
+              <FieldError className="text-destructive text-xs">
                 {errors.password}
               </FieldError>
             </div>
             <Input
               id="password"
               type="password"
-              placeholder="••••••••••"
+              placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
             />
@@ -104,7 +104,7 @@ export function LoginForm({
             </FieldDescription>
           </Field>
           {errors.general ? (
-            <FieldError className="text-red-400 text-xs">{errors.general}</FieldError>
+            <FieldError className="text-destructive text-xs">{errors.general}</FieldError>
           ) : null}
           <Field>
             <Button type="submit" disabled={isLoading}>

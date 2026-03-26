@@ -4,7 +4,6 @@ import * as React from "react"
 
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
@@ -15,7 +14,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { LayoutDashboardIcon, ListIcon, ChartBarIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, CommandIcon, Box, Boxes } from "lucide-react"
+import { Box, Boxes, ChartBarIcon, CommandIcon, LayoutDashboardIcon, ListIcon } from "lucide-react"
+
+type ProductApiItem = {
+  _id: string
+  name: string
+  images?: string[]
+}
 
 const data = {
   user: {
@@ -27,153 +32,68 @@ const data = {
     {
       title: "Dashboard",
       url: "/app/dashboard",
-      icon: (
-        <LayoutDashboardIcon
-        />
-      ),
+      icon: <LayoutDashboardIcon />,
     },
     {
       title: "Products",
       url: "/app/products",
-      icon: (
-        <Box />
-      ),
+      icon: <Box />,
     },
     {
       title: "Categories",
       url: "/app/categories",
-      icon: (
-        <ListIcon
-        />
-      ),
+      icon: <ListIcon />,
     },
     {
       title: "Batches",
       url: "/app/batches",
-      icon: (
-        <Boxes />
-      ),
+      icon: <Boxes />,
     },
     {
       title: "Sales",
       url: "/app/sales",
-      icon: (
-        <ChartBarIcon />
-      ),
-    },
-  ],
-  navClouds: [
-    {
-      title: "Capture",
-      icon: (
-        <CameraIcon
-        />
-      ),
-      isActive: true,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Proposal",
-      icon: (
-        <FileTextIcon
-        />
-      ),
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Prompts",
-      icon: (
-        <FileTextIcon
-        />
-      ),
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-  ],
-  // navSecondary: [
-  //   {
-  //     title: "Settings",
-  //     url: "#",
-  //     icon: (
-  //       <Settings2Icon
-  //       />
-  //     ),
-  //   },
-  //   {
-  //     title: "Get Help",
-  //     url: "#",
-  //     icon: (
-  //       <CircleHelpIcon
-  //       />
-  //     ),
-  //   },
-  //   {
-  //     title: "Search",
-  //     url: "#",
-  //     icon: (
-  //       <SearchIcon
-  //       />
-  //     ),
-  //   },
-  // ],
-  documents: [
-    {
-      name: "Data Library",
-      url: "#",
-      icon: (
-        <DatabaseIcon
-        />
-      ),
-    },
-    {
-      name: "Reports",
-      url: "#",
-      icon: (
-        <FileChartColumnIcon
-        />
-      ),
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-      icon: (
-        <FileIcon
-        />
-      ),
+      icon: <ChartBarIcon />,
     },
   ],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const [recentProducts, setRecentProducts] = React.useState<ProductApiItem[]>([])
+  const [isLoadingRecentProducts, setIsLoadingRecentProducts] = React.useState(true)
+
+  React.useEffect(() => {
+    let active = true
+
+    const loadRecentProducts = async () => {
+      try {
+        const response = await fetch("/api/products")
+        if (!response.ok || !active) return
+
+        const json = await response.json()
+        if (!active) return
+
+        const products = (json.products ?? []) as ProductApiItem[]
+        setRecentProducts(products)
+      } finally {
+        if (active) {
+          setIsLoadingRecentProducts(false)
+        }
+      }
+    }
+
+    loadRecentProducts()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const visibleRecentProducts = recentProducts.slice(0, 3).map((product) => ({
+    name: product.name,
+    url: `/app/products?productId=${product._id}`,
+    image: product.images?.[0] ?? "",
+  }))
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -193,8 +113,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
-        {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
+        <NavDocuments
+          items={visibleRecentProducts}
+          isLoading={isLoadingRecentProducts}
+          hasMore={recentProducts.length > 3}
+        />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />

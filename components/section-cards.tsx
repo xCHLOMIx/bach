@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { Badge } from "@/components/ui/badge"
 import {
@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { TrendingUpIcon, TrendingDownIcon } from "lucide-react"
 
 type SectionCardStats = {
@@ -23,19 +24,43 @@ type SectionCardStats = {
 }
 
 export function SectionCards({ stats }: { stats?: SectionCardStats }) {
+  const isLoading = !stats
   const profitTrend = stats?.profitTrend ?? "stable"
   const profitChangePercent = stats?.profitChangePercent ?? 0
   const formattedProfitChange = `${Math.abs(profitChangePercent).toFixed(1)}%`
 
   const profitBadgeClass =
     profitTrend === "up"
-      ? "text-emerald-600 border-emerald-200 bg-emerald-50 dark:text-emerald-400 dark:border-emerald-900/60 dark:bg-emerald-950/20"
+      ? "text-primary border-primary/30 bg-primary/10"
       : profitTrend === "down"
-        ? "text-red-600 border-red-200 bg-red-50 dark:text-red-400 dark:border-red-900/60 dark:bg-red-950/20"
-        : "text-slate-600 border-slate-200 bg-slate-50 dark:text-slate-300 dark:border-slate-700 dark:bg-slate-900"
+        ? "text-destructive border-destructive/30 bg-destructive/10"
+        : "text-muted-foreground border-border bg-muted"
 
   const ProfitTrendIcon =
     profitTrend === "up" ? TrendingUpIcon : profitTrend === "down" ? TrendingDownIcon : TrendingUpIcon
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-3 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Card key={i} className="@container/card border-0 shadow-none">
+            <CardHeader>
+              <CardDescription>
+                <Skeleton className="h-4 w-16" />
+              </CardDescription>
+              <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl mt-2">
+                <Skeleton className="h-8 w-12" />
+              </CardTitle>
+            </CardHeader>
+            <CardFooter className="flex-col items-start gap-1.5 text-sm">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-24" />
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div className="grid grid-cols-3 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4 dark:*:data-[slot=card]:bg-card">
@@ -125,10 +150,10 @@ export function SectionCards({ stats }: { stats?: SectionCardStats }) {
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div
             className={`line-clamp-1 flex gap-2 font-medium ${profitTrend === "up"
-                ? "text-emerald-600 dark:text-emerald-400"
-                : profitTrend === "down"
-                  ? "text-red-600 dark:text-red-400"
-                  : "text-slate-600 dark:text-slate-300"
+              ? "text-primary"
+              : profitTrend === "down"
+                ? "text-destructive"
+                : "text-muted-foreground"
               }`}
           >
             {profitTrend === "up"

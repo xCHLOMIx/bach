@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import * as React from "react"
 
@@ -327,18 +327,18 @@ export function SalesPage() {
                     onClick={requestCloseSaleModal}
                 >
                     <div
-                        className="modal-pop-in bg-white dark:bg-slate-950 rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800"
+                        className="modal-pop-in bg-card rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto border border-border"
                         onClick={(event) => event.stopPropagation()}
                     >
                         <div className="p-6">
                             <div className="mb-4 flex items-center justify-between">
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+                                <h2 className="text-lg font-semibold text-foreground">
                                     {step === "product" ? "Select Product" : "Record Sale"}
                                 </h2>
                                 <button
                                     type="button"
                                     onClick={requestCloseSaleModal}
-                                    className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+                                    className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                                     aria-label="Close sale modal"
                                 >
                                     <XIcon className="h-4 w-4" />
@@ -357,12 +357,12 @@ export function SalesPage() {
 
                                     <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
                                         {isLoadingProducts ? (
-                                            <p className="text-sm text-slate-600 dark:text-slate-400 text-center py-4">
+                                            <p className="text-sm text-muted-foreground text-center py-4">
                                                 Loading products...
                                             </p>
                                         ) : productsLoadError ? (
                                             <div className="space-y-3 py-4 text-center">
-                                                <p className="text-sm text-red-600 dark:text-red-400">
+                                                <p className="text-sm text-destructive">
                                                     {productsLoadError}
                                                 </p>
                                                 <Button
@@ -376,7 +376,7 @@ export function SalesPage() {
                                                 </Button>
                                             </div>
                                         ) : filteredProducts.length === 0 ? (
-                                            <p className="text-sm text-slate-600 dark:text-slate-400 text-center py-4">
+                                            <p className="text-sm text-muted-foreground text-center py-4">
                                                 No products found
                                             </p>
                                         ) : (
@@ -388,16 +388,16 @@ export function SalesPage() {
                                                         onClick={() => handleProductSelect(product)}
                                                         disabled={isOutOfStock}
                                                         className={`w-full text-left p-3 rounded-lg border transition-colors ${isOutOfStock
-                                                            ? "cursor-not-allowed opacity-50 border-slate-200 dark:border-slate-800"
-                                                            : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900"
+                                                            ? "cursor-not-allowed opacity-50 border-border"
+                                                            : "border-border hover:bg-muted"
                                                             }`}
                                                     >
-                                                        <p className="truncate font-medium text-slate-900 dark:text-slate-50">
+                                                        <p className="truncate font-medium text-foreground">
                                                             {product.name}
                                                         </p>
-                                                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                        <p className="text-xs text-muted-foreground">
                                                             In stock: {product.quantityRemaining} {product.unitOfMeasurement ?? ""}
-                                                            {isOutOfStock && <span className="ml-2 font-medium text-red-600 dark:text-red-400">(Out of stock)</span>}
+                                                            {isOutOfStock && <span className="ml-2 font-medium text-destructive">(Out of stock)</span>}
                                                         </p>
                                                     </button>
                                                 )
@@ -416,17 +416,17 @@ export function SalesPage() {
                             ) : (
                                 <>
                                     <div className="mb-6">
-                                        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50 mb-2">
+                                        <h2 className="text-lg font-semibold text-foreground mb-2">
                                             {selectedProduct?.name}
                                         </h2>
-                                        <p className="text-sm text-slate-600 dark:text-slate-400">
-                                            Available quantity: <span className="font-semibold text-slate-900 dark:text-slate-50">{availableQuantity}</span>
+                                        <p className="text-sm text-muted-foreground">
+                                            Available quantity: <span className="font-semibold text-foreground">{availableQuantity}</span>
                                         </p>
                                     </div>
 
                                     <div className="space-y-4 mb-6">
                                         <div>
-                                            <label className="text-sm font-medium text-slate-900 dark:text-slate-50 block mb-2">
+                                            <label className="text-sm font-medium text-foreground block mb-2">
                                                 Quantity
                                             </label>
                                             <Input
@@ -439,14 +439,14 @@ export function SalesPage() {
                                                 max={selectedProduct?.quantityRemaining}
                                             />
                                             {isQuantityAboveAvailable ? (
-                                                <p className="mt-2 text-xs font-medium text-red-600 dark:text-red-400">
+                                                <p className="mt-2 text-xs font-medium text-destructive">
                                                     Requested quantity is higher than available stock.
                                                 </p>
                                             ) : null}
                                         </div>
 
                                         <div>
-                                            <label className="text-sm font-medium text-slate-900 dark:text-slate-50 block mb-2">
+                                            <label className="text-sm font-medium text-foreground block mb-2">
                                                 Selling Price per Unit
                                             </label>
                                             <Input
@@ -460,17 +460,17 @@ export function SalesPage() {
                                         </div>
 
                                         {sellingPrice && (
-                                            <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                                            <div className="p-3 rounded-lg bg-muted border border-border">
                                                 {profit > 0 ? (
-                                                    <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                                                        ✓ You&apos;re making a profit of {profit.toLocaleString()} RWF per unit
+                                                    <p className="text-sm font-medium text-primary">
+                                                        -œ“ You&apos;re making a profit of {profit.toLocaleString()} RWF per unit
                                                     </p>
                                                 ) : profit < 0 ? (
-                                                    <p className="text-sm font-medium text-red-600 dark:text-red-400">
-                                                        ⚠ You&apos;re taking a loss of {Math.abs(profit).toLocaleString()} RWF per unit
+                                                    <p className="text-sm font-medium text-destructive">
+                                                        -š  You&apos;re taking a loss of {Math.abs(profit).toLocaleString()} RWF per unit
                                                     </p>
                                                 ) : (
-                                                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                                                    <p className="text-sm font-medium text-muted-foreground">
                                                         = Break even price
                                                     </p>
                                                 )}
@@ -478,16 +478,16 @@ export function SalesPage() {
                                         )}
 
                                         <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
-                                            <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                Quantity selected: <span className="font-semibold text-slate-900 dark:text-slate-50">{selectedQuantity || 0}</span>
+                                            <p className="text-sm text-muted-foreground">
+                                                Quantity selected: <span className="font-semibold text-foreground">{selectedQuantity || 0}</span>
                                             </p>
-                                            <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                Landed cost per unit: <span className="font-semibold text-slate-900 dark:text-slate-50">
+                                            <p className="text-sm text-muted-foreground">
+                                                Landed cost per unit: <span className="font-semibold text-foreground">
                                                     {(selectedProduct?.landedCost ?? 0).toLocaleString()} RWF
                                                 </span>
                                             </p>
-                                            <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                Total landed cost: <span className="font-semibold text-slate-900 dark:text-slate-50">
+                                            <p className="text-sm text-muted-foreground">
+                                                Total landed cost: <span className="font-semibold text-foreground">
                                                     {totalLandedCost.toLocaleString()} RWF
                                                 </span>
                                             </p>
@@ -522,10 +522,10 @@ export function SalesPage() {
             {showDiscardConfirm && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 animate-in fade-in duration-150">
                     <div className="modal-pop-in w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-lg dark:border-slate-800 dark:bg-slate-950">
-                        <h3 className="text-base font-semibold text-slate-900 dark:text-slate-50">
+                        <h3 className="text-base font-semibold text-foreground">
                             Discard this sale draft?
                         </h3>
-                        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                        <p className="mt-2 text-sm text-muted-foreground">
                             You have unsaved changes. Do you want to discard them and close?
                         </p>
                         <div className="mt-4 flex justify-end gap-2">

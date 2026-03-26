@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
@@ -146,11 +146,11 @@ export function NavUser({
 
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white dark:bg-slate-950 rounded-lg shadow-lg p-6 max-w-sm mx-4 border border-slate-200 dark:border-slate-800">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50 mb-2">
+          <div className="bg-card rounded-lg shadow-lg p-6 max-w-sm mx-4 border border-border">
+            <h2 className="text-lg font-semibold text-foreground mb-2">
               Log out?
             </h2>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+            <p className="text-sm text-muted-foreground mb-6">
               Are you sure you want to log out of your account?
             </p>
             <div className="flex gap-3 justify-end">

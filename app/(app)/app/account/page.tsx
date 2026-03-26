@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import React, { useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface User {
     id: string
@@ -197,8 +197,8 @@ export default function AccountPage() {
     return (
         <div className="container max-w-3xl p-8">
             <div className="mb-8">
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Account</h1>
-                <p className="mt text-sm text-slate-600 dark:text-slate-400">Manage your personal information and account security</p>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">Account</h1>
+                <p className="mt text-sm text-muted-foreground">Manage your personal information and account security</p>
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -222,12 +222,12 @@ export default function AccountPage() {
                         </CardHeader>
                         <CardContent className="mt-4 ml-4">
                             {profileSuccess && (
-                                <div className="mb-4 rounded-lg bg-green-50 p-4 text-sm text-green-800 dark:bg-green-900 dark:text-green-200">
+                                <div className="mb-4 rounded-lg bg-accent/30 p-4 text-sm text-accent-foreground">
                                     {profileSuccess}
                                 </div>
                             )}
                             {profileError && (
-                                <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-800 dark:bg-red-900 dark:text-red-200">
+                                <div className="mb-4 rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
                                     {profileError}
                                 </div>
                             )}
@@ -327,12 +327,12 @@ export default function AccountPage() {
                         </CardHeader>
                         <CardContent className="mt-4 ml-4">
                             {passwordSuccess && (
-                                <div className="mb-4 rounded-lg bg-green-50 p-4 text-sm text-green-800 dark:bg-green-900 dark:text-green-200">
+                                <div className="mb-4 rounded-lg bg-accent/30 p-4 text-sm text-accent-foreground">
                                     {passwordSuccess}
                                 </div>
                             )}
                             {passwordError && (
-                                <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-800 dark:bg-red-900 dark:text-red-200">
+                                <div className="mb-4 rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
                                     {passwordError}
                                 </div>
                             )}
@@ -377,7 +377,7 @@ export default function AccountPage() {
                                         id="showPasswords"
                                         checked={showPasswords}
                                         onChange={(e) => setShowPasswords(e.target.checked)}
-                                        className="rounded border border-slate-300"
+                                        className="rounded border border-border"
                                     />
                                     <Label htmlFor="showPasswords" className="text-sm">
                                         Show passwords
