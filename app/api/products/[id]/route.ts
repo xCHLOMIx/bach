@@ -4,7 +4,9 @@ import { Types } from "mongoose"
 import { connectToDatabase } from "@/lib/db"
 import { errorResponse, successResponse, type FieldErrors } from "@/lib/api"
 import { getAuthorizedUser } from "@/lib/auth-guard"
+import { calculateBatchProductLandedCosts } from "@/lib/costs"
 import { uploadImageFile } from "@/lib/cloudinary"
+import { BatchModel } from "@/models/Batch"
 import { ProductModel } from "@/models/Product"
 import { SaleModel } from "@/models/Sale"
 import "@/models/Category"
@@ -33,6 +35,49 @@ function mapProductPersistenceError(error: unknown) {
   }
 
   return errors
+}
+
+async function recalculateBatchProducts(batchId: string) {
+  const batch = await BatchModel.findById(batchId).lean()
+  if (!batch) {
+    return
+  }
+
+  const batchProducts = await ProductModel.find({ batchId }).lean()
+  const allocations = calculateBatchProductLandedCosts(
+    batchProducts.map((product) => ({
+      productId: String(product._id),
+      quantityInitial: product.quantityInitial,
+      unitPriceLocalRWF: product.unitPriceLocalRWF ?? product.purchasePriceRWF,
+    })),
+    {
+      intlShipping: batch.intlShipping,
+      taxValue: batch.taxValue,
+      customsDuties: batch.customsDuties,
+      declaration: batch.declaration,
+      arrivalNotif: batch.arrivalNotif,
+      warehouseStorage: batch.warehouseStorage,
+      amazonPrime: batch.amazonPrime,
+      warehouseUSA: batch.warehouseUSA,
+      miscellaneous: batch.miscellaneous,
+    }
+  )
+
+  const operations = allocations.map((allocation) => ({
+    updateOne: {
+      filter: { _id: new Types.ObjectId(allocation.productId) },
+      update: {
+        $set: {
+          purchasePriceRWF: allocation.purchasePriceRWF,
+          landedCost: allocation.landedCost,
+        },
+      },
+    },
+  }))
+
+  if (operations.length > 0) {
+    await ProductModel.bulkWrite(operations)
+  }
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -96,15 +141,38 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const updateData: Record<string, unknown> = {}
+    const previousBatchId = existingProduct.batchId ? String(existingProduct.batchId) : null
+    let nextBatchId = previousBatchId
 
     if (name !== undefined) updateData.name = name
     if (quantityInitial !== undefined) updateData.quantityInitial = quantityInitial
-    if (unitPriceForeign !== undefined) updateData.unitPriceForeign = unitPriceForeign
-    if (sourceCurrency !== undefined) updateData.sourceCurrency = sourceCurrency
-    if (exchangeRate !== undefined) updateData.exchangeRate = exchangeRate
     if (externalLink !== undefined) updateData.externalLink = externalLink
     if (batchId !== undefined) {
       updateData.batchId = batchId || null
+      nextBatchId = batchId || null
+    }
+
+    const nextSourceCurrency = sourceCurrency ?? existingProduct.sourceCurrency
+    const nextUnitPriceForeign = unitPriceForeign ?? existingProduct.unitPriceForeign
+    const nextExchangeRateInput = exchangeRate ?? existingProduct.exchangeRate
+    const resolvedExchangeRate = nextSourceCurrency === "RWF" ? 1 : nextExchangeRateInput
+    const shouldRecalculateLocalPricing =
+      unitPriceForeign !== undefined || sourceCurrency !== undefined || exchangeRate !== undefined
+
+    if (unitPriceForeign !== undefined) updateData.unitPriceForeign = unitPriceForeign
+    if (sourceCurrency !== undefined) updateData.sourceCurrency = sourceCurrency
+    if (exchangeRate !== undefined || sourceCurrency !== undefined) {
+      updateData.exchangeRate = resolvedExchangeRate
+    }
+
+    if (shouldRecalculateLocalPricing) {
+      const unitPriceLocalRWF = nextUnitPriceForeign * resolvedExchangeRate
+      updateData.unitPriceLocalRWF = unitPriceLocalRWF
+
+      if (!nextBatchId) {
+        updateData.purchasePriceRWF = unitPriceLocalRWF
+        updateData.landedCost = unitPriceLocalRWF
+      }
     }
 
     // Handle image updates
@@ -131,7 +199,29 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return errorResponse({ id: "Product not found" }, 404)
     }
 
-    return successResponse({ product })
+    const movedBetweenBatches = previousBatchId !== nextBatchId
+    const affectsBatchAllocation =
+      movedBetweenBatches || quantityInitial !== undefined || shouldRecalculateLocalPricing
+
+    if (affectsBatchAllocation) {
+      if (nextBatchId) {
+        await recalculateBatchProducts(nextBatchId)
+      }
+
+      if (previousBatchId && previousBatchId !== nextBatchId) {
+        await recalculateBatchProducts(previousBatchId)
+      }
+    }
+
+    const hydratedProduct = await ProductModel.findById(productId)
+      .populate("categoryId", "name")
+      .populate("batchId", "batchName")
+
+    if (!hydratedProduct) {
+      return errorResponse({ id: "Product not found" }, 404)
+    }
+
+    return successResponse({ product: hydratedProduct })
   } catch (error) {
     return errorResponse(mapProductPersistenceError(error), 400)
   }
