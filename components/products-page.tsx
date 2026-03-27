@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -44,7 +45,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ExternalLinkIcon, ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon, PencilIcon, XIcon } from "lucide-react"
+import { ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon, PencilIcon, XIcon } from "lucide-react"
 
 const SOURCE_CURRENCY_OPTIONS = ["RWF", "USD", "KSH", "UGX", "AED", "EUR", "GBP"]
 
@@ -81,8 +82,7 @@ export function ProductsPage() {
     const [viewMode, setViewMode] = React.useState<"list" | "grid">("list")
     const [isAddProductSheetOpen, setIsAddProductSheetOpen] = React.useState(false)
     const [isEditProductSheetOpen, setIsEditProductSheetOpen] = React.useState(false)
-    const [isProductDetailsSheetOpen, setIsProductDetailsSheetOpen] = React.useState(false)
-    const [detailsProduct, setDetailsProduct] = React.useState<Product | null>(null)
+    const [selectedProductIds, setSelectedProductIds] = React.useState<Set<string>>(new Set())
     const [errors, setErrors] = React.useState<Record<string, string>>({})
     const [isSubmitting, setIsSubmitting] = React.useState(false)
 
@@ -114,9 +114,10 @@ export function ProductsPage() {
     const [editSourceCurrency, setEditSourceCurrency] = React.useState("USD")
     const [editExchangeRate, setEditExchangeRate] = React.useState("1")
     const [editBatchId, setEditBatchId] = React.useState("")
-    const [editImageFile, setEditImageFile] = React.useState<File | null>(null)
-    const [editImagePreview, setEditImagePreview] = React.useState<string>("")
-    const [editExistingImage, setEditExistingImage] = React.useState<string>("")
+    const [editProductImages, setEditProductImages] = React.useState<string[]>([])
+    const [editNewImages, setEditNewImages] = React.useState<File[]>([])
+    const [editNewImagePreviews, setEditNewImagePreviews] = React.useState<string[]>([])
+    const [editDeletedImageIndices, setEditDeletedImageIndices] = React.useState<Set<number>>(new Set())
     const [editErrors, setEditErrors] = React.useState<Record<string, string>>({})
     const [isEditSubmitting, setIsEditSubmitting] = React.useState(false)
 
@@ -218,14 +219,13 @@ export function ProductsPage() {
     }, [editSourceCurrency])
 
     React.useEffect(() => {
-        if (editImageFile) {
-            const preview = URL.createObjectURL(editImageFile)
-            setEditImagePreview(preview)
-            return () => URL.revokeObjectURL(preview)
-        } else {
-            setEditImagePreview("")
+        const previews = editNewImages.map((file) => URL.createObjectURL(file))
+        setEditNewImagePreviews(previews)
+
+        return () => {
+            previews.forEach((url) => URL.revokeObjectURL(url))
         }
-    }, [editImageFile])
+    }, [editNewImages])
 
     const submitProduct = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -272,11 +272,6 @@ export function ProductsPage() {
         }
     }
 
-    const openProductDetailsSheet = (product: Product) => {
-        setDetailsProduct(product)
-        setIsProductDetailsSheetOpen(true)
-    }
-
     const openEditProductSheet = (product: Product) => {
         setEditProductId(product._id)
         setEditProductName(product.name)
@@ -286,9 +281,10 @@ export function ProductsPage() {
         setEditSourceCurrency(product.sourceCurrency)
         setEditExchangeRate(formatDecimalWithCommas(String(product.exchangeRate ?? 1)))
         setEditBatchId(product.batchId?._id ?? "")
-        setEditImageFile(null)
-        setEditImagePreview("")
-        setEditExistingImage(product.images?.[0] ?? "")
+        setEditProductImages(product.images ?? [])
+        setEditNewImages([])
+        setEditNewImagePreviews([])
+        setEditDeletedImageIndices(new Set())
         setEditErrors({})
         setIsEditProductSheetOpen(true)
     }
@@ -409,11 +405,18 @@ export function ProductsPage() {
             formData.append("sourceCurrency", editSourceCurrency)
             formData.append("exchangeRate", stripCommas(editExchangeRate))
             formData.append("batchId", editBatchId || "")
-            formData.append("existingImage", editExistingImage)
 
-            if (editImageFile) {
-                formData.append("image", editImageFile)
-            }
+            // Add remaining existing images (not deleted)
+            editProductImages.forEach((image, index) => {
+                if (!editDeletedImageIndices.has(index)) {
+                    formData.append("existingImages", image)
+                }
+            })
+
+            // Add new images
+            editNewImages.forEach((file) => {
+                formData.append("newImages", file)
+            })
 
             const response = await fetch(`/api/products/${editProductId}`, {
                 method: "PATCH",
@@ -434,9 +437,10 @@ export function ProductsPage() {
             setEditSourceCurrency("USD")
             setEditExchangeRate("1")
             setEditBatchId("")
-            setEditImageFile(null)
-            setEditImagePreview("")
-            setEditExistingImage("")
+            setEditProductImages([])
+            setEditNewImages([])
+            setEditNewImagePreviews([])
+            setEditDeletedImageIndices(new Set())
             setIsEditProductSheetOpen(false)
             await load()
         } finally {
@@ -487,7 +491,6 @@ export function ProductsPage() {
 
             setShowDeleteConfirm(false)
             setDeleteConfirmData(null)
-            setIsProductDetailsSheetOpen(false)
             await load()
         } catch (error) {
             alert("Failed to delete product")
@@ -514,6 +517,17 @@ export function ProductsPage() {
 
     const renderProductActions = (product: Product) => (
         <div className="flex gap-2">
+            {product.externalLink && (
+                <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                >
+                    <a href={product.externalLink} target="_blank" rel="noreferrer">
+                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                    </a>
+                </Button>
+            )}
             <Sheet open={isEditProductSheetOpen} onOpenChange={setIsEditProductSheetOpen}>
                 <SheetTrigger asChild>
                     <Button
@@ -532,52 +546,159 @@ export function ProductsPage() {
                         </SheetDescription>
                     </SheetHeader>
                     <form className="grid gap-6 p-4" onSubmit={submitEditProduct}>
+                        {/* Images Section */}
+                        <div className="space-y-3 border-b pb-4">
+                            <h3 className="font-semibold text-sm">Images</h3>
+
+                            {/* Main Image Display (first existing image or first new image) */}
+                            <div className="relative h-64 w-full overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center group">
+                                {editProductImages[0] && !editDeletedImageIndices.has(0) ? (
+                                    <>
+                                        <img
+                                            src={editProductImages[0]}
+                                            alt="Main product image"
+                                            className="h-full w-full object-cover"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newDeleted = new Set(editDeletedImageIndices)
+                                                newDeleted.add(0)
+                                                setEditDeletedImageIndices(newDeleted)
+                                            }}
+                                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <XIcon className="h-4 w-4" />
+                                        </button>
+                                    </>
+                                ) : editNewImagePreviews[0] ? (
+                                    <>
+                                        <img
+                                            src={editNewImagePreviews[0]}
+                                            alt="New main image"
+                                            className="h-full w-full object-cover"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newNewImages = editNewImages.filter((_, i) => i !== 0)
+                                                setEditNewImages(newNewImages)
+                                            }}
+                                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <XIcon className="h-4 w-4" />
+                                        </button>
+                                    </>
+                                ) : (
+                                    <label className="cursor-pointer flex flex-col items-center gap-2 px-3 text-center w-full h-full items-center justify-center">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70 transition-colors group-hover:border-primary/50">
+                                            <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+                                        </div>
+                                        <div className="text-sm font-medium text-foreground">Add main image</div>
+                                        <div className="text-xs text-muted-foreground">Click to upload</div>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(event) => {
+                                                const file = event.target.files?.[0]
+                                                if (file) {
+                                                    setEditNewImages([file, ...editNewImages])
+                                                }
+                                            }}
+                                        />
+                                    </label>
+                                )}
+                            </div>
+
+                            {/* Image Grid - Dynamic cells for remaining images */}
+                            {(editProductImages.length > 1 || editNewImages.length > 1 ||
+                                editProductImages.length + editNewImages.length - editDeletedImageIndices.size < 4) && (
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {/* Show remaining existing images (up to 3 after main) */}
+                                        {editProductImages.slice(1).map((image, sliceIndex) => {
+                                            const actualIndex = sliceIndex + 1
+                                            if (editDeletedImageIndices.has(actualIndex) || sliceIndex >= 3) return null
+
+                                            return (
+                                                <div key={`existing-${actualIndex}`} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
+                                                    <img
+                                                        src={image}
+                                                        alt={`Product image ${actualIndex + 1}`}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const newDeleted = new Set(editDeletedImageIndices)
+                                                            newDeleted.add(actualIndex)
+                                                            setEditDeletedImageIndices(newDeleted)
+                                                        }}
+                                                        className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <XIcon className="h-3 w-3" />
+                                                    </button>
+                                                </div>
+                                            )
+                                        })}
+
+                                        {/* Show new images (up to 3 total after considering remaining existing) */}
+                                        {editNewImages.map((file, newIndex) => {
+                                            const remainingExistingCount = editProductImages.slice(1).filter((_, i) => !editDeletedImageIndices.has(i + 1)).length
+                                            if (newIndex >= 3 - remainingExistingCount) return null
+
+                                            return (
+                                                <div key={`new-${newIndex}`} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
+                                                    <img
+                                                        src={editNewImagePreviews[newIndex]}
+                                                        alt={`New image ${newIndex + 1}`}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const newNewImages = editNewImages.filter((_, i) => i !== newIndex)
+                                                            setEditNewImages(newNewImages)
+                                                        }}
+                                                        className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <XIcon className="h-3 w-3" />
+                                                    </button>
+                                                </div>
+                                            )
+                                        })}
+
+                                        {/* Add slot - show only if less than 4 total images */}
+                                        {(() => {
+                                            const totalExistingAfterDelete = editProductImages.filter((_, i) => !editDeletedImageIndices.has(i)).length
+                                            const totalImages = totalExistingAfterDelete + editNewImages.length
+                                            const gridCellsNeeded = Math.max(0, totalExistingAfterDelete - 1 + editNewImages.length)
+                                            if (totalImages < 4 && gridCellsNeeded < 3) {
+                                                return (
+                                                    <label className="relative aspect-square rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors group">
+                                                        <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            className="hidden"
+                                                            onChange={(event) => {
+                                                                const file = event.target.files?.[0]
+                                                                if (file) {
+                                                                    setEditNewImages([...editNewImages, file])
+                                                                }
+                                                            }}
+                                                        />
+                                                    </label>
+                                                )
+                                            }
+                                        })()}
+                                    </div>
+                                )}
+                        </div>
+
                         {/* Product Details Section */}
                         <div className="space-y-3 border-b pb-4">
                             <h3 className="font-semibold text-sm">Product Details</h3>
-
-                            <Field>
-                                <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="edit-product-image">Product image</FieldLabel>
-                                </div>
-                                <label
-                                    htmlFor="edit-product-image"
-                                    className="group relative flex h-50 w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 transition-colors hover:border-primary/60 hover:bg-muted/50"
-                                >
-                                    {editImagePreview || editExistingImage ? (
-                                        <>
-                                            <img
-                                                src={editImagePreview || editExistingImage}
-                                                alt={editProductName}
-                                                className="h-full w-full object-cover"
-                                            />
-                                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity group-hover:opacity-100">
-                                                <PencilIcon className="h-8 w-8 text-white" />
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <div className="flex flex-col items-center gap-2 px-3 text-center">
-                                            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70 transition-colors group-hover:border-primary/50">
-                                                <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
-                                            </div>
-                                            <div className="text-sm font-medium text-foreground">Add product image</div>
-                                            <div className="text-xs text-muted-foreground">Click to upload (PNG, JPG, WEBP)</div>
-                                        </div>
-                                    )}
-                                </label>
-                                <Input
-                                    id="edit-product-image"
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(event) => {
-                                        const file = event.target.files?.[0]
-                                        if (file) {
-                                            setEditImageFile(file)
-                                        }
-                                    }}
-                                />
-                            </Field>
 
                             <Field>
                                 <div className="flex items-center justify-between">
@@ -947,7 +1068,7 @@ export function ProductsPage() {
                                     <TableHead>Name</TableHead>
                                     <TableHead>Category</TableHead>
                                     <TableHead>Batch</TableHead>
-                                    <TableHead>Remaining</TableHead>
+                                    <TableHead>On Hand</TableHead>
                                     <TableHead>Buying Price (RWF)</TableHead>
                                     <TableHead>Landed Price (RWF)</TableHead>
                                     <TableHead>Actions</TableHead>
@@ -985,63 +1106,106 @@ export function ProductsPage() {
                         </EmptyContent>
                     </Empty>
                 ) : viewMode === "list" ? (
-                    <div className="overflow-hidden rounded-xl border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Image</TableHead>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Category</TableHead>
-                                    <TableHead>Batch</TableHead>
-                                    <TableHead>Remaining</TableHead>
-                                    <TableHead>Buying Price (RWF)</TableHead>
-                                    <TableHead>Landed Price (RWF)</TableHead>
-                                    <TableHead>Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {products.map((product) => (
-                                    <TableRow
-                                        key={product._id}
-                                        className="cursor-pointer"
-                                        onClick={() => openProductDetailsSheet(product)}
-                                    >
-                                        <TableCell>
-                                            {product.images?.[0] ? (
-                                                <img
-                                                    src={product.images[0]}
-                                                    alt={product.name}
-                                                    className="h-10 w-10 rounded-md object-cover"
-                                                />
-                                            ) : (
-                                                <div className="h-10 w-10 rounded-md bg-muted" />
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="truncate max-w-xs">{product.name}</TableCell>
-                                        <TableCell>{product.categoryId?.name ?? "-"}</TableCell>
-                                        <TableCell>{product.batchId?.batchName ?? "Unassigned"}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
-                                                {product.quantityRemaining}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>{product.purchasePriceRWF.toLocaleString()}</TableCell>
-                                        <TableCell>{product.landedCost.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                                        <TableCell onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</TableCell>
+                    <>
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex gap-2 items-center">
+                                <h3 className="text-sm text-muted-foreground">Total</h3>
+                                <p className="text-lg font-semibold">{products.length}</p>
+                                {selectedProductIds.size > 0 && (
+                                    <>
+                                        <span className="text-xs text-muted-foreground">|</span>
+                                        <p className="text-sm font-medium text-primary">{selectedProductIds.size} selected</p>
+                                    </>
+                                )}
+                            </div>
+                            {selectedProductIds.size > 0 && (
+                                <Button size="sm" variant="outline" onClick={() => setSelectedProductIds(new Set())}>Clear Selection</Button>
+                            )}
+                        </div>
+                        <div className="overflow-hidden rounded-xl border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-12"><input type="checkbox" className="rounded" onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setSelectedProductIds(new Set(products.map(p => p._id)))
+                                            } else {
+                                                setSelectedProductIds(new Set())
+                                            }
+                                        }} checked={selectedProductIds.size === products.length && products.length > 0} title="Select all" /></TableHead>
+                                        <TableHead>Image</TableHead>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead>Batch</TableHead>
+                                        <TableHead>On Hand</TableHead>
+                                        <TableHead>Buying Price (RWF)</TableHead>
+                                        <TableHead>Landed Price (RWF)</TableHead>
+                                        <TableHead>Actions</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
+                                </TableHeader>
+                                <TableBody>
+                                    {products.map((product) => (
+                                        <TableRow
+                                            key={product._id}
+                                            className="p-0"
+                                        >
+                                            <TableCell onClick={(e) => e.stopPropagation()} className="p-3">
+                                                <input type="checkbox" className="rounded" checked={selectedProductIds.has(product._id)} onChange={(e) => {
+                                                    const newSelected = new Set(selectedProductIds)
+                                                    if (e.target.checked) {
+                                                        newSelected.add(product._id)
+                                                    } else {
+                                                        newSelected.delete(product._id)
+                                                    }
+                                                    setSelectedProductIds(newSelected)
+                                                }} />
+                                            </TableCell>
+                                            <Link href={`/app/products/${product._id}`} className="contents">
+                                                <TableCell className="cursor-pointer hover:bg-muted/50">
+                                                    {product.images?.[0] ? (
+                                                        <img
+                                                            src={product.images[0]}
+                                                            alt={product.name}
+                                                            className="h-10 w-10 rounded-md object-cover"
+                                                        />
+                                                    ) : (
+                                                        <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground">
+                                                            {product.name.replace(/\s+/g, "").slice(0, 2).toUpperCase()}
+                                                        </div>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="truncate max-w-xs cursor-pointer hover:bg-muted/50">
+                                                    {product.name}
+                                                </TableCell>
+                                                <TableCell className="cursor-pointer hover:bg-muted/50">
+                                                    {product.batchId?.batchName ?? "Unassigned"}
+                                                </TableCell>
+                                                <TableCell className="cursor-pointer hover:bg-muted/50">
+                                                    <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
+                                                        {product.quantityRemaining}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="cursor-pointer hover:bg-muted/50">
+                                                    {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </TableCell>
+                                                <TableCell className="cursor-pointer hover:bg-muted/50">
+                                                    {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </TableCell>
+                                            </Link>
+                                            <TableCell onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </>
                 ) : (
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         {products.map((product) => (
                             <div
                                 key={product._id}
-                                className="rounded-lg border bg-card p-4 cursor-pointer"
-                                onClick={() => openProductDetailsSheet(product)}
+                                className="rounded-lg border bg-card p-4"
                             >
-                                <div className="mb-3 overflow-hidden rounded-md border bg-muted">
+                                <Link href={`/app/products/${product._id}`} className="block mb-3 overflow-hidden rounded-md border bg-muted">
                                     {product.images?.[0] ? (
                                         <img
                                             src={product.images[0]}
@@ -1049,20 +1213,28 @@ export function ProductsPage() {
                                             className="h-36 w-full object-cover"
                                         />
                                     ) : (
-                                        <div className="h-36 w-full" />
+                                        <div className="h-36 w-full flex items-center justify-center">
+                                            <div className="text-3xl font-bold text-muted-foreground">
+                                                {product.name.replace(/\s+/g, "").slice(0, 2).toUpperCase()}
+                                            </div>
+                                        </div>
                                     )}
+                                </Link>
+                                <div className="mb-1 truncate text-base font-semibold text-card-foreground">
+                                    <Link href={`/app/products/${product._id}`} className="hover:underline">
+                                        {product.name}
+                                    </Link>
                                 </div>
-                                <div className="mb-1 truncate text-base font-semibold text-card-foreground">{product.name}</div>
                                 <div className="text-sm text-muted-foreground">Category: {product.categoryId?.name ?? "-"}</div>
                                 <div className="text-sm text-muted-foreground">Batch: {product.batchId?.batchName ?? "Unassigned"}</div>
                                 <div className="mt-3 flex flex-wrap items-center gap-2">
                                     <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
                                         Stock: {product.quantityRemaining}
                                     </Badge>
-                                    <Badge variant="secondary">Buying Price: RWF {product.purchasePriceRWF.toLocaleString()}</Badge>
+                                    <Badge variant="secondary">Buying Price: RWF {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Badge>
                                 </div>
                                 <div className="mt-3 text-xs text-muted-foreground">
-                                    Landed Price (RWF): {product.landedCost.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    Landed Price (RWF): {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </div>
                                 <div className="mt-4" onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</div>
                             </div>
@@ -1070,109 +1242,6 @@ export function ProductsPage() {
                     </div>
                 )}
             </CardContent>
-
-            <Sheet open={isProductDetailsSheetOpen} onOpenChange={setIsProductDetailsSheetOpen}>
-                <SheetContent className="overflow-y-auto">
-                    <SheetHeader>
-                        <SheetTitle>{detailsProduct?.name ?? "Product details"}</SheetTitle>
-                        <SheetDescription>
-                            Full product details and quick actions.
-                        </SheetDescription>
-                    </SheetHeader>
-
-                    {detailsProduct ? (
-                        <div className="grid gap-4 p-4">
-                            {detailsProduct.images?.[0] ? (
-                                <img
-                                    src={detailsProduct.images[0]}
-                                    alt={detailsProduct.name}
-                                    className="aspect-square w-full rounded-md object-cover border"
-                                />
-                            ) : (
-                                <div className="h-44 w-full rounded-md border bg-muted" />
-                            )}
-
-                            <div className="grid gap-3 text-sm sm:grid-cols-2">
-                                <div className="space-y-1">
-                                    <p className="font-medium text-muted-foreground">Name:</p>
-                                    <p className="mt-1 truncate font-medium">{detailsProduct.name}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="font-medium text-muted-foreground">Category:</p>
-                                    <p className="mt-1 font-medium">{detailsProduct.categoryId?.name ?? "-"}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="font-medium text-muted-foreground">Batch:</p>
-                                    <p className="mt-1 font-medium">{detailsProduct.batchId?.batchName ?? "Unassigned"}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="font-medium text-muted-foreground">Created:</p>
-                                    <p className="mt-1 font-medium">{new Date(detailsProduct.createdAt).toLocaleString()}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="font-medium text-muted-foreground">Initial stock:</p>
-                                    <p className="mt-1 font-medium">{detailsProduct.quantityInitial}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="font-medium text-muted-foreground">Remaining stock:</p>
-                                    <p className="mt-1 font-medium">{detailsProduct.quantityRemaining}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="font-medium text-muted-foreground">Unit price:</p>
-                                    <p className="mt-1 font-medium">{detailsProduct.unitPriceForeign.toLocaleString()} {detailsProduct.sourceCurrency}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="font-medium text-muted-foreground">Exchange rate:</p>
-                                    <p className="mt-1 font-medium">{(detailsProduct.exchangeRate ?? 1).toLocaleString()}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="font-medium text-muted-foreground">Buying price (RWF):</p>
-                                    <p className="mt-1 font-medium">{detailsProduct.purchasePriceRWF.toLocaleString()}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="font-medium text-muted-foreground">Landed cost (RWF):</p>
-                                    <p className="mt-1 font-medium">{detailsProduct.landedCost.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => {
-                                        setIsProductDetailsSheetOpen(false)
-                                        openEditProductSheet(detailsProduct)
-                                    }}
-                                >
-                                    Edit Product
-                                </Button>
-
-                                {detailsProduct.externalLink ? (
-                                    <Button asChild type="button" variant="outline">
-                                        <a href={detailsProduct.externalLink} target="_blank" rel="noreferrer">
-                                            <ExternalLinkIcon className="h-4 w-4" />
-                                            External Link
-                                        </a>
-                                    </Button>
-                                ) : (
-                                    <Button type="button" variant="outline" disabled>
-                                        <ExternalLinkIcon className="h-4 w-4" />
-                                        External Link
-                                    </Button>
-                                )}
-
-                                <Button
-                                    type="button"
-                                    variant="destructive"
-                                    onClick={() => handleDeleteProduct(detailsProduct)}
-                                >
-                                    Delete
-                                </Button>
-                            </div>
-                        </div>
-                    ) : null}
-                </SheetContent>
-            </Sheet>
 
             {showSaleModal && (
                 <div

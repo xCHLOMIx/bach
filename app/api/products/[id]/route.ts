@@ -80,6 +80,29 @@ async function recalculateBatchProducts(batchId: string) {
   }
 }
 
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  await connectToDatabase()
+
+  const user = await getAuthorizedUser(request)
+  if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
+
+  const productId = (await params).id
+  if (!Types.ObjectId.isValid(productId)) {
+    return errorResponse({ id: "Invalid product ID" }, 400)
+  }
+
+  const product = await ProductModel.findOne({ _id: productId, userId: user._id })
+    .populate("categoryId", "name")
+    .populate("batchId", "batchName")
+    .lean()
+
+  if (!product) {
+    return errorResponse({ id: "Product not found" }, 404)
+  }
+
+  return successResponse({ product })
+}
+
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await connectToDatabase()
 
@@ -100,8 +123,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const exchangeRate = formData.get("exchangeRate") !== undefined ? Number(formData.get("exchangeRate") ?? 1) : undefined
   const externalLink = formData.get("externalLink") !== undefined ? String(formData.get("externalLink") ?? "").trim() : undefined
   const batchId = formData.get("batchId") !== undefined ? (formData.get("batchId") ? String(formData.get("batchId")).trim() : null) : undefined
-  const existingImage = formData.get("existingImage") ? String(formData.get("existingImage")) : undefined
-  const imageFile = formData.get("image") instanceof File ? (formData.get("image") as File) : null
+  
+  // Handle multiple images
+  const existingImages = formData.getAll("existingImages").map((img) => String(img))
+  const newImageFiles = Array.from(formData.getAll("newImages")).filter((file) => file instanceof File) as File[]
 
   const errors: FieldErrors = {}
 
@@ -175,20 +200,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
     }
 
-    // Handle image updates
-    if (existingImage !== undefined || imageFile) {
-      let image = existingImage ?? ""
+    // Handle image updates - support multiple images
+    if (existingImages.length > 0 || newImageFiles.length > 0) {
+      const updatedImages: string[] = [...existingImages]
 
-      // Upload new image file
-      if (imageFile) {
-        image = await uploadImageFile(imageFile)
+      // Upload new image files
+      for (const imageFile of newImageFiles) {
+        const uploadedImageUrl = await uploadImageFile(imageFile)
+        updatedImages.push(uploadedImageUrl)
       }
 
-      if (image) {
-        updateData.images = [image]
-      } else {
-        updateData.images = []
-      }
+      updateData.images = updatedImages
     }
 
     const product = await ProductModel.findByIdAndUpdate(productId, updateData, { new: true, runValidators: true })
