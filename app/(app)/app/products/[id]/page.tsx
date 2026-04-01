@@ -10,6 +10,7 @@ import {
   ChevronRightIcon,
   ExternalLinkIcon,
   ImagePlusIcon,
+  LoaderCircle,
   PencilIcon,
   Trash2Icon,
   XIcon,
@@ -125,6 +126,41 @@ export default function ProductDetailsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteConfirmData, setDeleteConfirmData] = useState<DeleteConfirmData | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [previewImages, setPreviewImages] = useState<string[]>([])
+  const [previewImageIndex, setPreviewImageIndex] = useState(0)
+  const previewImageSrc = previewImages[previewImageIndex] ?? null
+  const isPreviewOpen = previewImages.length > 0
+
+  const openImagePreview = useCallback((images: string[], index: number) => {
+    if (images.length === 0) {
+      return
+    }
+
+    const safeIndex = Math.max(0, Math.min(index, images.length - 1))
+    setPreviewImages(images)
+    setPreviewImageIndex(safeIndex)
+  }, [])
+
+  const closeImagePreview = useCallback(() => {
+    setPreviewImages([])
+    setPreviewImageIndex(0)
+  }, [])
+
+  const showPreviousPreviewImage = useCallback(() => {
+    if (previewImages.length < 2) {
+      return
+    }
+
+    setPreviewImageIndex((current) => (current === 0 ? previewImages.length - 1 : current - 1))
+  }, [previewImages.length])
+
+  const showNextPreviewImage = useCallback(() => {
+    if (previewImages.length < 2) {
+      return
+    }
+
+    setPreviewImageIndex((current) => (current === previewImages.length - 1 ? 0 : current + 1))
+  }, [previewImages.length])
 
   const stripCommas = (value: string) => value.replace(/,/g, "")
   const toIntegerInput = (value: string) => value.replace(/\D/g, "")
@@ -222,13 +258,34 @@ export default function ProductDetailsPage() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (isPreviewOpen) {
+        if (event.key === "Escape") {
+          event.preventDefault()
+          closeImagePreview()
+          return
+        }
+
+        if (event.key === "ArrowLeft") {
+          event.preventDefault()
+          showPreviousPreviewImage()
+          return
+        }
+
+        if (event.key === "ArrowRight") {
+          event.preventDefault()
+          showNextPreviewImage()
+        }
+
+        return
+      }
+
       if (event.key === "ArrowLeft") handlePrevImage()
       if (event.key === "ArrowRight") handleNextImage()
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [handleNextImage, handlePrevImage])
+  }, [closeImagePreview, handleNextImage, handlePrevImage, isPreviewOpen, showNextPreviewImage, showPreviousPreviewImage])
 
   const openEditProductSheet = useCallback((currentProduct: Product) => {
     setEditProductId(currentProduct._id)
@@ -413,15 +470,15 @@ export default function ProductDetailsPage() {
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
         <section className="grid gap-4 lg:grid-cols-[96px_minmax(0,1fr)]">
-          <div className="order-2 flex gap-3 overflow-x-auto pb-2 lg:order-1 lg:max-h-[42rem] lg:flex-col lg:overflow-y-auto lg:pb-0">
+          <div className="order-2 flex gap-3 overflow-x-auto pb-2 lg:order-1 lg:max-h-168 lg:flex-col lg:overflow-y-auto lg:pb-0">
             {(product.images.length > 0 ? product.images : [product.name]).map((image, index) => (
               <button
                 key={`${image}-${index}`}
                 type="button"
                 onClick={() => setCurrentImageIndex(index)}
                 className={`relative h-20 aspect-square overflow-hidden rounded-2xl border transition-all ${index === currentImageIndex
-                    ? "border-foreground"
-                    : "border-border/70 bg-muted/30 hover:border-foreground/40"
+                  ? "border-foreground"
+                  : "border-border/70 bg-muted/30 hover:border-foreground/40"
                   }`}
               >
                 {product.images[index] ? (
@@ -444,14 +501,20 @@ export default function ProductDetailsPage() {
           <div className="order-1 overflow-hidden rounded-[2rem] border border-border/70 h-max p-4 bg-gray-100 lg:order-2">
             <div className="relative aspect-[4/4.2] overflow-hidden rounded-[1.5rem] bg-white">
               {currentImage ? (
-                <Image
-                  src={currentImage}
-                  alt={product.name}
-                  fill
-                  priority
-                  sizes="(max-width: 1280px) 100vw, 55vw"
-                  className="object-contain p-6"
-                />
+                <button
+                  type="button"
+                  className="absolute inset-0 cursor-zoom-in"
+                  onClick={() => openImagePreview(product.images.length > 0 ? product.images : [currentImage], product.images.length > 0 ? currentImageIndex : 0)}
+                >
+                  <Image
+                    src={currentImage}
+                    alt={product.name}
+                    fill
+                    priority
+                    sizes="(max-width: 1280px) 100vw, 55vw"
+                    className="object-contain p-6"
+                  />
+                </button>
               ) : (
                 <div className="flex h-full w-full items-center justify-center bg-muted">
                   <div className="text-center">
@@ -467,7 +530,7 @@ export default function ProductDetailsPage() {
                   <button
                     type="button"
                     onClick={handlePrevImage}
-                    className="absolute left-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-2xl bg-black/45 text-white transition hover:bg-black/65"
+                    className="absolute left-3 top-1/2 flex h-12 w-12 -translate-y-1/2 cursor-pointer items-center justify-center rounded-2xl bg-black/45 text-white transition hover:bg-black/65"
                     title="Previous image"
                   >
                     <ChevronLeftIcon className="h-6 w-6" />
@@ -475,7 +538,7 @@ export default function ProductDetailsPage() {
                   <button
                     type="button"
                     onClick={handleNextImage}
-                    className="absolute right-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-2xl bg-black/45 text-white transition hover:bg-black/65"
+                    className="absolute right-3 top-1/2 flex h-12 w-12 -translate-y-1/2 cursor-pointer items-center justify-center rounded-2xl bg-black/45 text-white transition hover:bg-black/65"
                     title="Next image"
                   >
                     <ChevronRightIcon className="h-6 w-6" />
@@ -686,7 +749,7 @@ export default function ProductDetailsPage() {
                     </button>
                   </>
                 ) : (
-                  <label className="cursor-pointer flex flex-col items-center gap-2 px-3 text-center w-full h-full items-center justify-center">
+                  <label className="cursor-pointer flex flex-col items-center gap-2 px-3 text-center w-full h-full justify-center">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70 transition-colors group-hover:border-primary/50">
                       <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
                     </div>
@@ -929,7 +992,7 @@ export default function ProductDetailsPage() {
 
             {editErrors.general ? <p className="text-sm text-destructive">{editErrors.general}</p> : null}
             <Button type="submit" disabled={isEditSubmitting}>
-              {isEditSubmitting ? "Saving..." : "Save Changes"}
+              {isEditSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Save Changes"}
             </Button>
           </form>
         </SheetContent>
@@ -979,10 +1042,63 @@ export default function ProductDetailsPage() {
                 Cancel
               </Button>
               <Button type="button" variant="destructive" onClick={confirmDeleteProduct} disabled={isDeleting}>
-                {isDeleting ? "Deleting..." : "Delete Permanently"}
+                {isDeleting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Delete Permanently"}
               </Button>
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {previewImageSrc ? (
+        <div
+          className="fixed inset-0 z-70 flex items-center justify-center bg-black/80 p-4"
+          onClick={closeImagePreview}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image preview"
+        >
+          {previewImages.length > 1 ? (
+            <button
+              type="button"
+              className="absolute left-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
+              onClick={(event) => {
+                event.stopPropagation()
+                showPreviousPreviewImage()
+              }}
+              title="Previous image"
+            >
+              <ChevronLeftIcon className="h-5 w-5" />
+            </button>
+          ) : null}
+
+          <button
+            type="button"
+            className="absolute right-4 top-4 rounded-md bg-black/70 p-2 text-white hover:bg-black"
+            onClick={closeImagePreview}
+          >
+            <XIcon className="h-5 w-5" />
+          </button>
+
+          {previewImages.length > 1 ? (
+            <button
+              type="button"
+              className="absolute right-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
+              onClick={(event) => {
+                event.stopPropagation()
+                showNextPreviewImage()
+              }}
+              title="Next image"
+            >
+              <ChevronRightIcon className="h-5 w-5" />
+            </button>
+          ) : null}
+
+          <img
+            src={previewImageSrc}
+            alt="Preview"
+            className="max-h-[92vh] w-auto max-w-[96vw] rounded-xl object-contain"
+            onClick={(event) => event.stopPropagation()}
+          />
         </div>
       ) : null}
     </div>

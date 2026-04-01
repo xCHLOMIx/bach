@@ -45,7 +45,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon, PencilIcon, XIcon } from "lucide-react"
+import { ChevronLeftIcon, ChevronRightIcon, ImagePlusIcon, LayoutGridIcon, ListIcon, LoaderCircle, PackageSearchIcon, PencilIcon, XIcon } from "lucide-react"
 
 const SOURCE_CURRENCY_OPTIONS = ["RWF", "USD", "KSH", "UGX", "AED", "EUR", "GBP"]
 
@@ -131,6 +131,41 @@ export function ProductsPage() {
         batchName: string | null
     } | null>(null)
     const [isDeleting, setIsDeleting] = React.useState(false)
+    const [previewImages, setPreviewImages] = React.useState<string[]>([])
+    const [previewImageIndex, setPreviewImageIndex] = React.useState(0)
+    const previewImageSrc = previewImages[previewImageIndex] ?? null
+    const isPreviewOpen = previewImages.length > 0
+
+    const openImagePreview = React.useCallback((images: string[], index: number) => {
+        if (images.length === 0) {
+            return
+        }
+
+        const safeIndex = Math.max(0, Math.min(index, images.length - 1))
+        setPreviewImages(images)
+        setPreviewImageIndex(safeIndex)
+    }, [])
+
+    const closeImagePreview = React.useCallback(() => {
+        setPreviewImages([])
+        setPreviewImageIndex(0)
+    }, [])
+
+    const showPreviousPreviewImage = React.useCallback(() => {
+        if (previewImages.length < 2) {
+            return
+        }
+
+        setPreviewImageIndex((current) => (current === 0 ? previewImages.length - 1 : current - 1))
+    }, [previewImages.length])
+
+    const showNextPreviewImage = React.useCallback(() => {
+        if (previewImages.length < 2) {
+            return
+        }
+
+        setPreviewImageIndex((current) => (current === previewImages.length - 1 ? 0 : current + 1))
+    }, [previewImages.length])
 
     const toIntegerInput = (value: string) => value.replace(/\D/g, "")
 
@@ -226,6 +261,34 @@ export function ProductsPage() {
             previews.forEach((url) => URL.revokeObjectURL(url))
         }
     }, [editNewImages])
+
+    React.useEffect(() => {
+        if (!isPreviewOpen) {
+            return
+        }
+
+        const handlePreviewKeyboardControls = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                event.preventDefault()
+                closeImagePreview()
+                return
+            }
+
+            if (event.key === "ArrowLeft") {
+                event.preventDefault()
+                showPreviousPreviewImage()
+                return
+            }
+
+            if (event.key === "ArrowRight") {
+                event.preventDefault()
+                showNextPreviewImage()
+            }
+        }
+
+        window.addEventListener("keydown", handlePreviewKeyboardControls)
+        return () => window.removeEventListener("keydown", handlePreviewKeyboardControls)
+    }, [closeImagePreview, isPreviewOpen, showNextPreviewImage, showPreviousPreviewImage])
 
     const submitProduct = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -515,6 +578,63 @@ export function ProductsPage() {
         : 0
     const canSubmitSale = Boolean(saleSelectedProduct) && saleSelectedQuantity > 0 && Boolean(salePrice) && !saleIsQuantityAboveAvailable && !isSaleSubmitting
 
+    const previewOverlay = previewImageSrc ? (
+        <div
+            className="absolute inset-0 z-120 flex items-center justify-center bg-black/80 p-4"
+            onClick={closeImagePreview}
+            data-image-preview="true"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Image preview"
+        >
+            {previewImages.length > 1 ? (
+                <button
+                    type="button"
+                    className="absolute left-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
+                    onClick={(event) => {
+                        event.stopPropagation()
+                        showPreviousPreviewImage()
+                    }}
+                    title="Previous image"
+                >
+                    <ChevronLeftIcon className="h-5 w-5" />
+                </button>
+            ) : null}
+
+            <button
+                type="button"
+                className="absolute right-4 top-4 cursor-pointer rounded-md bg-black/70 p-2 text-white hover:bg-black"
+                onClick={(event) => {
+                    event.stopPropagation()
+                    closeImagePreview()
+                }}
+            >
+                <XIcon className="h-5 w-5" />
+            </button>
+
+            {previewImages.length > 1 ? (
+                <button
+                    type="button"
+                    className="absolute right-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
+                    onClick={(event) => {
+                        event.stopPropagation()
+                        showNextPreviewImage()
+                    }}
+                    title="Next image"
+                >
+                    <ChevronRightIcon className="h-5 w-5" />
+                </button>
+            ) : null}
+
+            <img
+                src={previewImageSrc}
+                alt="Preview"
+                className="max-h-[92vh] w-auto max-w-[96vw] rounded-xl object-contain"
+                onClick={(event) => event.stopPropagation()}
+            />
+        </div>
+    ) : null
+
     const renderProductActions = (product: Product) => (
         <div className="flex gap-2">
             {product.externalLink && (
@@ -528,7 +648,16 @@ export function ProductsPage() {
                     </a>
                 </Button>
             )}
-            <Sheet open={isEditProductSheetOpen} onOpenChange={setIsEditProductSheetOpen}>
+            <Sheet
+                open={isEditProductSheetOpen}
+                onOpenChange={(open) => {
+                    if (!open && isPreviewOpen) {
+                        return
+                    }
+
+                    setIsEditProductSheetOpen(open)
+                }}
+            >
                 <SheetTrigger asChild>
                     <Button
                         variant="outline"
@@ -538,7 +667,14 @@ export function ProductsPage() {
                         Edit
                     </Button>
                 </SheetTrigger>
-                <SheetContent className="overflow-y-auto">
+                <SheetContent
+                    className="relative overflow-y-auto"
+                    onEscapeKeyDown={(event) => {
+                        if (isPreviewOpen) {
+                            event.preventDefault()
+                        }
+                    }}
+                >
                     <SheetHeader>
                         <SheetTitle className="truncate">Edit {product.name}</SheetTitle>
                         <SheetDescription>
@@ -557,7 +693,8 @@ export function ProductsPage() {
                                         <img
                                             src={editProductImages[0]}
                                             alt="Main product image"
-                                            className="h-full w-full object-cover"
+                                            className="h-full w-full cursor-zoom-in object-cover"
+                                            onClick={() => openImagePreview([...(editProductImages.filter((_, index) => !editDeletedImageIndices.has(index))), ...editNewImagePreviews], 0)}
                                         />
                                         <button
                                             type="button"
@@ -576,7 +713,8 @@ export function ProductsPage() {
                                         <img
                                             src={editNewImagePreviews[0]}
                                             alt="New main image"
-                                            className="h-full w-full object-cover"
+                                            className="h-full w-full cursor-zoom-in object-cover"
+                                            onClick={() => openImagePreview([...(editProductImages.filter((_, index) => !editDeletedImageIndices.has(index))), ...editNewImagePreviews], Math.max(0, editProductImages.filter((_, index) => !editDeletedImageIndices.has(index)).length))}
                                         />
                                         <button
                                             type="button"
@@ -590,7 +728,7 @@ export function ProductsPage() {
                                         </button>
                                     </>
                                 ) : (
-                                    <label className="cursor-pointer flex flex-col items-center gap-2 px-3 text-center w-full h-full items-center justify-center">
+                                    <label className="cursor-pointer flex flex-col items-center gap-2 px-3 text-center w-full h-full justify-center">
                                         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70 transition-colors group-hover:border-primary/50">
                                             <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
                                         </div>
@@ -625,7 +763,12 @@ export function ProductsPage() {
                                                     <img
                                                         src={image}
                                                         alt={`Product image ${actualIndex + 1}`}
-                                                        className="w-full h-full object-cover"
+                                                        className="w-full h-full cursor-zoom-in object-cover"
+                                                        onClick={() => {
+                                                            const previewList = [...(editProductImages.filter((_, index) => !editDeletedImageIndices.has(index))), ...editNewImagePreviews]
+                                                            const imageIndex = previewList.indexOf(image)
+                                                            openImagePreview(previewList, imageIndex === -1 ? 0 : imageIndex)
+                                                        }}
                                                     />
                                                     <button
                                                         type="button"
@@ -652,7 +795,12 @@ export function ProductsPage() {
                                                     <img
                                                         src={editNewImagePreviews[newIndex]}
                                                         alt={`New image ${newIndex + 1}`}
-                                                        className="w-full h-full object-cover"
+                                                        className="w-full h-full cursor-zoom-in object-cover"
+                                                        onClick={() => {
+                                                            const previewList = [...(editProductImages.filter((_, index) => !editDeletedImageIndices.has(index))), ...editNewImagePreviews]
+                                                            const imageIndex = previewList.indexOf(editNewImagePreviews[newIndex])
+                                                            openImagePreview(previewList, imageIndex === -1 ? 0 : imageIndex)
+                                                        }}
                                                     />
                                                     <button
                                                         type="button"
@@ -836,9 +984,10 @@ export function ProductsPage() {
                             <p className="text-sm text-destructive">{editErrors.general}</p>
                         ) : null}
                         <Button type="submit" disabled={isEditSubmitting}>
-                            {isEditSubmitting ? "Saving..." : "Save Changes"}
+                            {isEditSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Save Changes"}
                         </Button>
                     </form>
+                    {previewOverlay}
                 </SheetContent>
             </Sheet>
 
@@ -886,51 +1035,123 @@ export function ProductsPage() {
                             <span>Grid</span>
                         </Button>
                     </div>
-                    <Sheet open={isAddProductSheetOpen} onOpenChange={setIsAddProductSheetOpen}>
+                    <Sheet
+                        open={isAddProductSheetOpen}
+                        onOpenChange={(open) => {
+                            if (!open && isPreviewOpen) {
+                                return
+                            }
+
+                            setIsAddProductSheetOpen(open)
+                        }}
+                    >
                         <SheetTrigger asChild>
                             <Button size={"lg"} className="px-6 h-10">Add Product</Button>
                         </SheetTrigger>
-                        <SheetContent className="p-0">
+                        <SheetContent
+                            className="relative p-0"
+                            onEscapeKeyDown={(event) => {
+                                if (isPreviewOpen) {
+                                    event.preventDefault()
+                                }
+                            }}
+                        >
                             <div className="flex h-full flex-col">
                                 <SheetHeader className="border-b">
                                     <SheetTitle>Add Product</SheetTitle>
                                     <SheetDescription>Create a new product entry.</SheetDescription>
                                 </SheetHeader>
-                                <form className="flex-1 overflow-y-auto grid gap-3 p-4" onSubmit={submitProduct}>
+                                <form className="flex-1 overflow-y-auto grid gap-6 p-4" onSubmit={submitProduct}>
                                     <Field>
-                                        <div className="flex items-center justify-between">
-                                            <FieldLabel htmlFor="product-images">Product image</FieldLabel>
-                                        </div>
-                                        <label
-                                            htmlFor="product-images"
-                                            className="group relative flex h-50 w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 transition-colors hover:border-primary/60 hover:bg-muted/50"
-                                        >
-                                            {imagePreviews[0] ? (
-                                                <img
-                                                    src={imagePreviews[0]}
-                                                    alt="Selected product preview"
-                                                    className="h-full w-full object-cover"
-                                                />
-                                            ) : (
-                                                <div className="flex flex-col items-center gap-2 px-3 text-center">
-                                                    <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70 transition-colors group-hover:border-primary/50">
-                                                        <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
-                                                    </div>
-                                                    <div className="text-sm font-medium text-foreground">Add product image</div>
-                                                    <div className="text-xs text-muted-foreground">Click to upload (PNG, JPG, WEBP)</div>
+                                        <div className="space-y-3 border-b pb-4">
+                                            <h3 className="font-semibold text-sm">Images</h3>
+
+                                            <div className="relative h-64 w-full overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center group">
+                                                {imagePreviews[0] ? (
+                                                    <>
+                                                        <img
+                                                            src={imagePreviews[0]}
+                                                            alt="Main product image"
+                                                            className="h-full w-full cursor-zoom-in object-cover"
+                                                            onClick={() => openImagePreview(imagePreviews, 0)}
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setImageFiles((current) => current.filter((_, index) => index !== 0))
+                                                            }}
+                                                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            <XIcon className="h-4 w-4" />
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <label className="cursor-pointer flex flex-col items-center gap-2 px-3 text-center w-full h-full justify-center">
+                                                        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70 transition-colors group-hover:border-primary/50">
+                                                            <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+                                                        </div>
+                                                        <div className="text-sm font-medium text-foreground">Add main image</div>
+                                                        <div className="text-xs text-muted-foreground">Click to upload</div>
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            className="hidden"
+                                                            onChange={(event) => {
+                                                                const file = event.target.files?.[0]
+                                                                if (file) {
+                                                                    setImageFiles((current) => [file, ...current].slice(0, 4))
+                                                                }
+                                                            }}
+                                                        />
+                                                    </label>
+                                                )}
+                                            </div>
+
+                                            {(imageFiles.length > 1 || imageFiles.length < 4) && (
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    {imagePreviews.slice(1, 4).map((preview, index) => {
+                                                        const imageIndex = index + 1
+
+                                                        return (
+                                                            <div key={`new-${imageIndex}`} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
+                                                                <img
+                                                                    src={preview}
+                                                                    alt={`New image ${imageIndex + 1}`}
+                                                                    className="w-full h-full cursor-zoom-in object-cover"
+                                                                    onClick={() => openImagePreview(imagePreviews, imageIndex)}
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setImageFiles((current) => current.filter((_, currentIndex) => currentIndex !== imageIndex))
+                                                                    }}
+                                                                    className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                >
+                                                                    <XIcon className="h-3 w-3" />
+                                                                </button>
+                                                            </div>
+                                                        )
+                                                    })}
+
+                                                    {imageFiles.length < 4 ? (
+                                                        <label className="relative aspect-square rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors group">
+                                                            <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                className="hidden"
+                                                                onChange={(event) => {
+                                                                    const file = event.target.files?.[0]
+                                                                    if (file) {
+                                                                        setImageFiles((current) => [...current, file].slice(0, 4))
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </label>
+                                                    ) : null}
                                                 </div>
                                             )}
-                                        </label>
-                                        <Input
-                                            id="product-images"
-                                            type="file"
-                                            multiple
-                                            accept="image/*"
-                                            className="hidden"
-                                            onChange={(event) => {
-                                                setImageFiles(Array.from(event.target.files ?? []))
-                                            }}
-                                        />
+                                        </div>
                                     </Field>
 
                                     <Field>
@@ -1050,9 +1271,10 @@ export function ProductsPage() {
                                     {errors.general ? <FieldError className="text-destructive text-xs">{errors.general}</FieldError> : null}
 
                                     <Button type="submit" disabled={isSubmitting}>
-                                        {isSubmitting ? "Saving..." : "Add Product"}
+                                        {isSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Add Product"}
                                     </Button>
                                 </form>
+                                {previewOverlay}
                             </div>
                         </SheetContent>
                     </Sheet>
@@ -1159,8 +1381,8 @@ export function ProductsPage() {
                                                     setSelectedProductIds(newSelected)
                                                 }} />
                                             </TableCell>
-                                            <Link href={`/app/products/${product._id}`} className="contents">
-                                                <TableCell className="cursor-pointer hover:bg-muted/50">
+                                            <TableCell className="p-0">
+                                                <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
                                                     {product.images?.[0] ? (
                                                         <img
                                                             src={product.images[0]}
@@ -1172,25 +1394,35 @@ export function ProductsPage() {
                                                             {product.name.replace(/\s+/g, "").slice(0, 2).toUpperCase()}
                                                         </div>
                                                     )}
-                                                </TableCell>
-                                                <TableCell className="truncate max-w-xs cursor-pointer hover:bg-muted/50">
+                                                </Link>
+                                            </TableCell>
+                                            <TableCell className="p-0 truncate max-w-xs">
+                                                <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
                                                     {product.name}
-                                                </TableCell>
-                                                <TableCell className="cursor-pointer hover:bg-muted/50">
+                                                </Link>
+                                            </TableCell>
+                                            <TableCell className="p-0">
+                                                <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
                                                     {product.batchId?.batchName ?? "Unassigned"}
-                                                </TableCell>
-                                                <TableCell className="cursor-pointer hover:bg-muted/50">
+                                                </Link>
+                                            </TableCell>
+                                            <TableCell className="p-0">
+                                                <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
                                                     <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
                                                         {product.quantityRemaining}
                                                     </Badge>
-                                                </TableCell>
-                                                <TableCell className="cursor-pointer hover:bg-muted/50">
+                                                </Link>
+                                            </TableCell>
+                                            <TableCell className="p-0">
+                                                <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
                                                     {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                </TableCell>
-                                                <TableCell className="cursor-pointer hover:bg-muted/50">
+                                                </Link>
+                                            </TableCell>
+                                            <TableCell className="p-0">
+                                                <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
                                                     {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                </TableCell>
-                                            </Link>
+                                                </Link>
+                                            </TableCell>
                                             <TableCell onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</TableCell>
                                         </TableRow>
                                     ))}
@@ -1400,7 +1632,7 @@ export function ProductsPage() {
                                             Back
                                         </Button>
                                         <Button type="submit" disabled={!canSubmitSale} className="flex-1 disabled:opacity-40">
-                                            {isSaleSubmitting ? "Saving..." : "Record Sale"}
+                                            {isSaleSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Record Sale"}
                                         </Button>
                                     </div>
                                 </>
@@ -1472,21 +1704,14 @@ export function ProductsPage() {
                                 variant="destructive"
                                 onClick={confirmDeleteProduct}
                                 disabled={isDeleting}
-                                className="gap-2"
                             >
-                                {isDeleting ? (
-                                    <>
-                                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                        Deleting...
-                                    </>
-                                ) : (
-                                    "Delete Permanently"
-                                )}
+                                {isDeleting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Delete Permanently"}
                             </Button>
                         </div>
                     </div>
                 </div>
             )}
+
         </div>
     )
 }
