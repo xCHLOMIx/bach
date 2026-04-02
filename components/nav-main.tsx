@@ -10,7 +10,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { CirclePlusIcon, MailIcon } from "lucide-react"
+import { Box, CirclePlusIcon, MailIcon } from "lucide-react"
 
 export function NavMain({
   items,
@@ -29,13 +29,13 @@ export function NavMain({
           <SidebarMenuItem className="flex items-center gap-2">
             <SidebarMenuButton
               asChild
-              tooltip="Quick Sale"
-              className="min-w-8 bg-secondary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
+              tooltip="Add product"
+              className="min-w-8 bg-secondary text-primary-foreground duration-300 transition ease-linear hover:bg-secondary/85 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
             >
-              <Link href="/app/products?quickSale=1">
+              <Link href="/app/products?addProduct=1">
                 <CirclePlusIcon
                 />
-                <span>Quick Sale</span>
+                <span>Add product</span>
               </Link>
             </SidebarMenuButton>
             <Button
@@ -43,7 +43,7 @@ export function NavMain({
               className="size-8 group-data-[collapsible=icon]:opacity-0"
               variant="outline"
             >
-              <MailIcon
+              <Box
               />
               <span className="sr-only">Inbox</span>
             </Button>

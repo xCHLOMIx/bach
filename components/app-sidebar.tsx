@@ -40,6 +40,11 @@ const data = {
       icon: <Box />,
     },
     {
+      title: "Sales",
+      url: "/app/sales",
+      icon: <ChartBarIcon />,
+    },
+    {
       title: "Categories",
       url: "/app/categories",
       icon: <ListIcon />,
@@ -48,11 +53,6 @@ const data = {
       title: "Batches",
       url: "/app/batches",
       icon: <Boxes />,
-    },
-    {
-      title: "Sales",
-      url: "/app/sales",
-      icon: <ChartBarIcon />,
     },
   ],
 }

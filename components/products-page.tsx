@@ -362,6 +362,19 @@ export function ProductsPage() {
     }
 
     React.useEffect(() => {
+        if (searchParams.get("addProduct") !== "1") {
+            return
+        }
+
+        setIsAddProductSheetOpen(true)
+
+        const nextParams = new URLSearchParams(searchParams.toString())
+        nextParams.delete("addProduct")
+        const nextQuery = nextParams.toString()
+        router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname)
+    }, [searchParams, pathname, router])
+
+    React.useEffect(() => {
         if (searchParams.get("quickSale") !== "1") {
             return
         }
@@ -578,63 +591,6 @@ export function ProductsPage() {
         : 0
     const canSubmitSale = Boolean(saleSelectedProduct) && saleSelectedQuantity > 0 && Boolean(salePrice) && !saleIsQuantityAboveAvailable && !isSaleSubmitting
 
-    const previewOverlay = previewImageSrc ? (
-        <div
-            className="absolute inset-0 z-120 flex items-center justify-center bg-black/80 p-4"
-            onClick={closeImagePreview}
-            data-image-preview="true"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Image preview"
-        >
-            {previewImages.length > 1 ? (
-                <button
-                    type="button"
-                    className="absolute left-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
-                    onClick={(event) => {
-                        event.stopPropagation()
-                        showPreviousPreviewImage()
-                    }}
-                    title="Previous image"
-                >
-                    <ChevronLeftIcon className="h-5 w-5" />
-                </button>
-            ) : null}
-
-            <button
-                type="button"
-                className="absolute right-4 top-4 cursor-pointer rounded-md bg-black/70 p-2 text-white hover:bg-black"
-                onClick={(event) => {
-                    event.stopPropagation()
-                    closeImagePreview()
-                }}
-            >
-                <XIcon className="h-5 w-5" />
-            </button>
-
-            {previewImages.length > 1 ? (
-                <button
-                    type="button"
-                    className="absolute right-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
-                    onClick={(event) => {
-                        event.stopPropagation()
-                        showNextPreviewImage()
-                    }}
-                    title="Next image"
-                >
-                    <ChevronRightIcon className="h-5 w-5" />
-                </button>
-            ) : null}
-
-            <img
-                src={previewImageSrc}
-                alt="Preview"
-                className="max-h-[92vh] w-auto max-w-[96vw] rounded-xl object-contain"
-                onClick={(event) => event.stopPropagation()}
-            />
-        </div>
-    ) : null
-
     const renderProductActions = (product: Product) => (
         <div className="flex gap-2">
             {product.externalLink && (
@@ -668,7 +624,15 @@ export function ProductsPage() {
                     </Button>
                 </SheetTrigger>
                 <SheetContent
-                    className="relative overflow-y-auto"
+                    className="overflow-y-auto"
+                    onInteractOutside={(event) => {
+                        if (isPreviewOpen) {
+                            const target = event.target
+                            if (!(target instanceof Element) || !target.closest('[data-image-preview="true"]')) {
+                                event.preventDefault()
+                            }
+                        }
+                    }}
                     onEscapeKeyDown={(event) => {
                         if (isPreviewOpen) {
                             event.preventDefault()
@@ -693,7 +657,7 @@ export function ProductsPage() {
                                         <img
                                             src={editProductImages[0]}
                                             alt="Main product image"
-                                            className="h-full w-full cursor-zoom-in object-cover"
+                                            className="h-full w-full cursor-pointer object-cover"
                                             onClick={() => openImagePreview([...(editProductImages.filter((_, index) => !editDeletedImageIndices.has(index))), ...editNewImagePreviews], 0)}
                                         />
                                         <button
@@ -713,7 +677,7 @@ export function ProductsPage() {
                                         <img
                                             src={editNewImagePreviews[0]}
                                             alt="New main image"
-                                            className="h-full w-full cursor-zoom-in object-cover"
+                                            className="h-full w-full cursor-pointer object-cover"
                                             onClick={() => openImagePreview([...(editProductImages.filter((_, index) => !editDeletedImageIndices.has(index))), ...editNewImagePreviews], Math.max(0, editProductImages.filter((_, index) => !editDeletedImageIndices.has(index)).length))}
                                         />
                                         <button
@@ -763,7 +727,7 @@ export function ProductsPage() {
                                                     <img
                                                         src={image}
                                                         alt={`Product image ${actualIndex + 1}`}
-                                                        className="w-full h-full cursor-zoom-in object-cover"
+                                                        className="w-full h-full cursor-pointer object-cover"
                                                         onClick={() => {
                                                             const previewList = [...(editProductImages.filter((_, index) => !editDeletedImageIndices.has(index))), ...editNewImagePreviews]
                                                             const imageIndex = previewList.indexOf(image)
@@ -795,7 +759,7 @@ export function ProductsPage() {
                                                     <img
                                                         src={editNewImagePreviews[newIndex]}
                                                         alt={`New image ${newIndex + 1}`}
-                                                        className="w-full h-full cursor-zoom-in object-cover"
+                                                        className="w-full h-full cursor-pointer object-cover"
                                                         onClick={() => {
                                                             const previewList = [...(editProductImages.filter((_, index) => !editDeletedImageIndices.has(index))), ...editNewImagePreviews]
                                                             const imageIndex = previewList.indexOf(editNewImagePreviews[newIndex])
@@ -987,7 +951,6 @@ export function ProductsPage() {
                             {isEditSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Save Changes"}
                         </Button>
                     </form>
-                    {previewOverlay}
                 </SheetContent>
             </Sheet>
 
@@ -1049,7 +1012,15 @@ export function ProductsPage() {
                             <Button size={"lg"} className="px-6 h-10">Add Product</Button>
                         </SheetTrigger>
                         <SheetContent
-                            className="relative p-0"
+                            className="p-0"
+                            onInteractOutside={(event) => {
+                                if (isPreviewOpen) {
+                                    const target = event.target
+                                    if (!(target instanceof Element) || !target.closest('[data-image-preview="true"]')) {
+                                        event.preventDefault()
+                                    }
+                                }
+                            }}
                             onEscapeKeyDown={(event) => {
                                 if (isPreviewOpen) {
                                     event.preventDefault()
@@ -1072,7 +1043,7 @@ export function ProductsPage() {
                                                         <img
                                                             src={imagePreviews[0]}
                                                             alt="Main product image"
-                                                            className="h-full w-full cursor-zoom-in object-cover"
+                                                            className="h-full w-full cursor-pointer object-cover"
                                                             onClick={() => openImagePreview(imagePreviews, 0)}
                                                         />
                                                         <button
@@ -1117,7 +1088,7 @@ export function ProductsPage() {
                                                                 <img
                                                                     src={preview}
                                                                     alt={`New image ${imageIndex + 1}`}
-                                                                    className="w-full h-full cursor-zoom-in object-cover"
+                                                                    className="w-full h-full cursor-pointer object-cover"
                                                                     onClick={() => openImagePreview(imagePreviews, imageIndex)}
                                                                 />
                                                                 <button
@@ -1274,7 +1245,6 @@ export function ProductsPage() {
                                         {isSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Add Product"}
                                     </Button>
                                 </form>
-                                {previewOverlay}
                             </div>
                         </SheetContent>
                     </Sheet>
@@ -1712,6 +1682,83 @@ export function ProductsPage() {
                 </div>
             )}
 
+            {previewImageSrc ? (
+                <div
+                    className="fixed inset-0 z-120 flex items-center justify-center bg-black/80 p-4"
+                    style={{ zIndex: 120, pointerEvents: "auto" }}
+                    onMouseDown={(event) => {
+                        if (event.target === event.currentTarget) {
+                            event.preventDefault()
+                            closeImagePreview()
+                        }
+                    }}
+                    data-image-preview="true"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Image preview"
+                >
+                    {previewImages.length > 1 ? (
+                        <button
+                            type="button"
+                            className="absolute left-4 top-1/2 z-121 flex h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
+                            style={{ zIndex: 121, pointerEvents: "auto" }}
+                            onMouseDown={(event) => {
+                                event.preventDefault()
+                                event.stopPropagation()
+                            }}
+                            onClick={(event) => {
+                                event.stopPropagation()
+                                showPreviousPreviewImage()
+                            }}
+                            title="Previous image"
+                        >
+                            <ChevronLeftIcon className="h-5 w-5" />
+                        </button>
+                    ) : null}
+
+                    <button
+                        type="button"
+                        className="absolute right-4 top-4 z-121 cursor-pointer rounded-md bg-black/70 p-2 text-white hover:bg-black"
+                        style={{ zIndex: 121, pointerEvents: "auto" }}
+                        onMouseDown={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                        }}
+                        onClick={(event) => {
+                            event.stopPropagation()
+                            closeImagePreview()
+                        }}
+                    >
+                        <XIcon className="h-5 w-5" />
+                    </button>
+
+                    {previewImages.length > 1 ? (
+                        <button
+                            type="button"
+                            className="absolute right-4 top-1/2 z-121 flex h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
+                            style={{ zIndex: 121, pointerEvents: "auto" }}
+                            onMouseDown={(event) => {
+                                event.preventDefault()
+                                event.stopPropagation()
+                            }}
+                            onClick={(event) => {
+                                event.stopPropagation()
+                                showNextPreviewImage()
+                            }}
+                            title="Next image"
+                        >
+                            <ChevronRightIcon className="h-5 w-5" />
+                        </button>
+                    ) : null}
+
+                    <img
+                        src={previewImageSrc}
+                        alt="Preview"
+                        className="max-h-[92vh] w-auto max-w-[96vw] rounded-xl object-contain"
+                        onClick={(event) => event.stopPropagation()}
+                    />
+                </div>
+            ) : null}
         </div>
     )
 }
