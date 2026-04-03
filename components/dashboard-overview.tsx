@@ -65,44 +65,46 @@ export function DashboardOverview() {
                     <CardTitle className="text-2xl font-bold">Recent Sales</CardTitle>
                     <CardDescription>Latest sales with profit per unit</CardDescription>
                 </CardHeader>
-                <div className="overflow-hidden mt-4 rounded-xl border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Product</TableHead>
-                                <TableHead>Qty</TableHead>
-                                <TableHead>Selling Price</TableHead>
-                                <TableHead>Landed Cost</TableHead>
-                                <TableHead>Profit</TableHead>
-                                <TableHead>Sold At</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {!data ? (
-                                Array.from({ length: 5 }).map((_, i) => (
-                                    <TableRow key={i}>
-                                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                (data?.latestSales ?? []).map((sale) => (
-                                    <TableRow key={sale._id}>
-                                        <TableCell>{sale.productId?.name ?? "Unknown product"}</TableCell>
-                                        <TableCell>{sale.quantity}</TableCell>
-                                        <TableCell>{sale.sellingPrice.toLocaleString()}</TableCell>
-                                        <TableCell>{sale.landedCost.toLocaleString()}</TableCell>
-                                        <TableCell>{sale.profit.toLocaleString()}</TableCell>
-                                        <TableCell>{new Date(sale.soldAt).toLocaleString()}</TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
+                <div className="mt-4 overflow-x-auto rounded-xl border">
+                    <div className="min-w-[680px]">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Product</TableHead>
+                                    <TableHead>Qty</TableHead>
+                                    <TableHead>Selling Price</TableHead>
+                                    <TableHead>Landed Cost</TableHead>
+                                    <TableHead>Profit</TableHead>
+                                    <TableHead>Sold At</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {!data ? (
+                                    Array.from({ length: 5 }).map((_, i) => (
+                                        <TableRow key={i}>
+                                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    (data?.latestSales ?? []).map((sale) => (
+                                        <TableRow key={sale._id}>
+                                            <TableCell>{sale.productId?.name ?? "Unknown product"}</TableCell>
+                                            <TableCell>{sale.quantity}</TableCell>
+                                            <TableCell>{sale.sellingPrice.toLocaleString()}</TableCell>
+                                            <TableCell>{sale.landedCost.toLocaleString()}</TableCell>
+                                            <TableCell>{sale.profit.toLocaleString()}</TableCell>
+                                            <TableCell>{new Date(sale.soldAt).toLocaleString()}</TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </div>
             </div>
         </div>

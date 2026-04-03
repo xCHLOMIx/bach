@@ -297,8 +297,8 @@ export function BatchesPage() {
 
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
-            <CardHeader className="flex items-center justify-between gap-3 px-0">
-                <div>
+            <CardHeader className="flex flex-col gap-3 px-0 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                     <CardTitle className="text-2xl font-bold">Batches</CardTitle>
                     <CardDescription>Create, edit, and manage products in each batch.</CardDescription>
                 </div>
@@ -480,29 +480,31 @@ export function BatchesPage() {
             </CardHeader>
 
             {isLoading ? (
-                <div className="overflow-hidden rounded-xl border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Intl Shipping</TableHead>
-                                <TableHead>Products</TableHead>
-                                <TableHead>Product Names</TableHead>
-                                <TableHead>Created</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {Array.from({ length: 6 }).map((_, index) => (
-                                <TableRow key={`batches-loading-${index}`}>
-                                    <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-10" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                <div className="overflow-x-auto rounded-xl border">
+                    <div className="min-w-[720px]">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Intl Shipping</TableHead>
+                                    <TableHead>Products</TableHead>
+                                    <TableHead>Product Names</TableHead>
+                                    <TableHead>Created</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {Array.from({ length: 6 }).map((_, index) => (
+                                    <TableRow key={`batches-loading-${index}`}>
+                                        <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-10" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </div>
             ) : batches.length === 0 ? (
                 <Empty className="-translate-y-5">
@@ -520,37 +522,39 @@ export function BatchesPage() {
                     </EmptyContent>
                 </Empty>
             ) : (
-                <div className="overflow-hidden rounded-xl border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Intl Shipping</TableHead>
-                                <TableHead>Products</TableHead>
-                                <TableHead>Product Names</TableHead>
-                                <TableHead>Created</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {batches.map((batch) => (
-                                <TableRow
-                                    key={batch._id}
-                                    className="cursor-pointer"
-                                    onClick={() => router.push(`/app/batches/${batch._id}`)}
-                                >
-                                    <TableCell className="font-medium">{batch.batchName}</TableCell>
-                                    <TableCell>{batch.intlShipping.toLocaleString()}</TableCell>
-                                    <TableCell>{batch.productCount ?? 0}</TableCell>
-                                    <TableCell className="truncate max-w-xs">
-                                        {batch.products?.length
-                                            ? batch.products.map((product) => product.name).join(", ")
-                                            : "-"}
-                                    </TableCell>
-                                    <TableCell>{new Date(batch.createdAt).toLocaleDateString()}</TableCell>
+                <div className="overflow-x-auto rounded-xl border">
+                    <div className="min-w-[720px]">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Intl Shipping</TableHead>
+                                    <TableHead>Products</TableHead>
+                                    <TableHead>Product Names</TableHead>
+                                    <TableHead>Created</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {batches.map((batch) => (
+                                    <TableRow
+                                        key={batch._id}
+                                        className="cursor-pointer"
+                                        onClick={() => router.push(`/app/batches/${batch._id}`)}
+                                    >
+                                        <TableCell className="font-medium">{batch.batchName}</TableCell>
+                                        <TableCell>{batch.intlShipping.toLocaleString()}</TableCell>
+                                        <TableCell>{batch.productCount ?? 0}</TableCell>
+                                        <TableCell className="truncate max-w-xs">
+                                            {batch.products?.length
+                                                ? batch.products.map((product) => product.name).join(", ")
+                                                : "-"}
+                                        </TableCell>
+                                        <TableCell>{new Date(batch.createdAt).toLocaleDateString()}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </div>
             )}
         </div>

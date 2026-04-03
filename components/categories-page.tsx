@@ -104,85 +104,87 @@ export function CategoriesPage() {
             </CardHeader>
 
             <section className="space-y-4">
-                <form className="flex gap-2" onSubmit={createCategory}>
+                <form className="flex flex-col gap-2 sm:flex-row" onSubmit={createCategory}>
                     <Input
                         placeholder="Category name"
-                        className="h-10"
+                        className="h-10 min-w-0 flex-1"
                         value={newName}
                         onChange={(event) => setNewName(event.target.value)}
                     />
-                    <Button type="submit" size={"lg"} className="px-6 h-10">Add</Button>
+                    <Button type="submit" size={"lg"} className="h-10 px-6">Add</Button>
                 </form>
 
                 {errors.name ? <p className="text-sm text-destructive">{errors.name}</p> : null}
                 {errors.general ? <p className="text-sm text-destructive">{errors.general}</p> : null}
 
-                <div className="overflow-hidden rounded-xl border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Created</TableHead>
-                                <TableHead>Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {isLoading
-                                ? Array.from({ length: 6 }).map((_, index) => (
-                                    <TableRow key={`categories-loading-${index}`}>
-                                        <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                                        <TableCell>
-                                            <div className="flex gap-2">
-                                                <Skeleton className="h-8 w-14 rounded-md" />
-                                                <Skeleton className="h-8 w-16 rounded-md" />
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                                : categories.map((category) => (
-                                    <TableRow key={category._id}>
-                                        <TableCell>
-                                            {editingId === category._id ? (
-                                                <Input
-                                                    value={editingName}
-                                                    onChange={(event) => setEditingName(event.target.value)}
-                                                />
-                                            ) : (
-                                                category.name
-                                            )}
-                                        </TableCell>
-                                        <TableCell>{new Date(category.createdAt).toLocaleDateString()}</TableCell>
-                                        <TableCell className="flex gap-2">
-                                            {editingId === category._id ? (
-                                                <Button size="sm" onClick={saveEdit}>
-                                                    Save
-                                                </Button>
-                                            ) : (
+                <div className="overflow-x-auto rounded-xl border">
+                    <div className="min-w-[640px]">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Created</TableHead>
+                                    <TableHead>Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {isLoading
+                                    ? Array.from({ length: 6 }).map((_, index) => (
+                                        <TableRow key={`categories-loading-${index}`}>
+                                            <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                            <TableCell>
+                                                <div className="flex gap-2">
+                                                    <Skeleton className="h-8 w-14 rounded-md" />
+                                                    <Skeleton className="h-8 w-16 rounded-md" />
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                    : categories.map((category) => (
+                                        <TableRow key={category._id}>
+                                            <TableCell>
+                                                {editingId === category._id ? (
+                                                    <Input
+                                                        value={editingName}
+                                                        onChange={(event) => setEditingName(event.target.value)}
+                                                    />
+                                                ) : (
+                                                    category.name
+                                                )}
+                                            </TableCell>
+                                            <TableCell>{new Date(category.createdAt).toLocaleDateString()}</TableCell>
+                                            <TableCell className="flex gap-2">
+                                                {editingId === category._id ? (
+                                                    <Button size="sm" onClick={saveEdit}>
+                                                        Save
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => {
+                                                            setEditingId(category._id)
+                                                            setEditingName(category.name)
+                                                            setErrors({})
+                                                        }}
+                                                    >
+                                                        Edit
+                                                    </Button>
+                                                )}
                                                 <Button
                                                     size="sm"
-                                                    variant="outline"
-                                                    onClick={() => {
-                                                        setEditingId(category._id)
-                                                        setEditingName(category.name)
-                                                        setErrors({})
-                                                    }}
+                                                    variant="destructive"
+                                                    onClick={() => removeCategory(category._id)}
                                                 >
-                                                    Edit
+                                                    Delete
                                                 </Button>
-                                            )}
-                                            <Button
-                                                size="sm"
-                                                variant="destructive"
-                                                onClick={() => removeCategory(category._id)}
-                                            >
-                                                Delete
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                        </TableBody>
-                    </Table>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                            </TableBody>
+                        </Table>
+                    </div>
                 </div>
             </section>
         </div>

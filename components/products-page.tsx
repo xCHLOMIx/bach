@@ -18,6 +18,7 @@ import {
     Select,
     SelectContent,
     SelectItem,
+    SelectSeparator,
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
@@ -49,14 +50,21 @@ import { ChevronLeftIcon, ChevronRightIcon, ImagePlusIcon, LayoutGridIcon, ListI
 
 const SOURCE_CURRENCY_OPTIONS = ["RWF", "USD", "KSH", "UGX", "AED", "EUR", "GBP"]
 const NO_CATEGORY_VALUE = "__none__"
+const ADD_CATEGORY_VALUE = "__add_category__"
 const COMMON_CATEGORY_OPTIONS = [
+    "Components & Storage",
+    "Computer Systems",
+    "Computer Peripherals",
+    "Server & Components",
+    "Appliances",
     "Electronics",
-    "Fashion",
-    "Beauty",
-    "Home & Kitchen",
-    "Health",
-    "Sports",
-    "Kids & Baby",
+    "Gaming & VR",
+    "Networking",
+    "Smart Home & Security",
+    "Office Solutions",
+    "Software & Services",
+    "Automotive & Tools",
+    "Home & Outdoors",
 ]
 
 type Category = { _id: string; name: string }
@@ -88,6 +96,7 @@ export function ProductsPage() {
     const [products, setProducts] = React.useState<Product[]>([])
     const [categories, setCategories] = React.useState<Category[]>([])
     const [batches, setBatches] = React.useState<Batch[]>([])
+    const [hasLoadedFormOptions, setHasLoadedFormOptions] = React.useState(false)
     const [isLoading, setIsLoading] = React.useState(true)
     const [viewMode, setViewMode] = React.useState<"list" | "grid">("list")
     const [isAddProductSheetOpen, setIsAddProductSheetOpen] = React.useState(false)
@@ -98,6 +107,8 @@ export function ProductsPage() {
 
     const [productName, setProductName] = React.useState("")
     const [categoryId, setCategoryId] = React.useState("")
+    const [isAddingCustomCategory, setIsAddingCustomCategory] = React.useState(false)
+    const [customCategoryName, setCustomCategoryName] = React.useState("")
     const [quantityInitial, setQuantityInitial] = React.useState("0")
     const [unitPriceForeign, setUnitPriceForeign] = React.useState("0")
     const [productExternalLink, setProductExternalLink] = React.useState("")
@@ -210,37 +221,85 @@ export function ProductsPage() {
         return formatDecimalWithCommas(`${beforeDot}${afterDot}`)
     }
 
-    const load = React.useCallback(async () => {
+    const loadProducts = React.useCallback(async () => {
         setIsLoading(true)
         try {
-            const [productsResponse, categoriesResponse, batchesResponse] = await Promise.all([
-                fetch("/api/products"),
-                fetch("/api/categories"),
-                fetch("/api/batches"),
-            ])
+            const productsResponse = await fetch("/api/products")
 
             if (productsResponse.ok) {
                 const productsData = await productsResponse.json()
                 setProducts(productsData.products ?? [])
-            }
-
-            if (categoriesResponse.ok) {
-                const categoriesData = await categoriesResponse.json()
-                setCategories(categoriesData.categories ?? [])
-            }
-
-            if (batchesResponse.ok) {
-                const batchesData = await batchesResponse.json()
-                setBatches(batchesData.batches ?? [])
             }
         } finally {
             setIsLoading(false)
         }
     }, [])
 
+    const loadFormOptions = React.useCallback(async () => {
+        const [categoriesResponse, batchesResponse] = await Promise.all([
+            fetch("/api/categories"),
+            fetch("/api/batches"),
+        ])
+
+        let hasAnyOptionsLoaded = false
+
+        if (categoriesResponse.ok) {
+            const categoriesData = await categoriesResponse.json()
+            setCategories(categoriesData.categories ?? [])
+            hasAnyOptionsLoaded = true
+        }
+
+        if (batchesResponse.ok) {
+            const batchesData = await batchesResponse.json()
+            setBatches(batchesData.batches ?? [])
+            hasAnyOptionsLoaded = true
+        }
+
+        if (hasAnyOptionsLoaded) {
+            setHasLoadedFormOptions(true)
+        }
+    }, [])
+
+    const ensureFormOptionsLoaded = React.useCallback(async () => {
+        if (hasLoadedFormOptions) {
+            return
+        }
+
+        await loadFormOptions()
+    }, [hasLoadedFormOptions, loadFormOptions])
+
+    const openAddProductSheet = React.useCallback(() => {
+        void ensureFormOptionsLoaded()
+        openAddProductSheet()
+    }, [ensureFormOptionsLoaded])
+
+    const handleAddProductSheetOpenChange = React.useCallback((open: boolean) => {
+        if (!open && isPreviewOpen) {
+            return
+        }
+
+        if (open) {
+            void ensureFormOptionsLoaded()
+        }
+
+        setIsAddProductSheetOpen(open)
+    }, [ensureFormOptionsLoaded, isPreviewOpen])
+
+    const handleEditProductSheetOpenChange = React.useCallback((open: boolean) => {
+        if (!open && isPreviewOpen) {
+            return
+        }
+
+        if (open) {
+            void ensureFormOptionsLoaded()
+        }
+
+        setIsEditProductSheetOpen(open)
+    }, [ensureFormOptionsLoaded, isPreviewOpen])
+
     React.useEffect(() => {
-        load()
-    }, [load])
+        loadProducts()
+    }, [loadProducts])
 
     React.useEffect(() => {
         const previews = imageFiles.map((file) => URL.createObjectURL(file))
@@ -308,6 +367,39 @@ export function ProductsPage() {
         try {
             let resolvedCategoryId = categoryId
 
+            if (isAddingCustomCategory) {
+                const customName = customCategoryName.trim()
+                if (!customName) {
+                    setErrors({ categoryId: "Category name is required" })
+                    return
+                }
+
+                const existingCategory = categories.find(
+                    (category) => category.name.trim().toLowerCase() === customName.toLowerCase()
+                )
+
+                if (existingCategory?._id) {
+                    resolvedCategoryId = existingCategory._id
+                } else {
+                    const createCategoryResponse = await fetch("/api/categories", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: customName }),
+                    })
+
+                    const createCategoryData = await createCategoryResponse.json()
+                    if (!createCategoryResponse.ok) {
+                        setErrors(createCategoryData.errors ?? { categoryId: "Failed to create category" })
+                        return
+                    }
+
+                    resolvedCategoryId = createCategoryData.category?._id ?? ""
+                    if (createCategoryData.category?._id && createCategoryData.category?.name) {
+                        setCategories((current) => [createCategoryData.category, ...current])
+                    }
+                }
+            }
+
             if (categoryId.startsWith("common:")) {
                 const commonCategoryName = categoryId.slice("common:".length)
                 const existingCategory = categories.find(
@@ -330,6 +422,9 @@ export function ProductsPage() {
                     }
 
                     resolvedCategoryId = createCategoryData.category?._id ?? ""
+                    if (createCategoryData.category?._id && createCategoryData.category?.name) {
+                        setCategories((current) => [createCategoryData.category, ...current])
+                    }
                 }
             }
 
@@ -361,6 +456,8 @@ export function ProductsPage() {
 
             setProductName("")
             setCategoryId("")
+            setIsAddingCustomCategory(false)
+            setCustomCategoryName("")
             setQuantityInitial("0")
             setUnitPriceForeign("0")
             setProductExternalLink("")
@@ -368,13 +465,14 @@ export function ProductsPage() {
             setExchangeRate("1")
             setImageFiles([])
             setIsAddProductSheetOpen(false)
-            await load()
+            await loadProducts()
         } finally {
             setIsSubmitting(false)
         }
     }
 
-    const openEditProductSheet = (product: Product) => {
+    const openEditProductSheet = React.useCallback((product: Product) => {
+        void ensureFormOptionsLoaded()
         setEditProductId(product._id)
         setEditProductName(product.name)
         setEditQuantityInitial(String(product.quantityInitial))
@@ -389,7 +487,7 @@ export function ProductsPage() {
         setEditDeletedImageIndices(new Set())
         setEditErrors({})
         setIsEditProductSheetOpen(true)
-    }
+    }, [ensureFormOptionsLoaded])
 
     const resetSaleDraft = () => {
         setSaleStep("product")
@@ -411,7 +509,7 @@ export function ProductsPage() {
         nextParams.delete("addProduct")
         const nextQuery = nextParams.toString()
         router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname)
-    }, [searchParams, pathname, router])
+    }, [searchParams, pathname, router, openAddProductSheet])
 
     React.useEffect(() => {
         if (searchParams.get("quickSale") !== "1") {
@@ -493,7 +591,7 @@ export function ProductsPage() {
 
             setShowSaleModal(false)
             resetSaleDraft()
-            await load()
+            await loadProducts()
         } finally {
             setIsSaleSubmitting(false)
         }
@@ -557,7 +655,7 @@ export function ProductsPage() {
             setEditNewImagePreviews([])
             setEditDeletedImageIndices(new Set())
             setIsEditProductSheetOpen(false)
-            await load()
+            await loadProducts()
         } finally {
             setIsEditSubmitting(false)
         }
@@ -606,7 +704,7 @@ export function ProductsPage() {
 
             setShowDeleteConfirm(false)
             setDeleteConfirmData(null)
-            await load()
+            await loadProducts()
         } catch (error) {
             alert("Failed to delete product")
             console.error(error)
@@ -645,13 +743,7 @@ export function ProductsPage() {
             )}
             <Sheet
                 open={isEditProductSheetOpen}
-                onOpenChange={(open) => {
-                    if (!open && isPreviewOpen) {
-                        return
-                    }
-
-                    setIsEditProductSheetOpen(open)
-                }}
+                onOpenChange={handleEditProductSheetOpenChange}
             >
                 <SheetTrigger asChild>
                     <Button
@@ -1039,13 +1131,7 @@ export function ProductsPage() {
                     </div>
                     <Sheet
                         open={isAddProductSheetOpen}
-                        onOpenChange={(open) => {
-                            if (!open && isPreviewOpen) {
-                                return
-                            }
-
-                            setIsAddProductSheetOpen(open)
-                        }}
+                        onOpenChange={handleAddProductSheetOpenChange}
                     >
                         <SheetTrigger asChild>
                             <Button size={"lg"} className="px-6 h-10">Add Product</Button>
@@ -1196,27 +1282,63 @@ export function ProductsPage() {
                                             <FieldLabel htmlFor="product-category">Category (optional)</FieldLabel>
                                             <FieldError className="text-destructive text-xs">{errors.categoryId}</FieldError>
                                         </div>
-                                        <Select
-                                            value={categoryId || NO_CATEGORY_VALUE}
-                                            onValueChange={(value) => setCategoryId(value === NO_CATEGORY_VALUE ? "" : value)}
-                                        >
-                                            <SelectTrigger id="product-category">
-                                                <SelectValue placeholder="Choose category (optional)" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value={NO_CATEGORY_VALUE}>No category</SelectItem>
-                                                {categories.map((category) => (
-                                                    <SelectItem key={category._id} value={category._id}>
-                                                        {category.name}
+                                        {isAddingCustomCategory ? (
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    id="product-category"
+                                                    placeholder="Type new category name"
+                                                    value={customCategoryName}
+                                                    onChange={(event) => setCustomCategoryName(event.target.value)}
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => {
+                                                        setIsAddingCustomCategory(false)
+                                                        setCustomCategoryName("")
+                                                        setCategoryId("")
+                                                    }}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <Select
+                                                value={categoryId || NO_CATEGORY_VALUE}
+                                                onValueChange={(value) => {
+                                                    if (value === ADD_CATEGORY_VALUE) {
+                                                        setIsAddingCustomCategory(true)
+                                                        setCategoryId("")
+                                                        return
+                                                    }
+
+                                                    setIsAddingCustomCategory(false)
+                                                    setCustomCategoryName("")
+                                                    setCategoryId(value === NO_CATEGORY_VALUE ? "" : value)
+                                                }}
+                                            >
+                                                <SelectTrigger id="product-category">
+                                                    <SelectValue placeholder="Choose category (optional)" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value={NO_CATEGORY_VALUE}>No category</SelectItem>
+                                                    {categories.map((category) => (
+                                                        <SelectItem key={category._id} value={category._id}>
+                                                            {category.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                    {COMMON_CATEGORY_OPTIONS.map((categoryName) => (
+                                                        <SelectItem key={categoryName} value={`common:${categoryName}`}>
+                                                            {categoryName}
+                                                        </SelectItem>
+                                                    ))}
+                                                    <SelectSeparator />
+                                                    <SelectItem value={ADD_CATEGORY_VALUE} className="font-medium text-primary">
+                                                        + Add New Category
                                                     </SelectItem>
-                                                ))}
-                                                {COMMON_CATEGORY_OPTIONS.map((categoryName) => (
-                                                    <SelectItem key={categoryName} value={`common:${categoryName}`}>
-                                                        {categoryName}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                                </SelectContent>
+                                            </Select>
+                                        )}
                                     </Field>
 
                                     <Field>
@@ -1300,35 +1422,37 @@ export function ProductsPage() {
             </CardHeader>
             <CardContent>
                 {isLoading ? (
-                    <div className="overflow-hidden rounded-xl border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Image</TableHead>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Category</TableHead>
-                                    <TableHead>Batch</TableHead>
-                                    <TableHead>On Hand</TableHead>
-                                    <TableHead>Buying Price (RWF)</TableHead>
-                                    <TableHead>Landed Price (RWF)</TableHead>
-                                    <TableHead>Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {Array.from({ length: 6 }).map((_, index) => (
-                                    <TableRow key={`products-loading-${index}`}>
-                                        <TableCell><Skeleton className="h-10 w-10 rounded-md" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                                        <TableCell><Skeleton className="h-6 w-14 rounded-full" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                                        <TableCell><Skeleton className="h-8 w-28 rounded-md" /></TableCell>
+                    <div className="overflow-x-auto rounded-xl border">
+                        <div className="min-w-245">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Image</TableHead>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead>Category</TableHead>
+                                        <TableHead>Batch</TableHead>
+                                        <TableHead>On Hand</TableHead>
+                                        <TableHead>Buying Price (RWF)</TableHead>
+                                        <TableHead>Landed Price (RWF)</TableHead>
+                                        <TableHead>Actions</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {Array.from({ length: 6 }).map((_, index) => (
+                                        <TableRow key={`products-loading-${index}`}>
+                                            <TableCell><Skeleton className="h-10 w-10 rounded-md" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                            <TableCell><Skeleton className="h-6 w-14 rounded-full" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                                            <TableCell><Skeleton className="h-8 w-28 rounded-md" /></TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </div>
                 ) : products.length === 0 ? (
                     <Empty className="mt-16">
@@ -1342,7 +1466,7 @@ export function ProductsPage() {
                             </EmptyDescription>
                         </EmptyHeader>
                         <EmptyContent className="flex-row justify-center gap-2">
-                            <Button onClick={() => setIsAddProductSheetOpen(true)}>Add your first product</Button>
+                            <Button onClick={openAddProductSheet}>Add your first product</Button>
                         </EmptyContent>
                     </Empty>
                 ) : viewMode === "list" ? (
@@ -1362,90 +1486,92 @@ export function ProductsPage() {
                                 <Button size="sm" variant="outline" onClick={() => setSelectedProductIds(new Set())}>Clear Selection</Button>
                             )}
                         </div>
-                        <div className="overflow-hidden rounded-xl border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-12"><input type="checkbox" className="rounded" onChange={(e) => {
-                                            if (e.target.checked) {
-                                                setSelectedProductIds(new Set(products.map(p => p._id)))
-                                            } else {
-                                                setSelectedProductIds(new Set())
-                                            }
-                                        }} checked={selectedProductIds.size === products.length && products.length > 0} title="Select all" /></TableHead>
-                                        <TableHead>Image</TableHead>
-                                        <TableHead>Name</TableHead>
-                                        <TableHead>Batch</TableHead>
-                                        <TableHead>On Hand</TableHead>
-                                        <TableHead>Buying Price (RWF)</TableHead>
-                                        <TableHead>Landed Price (RWF)</TableHead>
-                                        <TableHead>Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {products.map((product) => (
-                                        <TableRow
-                                            key={product._id}
-                                            className="p-0"
-                                        >
-                                            <TableCell onClick={(e) => e.stopPropagation()} className="p-3">
-                                                <input type="checkbox" className="rounded" checked={selectedProductIds.has(product._id)} onChange={(e) => {
-                                                    const newSelected = new Set(selectedProductIds)
-                                                    if (e.target.checked) {
-                                                        newSelected.add(product._id)
-                                                    } else {
-                                                        newSelected.delete(product._id)
-                                                    }
-                                                    setSelectedProductIds(newSelected)
-                                                }} />
-                                            </TableCell>
-                                            <TableCell className="p-0">
-                                                <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                    {product.images?.[0] ? (
-                                                        <img
-                                                            src={product.images[0]}
-                                                            alt={product.name}
-                                                            className="h-10 w-10 rounded-md object-cover"
-                                                        />
-                                                    ) : (
-                                                        <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground">
-                                                            {product.name.replace(/\s+/g, "").slice(0, 2).toUpperCase()}
-                                                        </div>
-                                                    )}
-                                                </Link>
-                                            </TableCell>
-                                            <TableCell className="p-0 truncate max-w-xs">
-                                                <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                    {product.name}
-                                                </Link>
-                                            </TableCell>
-                                            <TableCell className="p-0">
-                                                <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                    {product.batchId?.batchName ?? "Unassigned"}
-                                                </Link>
-                                            </TableCell>
-                                            <TableCell className="p-0">
-                                                <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                    <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
-                                                        {product.quantityRemaining}
-                                                    </Badge>
-                                                </Link>
-                                            </TableCell>
-                                            <TableCell className="p-0">
-                                                <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                    {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                </Link>
-                                            </TableCell>
-                                            <TableCell className="p-0">
-                                                <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                    {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                </Link>
-                                            </TableCell>
-                                            <TableCell onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</TableCell>
+                        <div className="overflow-x-auto rounded-xl border">
+                            <div className="min-w-245">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-12"><input type="checkbox" className="rounded" onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setSelectedProductIds(new Set(products.map(p => p._id)))
+                                                } else {
+                                                    setSelectedProductIds(new Set())
+                                                }
+                                            }} checked={selectedProductIds.size === products.length && products.length > 0} title="Select all" /></TableHead>
+                                            <TableHead>Image</TableHead>
+                                            <TableHead>Name</TableHead>
+                                            <TableHead>Batch</TableHead>
+                                            <TableHead>On Hand</TableHead>
+                                            <TableHead>Buying Price (RWF)</TableHead>
+                                            <TableHead>Landed Price (RWF)</TableHead>
+                                            <TableHead>Actions</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {products.map((product) => (
+                                            <TableRow
+                                                key={product._id}
+                                                className="p-0"
+                                            >
+                                                <TableCell onClick={(e) => e.stopPropagation()} className="p-3">
+                                                    <input type="checkbox" className="rounded" checked={selectedProductIds.has(product._id)} onChange={(e) => {
+                                                        const newSelected = new Set(selectedProductIds)
+                                                        if (e.target.checked) {
+                                                            newSelected.add(product._id)
+                                                        } else {
+                                                            newSelected.delete(product._id)
+                                                        }
+                                                        setSelectedProductIds(newSelected)
+                                                    }} />
+                                                </TableCell>
+                                                <TableCell className="p-0">
+                                                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                                                        {product.images?.[0] ? (
+                                                            <img
+                                                                src={product.images[0]}
+                                                                alt={product.name}
+                                                                className="h-10 w-10 rounded-md object-cover"
+                                                            />
+                                                        ) : (
+                                                            <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground">
+                                                                {product.name.replace(/\s+/g, "").slice(0, 2).toUpperCase()}
+                                                            </div>
+                                                        )}
+                                                    </Link>
+                                                </TableCell>
+                                                <TableCell className="p-0 truncate max-w-xs">
+                                                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                                                        {product.name}
+                                                    </Link>
+                                                </TableCell>
+                                                <TableCell className="p-0">
+                                                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                                                        {product.batchId?.batchName ?? "Unassigned"}
+                                                    </Link>
+                                                </TableCell>
+                                                <TableCell className="p-0">
+                                                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                                                        <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
+                                                            {product.quantityRemaining}
+                                                        </Badge>
+                                                    </Link>
+                                                </TableCell>
+                                                <TableCell className="p-0">
+                                                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                                                        {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </Link>
+                                                </TableCell>
+                                                <TableCell className="p-0">
+                                                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                                                        {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </Link>
+                                                </TableCell>
+                                                <TableCell onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </div>
                     </>
                 ) : (
