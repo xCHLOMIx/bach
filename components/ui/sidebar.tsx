@@ -189,10 +189,13 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
+          overlayClassName="supports-backdrop-filter:backdrop-blur-none"
+          overlayStyle={{ zIndex: 200 }}
           className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+              zIndex: 210,
             } as React.CSSProperties
           }
           side={side}

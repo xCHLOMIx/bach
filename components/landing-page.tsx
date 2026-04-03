@@ -95,7 +95,7 @@ export function LandingPage({ authUser }: { authUser?: LandingAuthUser }) {
             </div>
             <div>
               <p className="font-heading text-lg font-semibold tracking-tight">Bach</p>
-              <p className="text-xs text-slate-500">Imports, inventory, margins</p>
+              <p className="text-xs max-lg:sr-only text-slate-500">Imports, inventory, margins</p>
             </div>
           </Link>
 

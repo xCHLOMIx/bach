@@ -1102,7 +1102,7 @@ export function ProductsPage() {
                     <CardTitle className="text-2xl font-bold">Products</CardTitle>
                     <CardDescription>Manage products, stock, and batch assignment</CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center max-md:flex-col gap-2">
                     <div className="flex rounded-md border p-1">
                         <Button
                             type="button"

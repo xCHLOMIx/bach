@@ -12,6 +12,7 @@ import {
   SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { Box, Boxes, ChartBarIcon, LayoutDashboardIcon, ListIcon } from "lucide-react"
 import Image from "next/image"
@@ -60,6 +61,7 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [recentProducts, setRecentProducts] = React.useState<ProductApiItem[]>([])
   const [isLoadingRecentProducts, setIsLoadingRecentProducts] = React.useState(true)
+  const { isMobile, setOpenMobile } = useSidebar()
 
   React.useEffect(() => {
     let active = true
@@ -115,7 +117,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent
+        onClickCapture={(event) => {
+          if (!isMobile) {
+            return
+          }
+
+          const target = event.target
+          if (target instanceof Element && target.closest("a[href]")) {
+            setOpenMobile(false)
+          }
+        }}
+      >
         <NavMain items={data.navMain} />
         <NavDocuments
           items={visibleRecentProducts}
