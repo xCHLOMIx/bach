@@ -181,7 +181,7 @@ export function CategoriesPage() {
                                                 </Button>
                                             </TableCell>
                                         </TableRow>
-                                    ))
+                                    ))}
                             </TableBody>
                         </Table>
                     </div>
