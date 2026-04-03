@@ -45,9 +45,19 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ChevronLeftIcon, ChevronRightIcon, ImagePlusIcon, LayoutGridIcon, ListIcon, LoaderCircle, PackageSearchIcon, PencilIcon, XIcon } from "lucide-react"
+import { ChevronLeftIcon, ChevronRightIcon, ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon, PencilIcon, XIcon } from "lucide-react"
 
 const SOURCE_CURRENCY_OPTIONS = ["RWF", "USD", "KSH", "UGX", "AED", "EUR", "GBP"]
+const NO_CATEGORY_VALUE = "__none__"
+const COMMON_CATEGORY_OPTIONS = [
+    "Electronics",
+    "Fashion",
+    "Beauty",
+    "Home & Kitchen",
+    "Health",
+    "Sports",
+    "Kids & Baby",
+]
 
 type Category = { _id: string; name: string }
 type Batch = { _id: string; batchName: string }
@@ -296,9 +306,38 @@ export function ProductsPage() {
         setErrors({})
 
         try {
+            let resolvedCategoryId = categoryId
+
+            if (categoryId.startsWith("common:")) {
+                const commonCategoryName = categoryId.slice("common:".length)
+                const existingCategory = categories.find(
+                    (category) => category.name.trim().toLowerCase() === commonCategoryName.toLowerCase()
+                )
+
+                if (existingCategory?._id) {
+                    resolvedCategoryId = existingCategory._id
+                } else {
+                    const createCategoryResponse = await fetch("/api/categories", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: commonCategoryName }),
+                    })
+
+                    const createCategoryData = await createCategoryResponse.json()
+                    if (!createCategoryResponse.ok) {
+                        setErrors(createCategoryData.errors ?? { categoryId: "Failed to create selected category" })
+                        return
+                    }
+
+                    resolvedCategoryId = createCategoryData.category?._id ?? ""
+                }
+            }
+
             const formData = new FormData()
             formData.append("name", productName)
-            formData.append("categoryId", categoryId)
+            if (resolvedCategoryId) {
+                formData.append("categoryId", resolvedCategoryId)
+            }
             formData.append("quantityInitial", quantityInitial)
             formData.append("unitPriceForeign", stripCommas(unitPriceForeign))
             formData.append("externalLink", productExternalLink)
@@ -947,8 +986,8 @@ export function ProductsPage() {
                         {editErrors.general ? (
                             <p className="text-sm text-destructive">{editErrors.general}</p>
                         ) : null}
-                        <Button type="submit" disabled={isEditSubmitting}>
-                            {isEditSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Save Changes"}
+                        <Button type="submit" loading={isEditSubmitting} loadingText="Saving product">
+                            Save Changes
                         </Button>
                     </form>
                 </SheetContent>
@@ -1154,17 +1193,26 @@ export function ProductsPage() {
 
                                     <Field>
                                         <div className="flex items-center justify-between">
-                                            <FieldLabel htmlFor="product-category">Category</FieldLabel>
+                                            <FieldLabel htmlFor="product-category">Category (optional)</FieldLabel>
                                             <FieldError className="text-destructive text-xs">{errors.categoryId}</FieldError>
                                         </div>
-                                        <Select value={categoryId} onValueChange={setCategoryId}>
+                                        <Select
+                                            value={categoryId || NO_CATEGORY_VALUE}
+                                            onValueChange={(value) => setCategoryId(value === NO_CATEGORY_VALUE ? "" : value)}
+                                        >
                                             <SelectTrigger id="product-category">
-                                                <SelectValue placeholder="Choose category" />
+                                                <SelectValue placeholder="Choose category (optional)" />
                                             </SelectTrigger>
                                             <SelectContent>
+                                                <SelectItem value={NO_CATEGORY_VALUE}>No category</SelectItem>
                                                 {categories.map((category) => (
                                                     <SelectItem key={category._id} value={category._id}>
                                                         {category.name}
+                                                    </SelectItem>
+                                                ))}
+                                                {COMMON_CATEGORY_OPTIONS.map((categoryName) => (
+                                                    <SelectItem key={categoryName} value={`common:${categoryName}`}>
+                                                        {categoryName}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -1241,8 +1289,8 @@ export function ProductsPage() {
 
                                     {errors.general ? <FieldError className="text-destructive text-xs">{errors.general}</FieldError> : null}
 
-                                    <Button type="submit" disabled={isSubmitting}>
-                                        {isSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Add Product"}
+                                    <Button type="submit" loading={isSubmitting} loadingText="Adding product">
+                                        Add Product
                                     </Button>
                                 </form>
                             </div>
@@ -1601,8 +1649,14 @@ export function ProductsPage() {
                                         >
                                             Back
                                         </Button>
-                                        <Button type="submit" disabled={!canSubmitSale} className="flex-1 disabled:opacity-40">
-                                            {isSaleSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Record Sale"}
+                                        <Button
+                                            type="submit"
+                                            disabled={!canSubmitSale}
+                                            loading={isSaleSubmitting}
+                                            loadingText="Recording sale"
+                                            className="flex-1 disabled:opacity-40"
+                                        >
+                                            Record Sale
                                         </Button>
                                     </div>
                                 </>
@@ -1674,8 +1728,10 @@ export function ProductsPage() {
                                 variant="destructive"
                                 onClick={confirmDeleteProduct}
                                 disabled={isDeleting}
+                                loading={isDeleting}
+                                loadingText="Deleting product"
                             >
-                                {isDeleting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Delete Permanently"}
+                                Delete Permanently
                             </Button>
                         </div>
                     </div>

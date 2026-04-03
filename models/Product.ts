@@ -4,7 +4,7 @@ const productSchema = new Schema(
   {
     userId: { type: Types.ObjectId, ref: "User", required: true, index: true },
     name: { type: String, required: true, trim: true },
-    categoryId: { type: Types.ObjectId, ref: "Category", required: true },
+    categoryId: { type: Types.ObjectId, ref: "Category", required: false, default: null },
     batchId: { type: Types.ObjectId, ref: "Batch", default: null },
     quantityInitial: { type: Number, required: true, min: 0 },
     quantityRemaining: { type: Number, required: true, min: 0 },

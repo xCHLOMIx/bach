@@ -52,7 +52,6 @@ export async function POST(request: NextRequest) {
   const errors: FieldErrors = {}
 
   if (!name) errors.name = "Product name is required"
-  if (!categoryId) errors.categoryId = "Category is required"
   if (categoryId && !Types.ObjectId.isValid(categoryId)) {
     errors.categoryId = "Invalid category"
   }
@@ -93,7 +92,7 @@ export async function POST(request: NextRequest) {
   const product = await ProductModel.create({
     userId: user._id,
     name,
-    categoryId,
+    categoryId: categoryId || null,
     batchId: null,
     quantityInitial,
     quantityRemaining: quantityInitial,
