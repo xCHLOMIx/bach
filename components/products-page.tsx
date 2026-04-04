@@ -105,6 +105,17 @@ type ProductTableColumnKey =
     | "landedPrice"
     | "totalLandedCost"
 
+type BulkSaleRow = {
+    productId: string
+    name: string
+    availableQuantity: number
+    landedCost: number
+    quantity: string
+    sellingPrice: string
+}
+
+type BulkSaleRowErrors = Record<string, { quantity?: string; sellingPrice?: string }>
+
 export function ProductsPage() {
     const router = useRouter()
     const pathname = usePathname()
@@ -145,10 +156,14 @@ export function ProductsPage() {
 
     const [showSaleModal, setShowSaleModal] = React.useState(false)
     const [showDiscardSaleConfirm, setShowDiscardSaleConfirm] = React.useState(false)
-    const [saleStep, setSaleStep] = React.useState<"product" | "details">("product")
+    const [saleStep, setSaleStep] = React.useState<"product" | "details" | "bulk-details">("product")
+    const [saleMode, setSaleMode] = React.useState<"single" | "bulk">("single")
     const [saleSelectedProduct, setSaleSelectedProduct] = React.useState<Product | null>(null)
     const [saleQuantity, setSaleQuantity] = React.useState("")
     const [salePrice, setSalePrice] = React.useState("")
+    const [bulkSaleRows, setBulkSaleRows] = React.useState<BulkSaleRow[]>([])
+    const [bulkSaleRowErrors, setBulkSaleRowErrors] = React.useState<BulkSaleRowErrors>({})
+    const [bulkSaleGeneralError, setBulkSaleGeneralError] = React.useState("")
     const [saleProductSearch, setSaleProductSearch] = React.useState("")
     const [saleErrors, setSaleErrors] = React.useState<Record<string, string>>({})
     const [isSaleSubmitting, setIsSaleSubmitting] = React.useState(false)
@@ -178,6 +193,9 @@ export function ProductsPage() {
         batchName: string | null
     } | null>(null)
     const [isDeleting, setIsDeleting] = React.useState(false)
+    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = React.useState(false)
+    const [isBulkDeleting, setIsBulkDeleting] = React.useState(false)
+    const [bulkDeleteError, setBulkDeleteError] = React.useState("")
     const [previewImages, setPreviewImages] = React.useState<string[]>([])
     const [previewImageIndex, setPreviewImageIndex] = React.useState(0)
     const previewImageSrc = previewImages[previewImageIndex] ?? null
@@ -517,9 +535,13 @@ export function ProductsPage() {
 
     const resetSaleDraft = () => {
         setSaleStep("product")
+        setSaleMode("single")
         setSaleSelectedProduct(null)
         setSaleQuantity("")
         setSalePrice("")
+        setBulkSaleRows([])
+        setBulkSaleRowErrors({})
+        setBulkSaleGeneralError("")
         setSaleProductSearch("")
         setSaleErrors({})
     }
@@ -543,6 +565,7 @@ export function ProductsPage() {
         }
 
         setSaleStep("product")
+        setSaleMode("single")
         setSaleSelectedProduct(null)
         setSaleQuantity("")
         setSalePrice("")
@@ -557,15 +580,52 @@ export function ProductsPage() {
     }, [searchParams, pathname, router])
 
     const openSaleModalForProduct = (product: Product) => {
+        setSaleMode("single")
         setSaleSelectedProduct(product)
         setSalePrice(formatDecimalWithCommas(String(product.landedCost)))
         setSaleQuantity("")
         setSaleStep("details")
         setSaleErrors({})
+        setBulkSaleRows([])
+        setBulkSaleRowErrors({})
+        setBulkSaleGeneralError("")
         setShowSaleModal(true)
     }
 
-    const hasUnsavedSaleDraft = Boolean(saleSelectedProduct) || Boolean(saleQuantity) || Boolean(saleProductSearch)
+    const openBulkSaleModalForProducts = React.useCallback((productsToSell: Product[]) => {
+        const rows = productsToSell
+            .filter((product) => product.quantityRemaining > 0)
+            .map((product) => ({
+                productId: product._id,
+                name: product.name,
+                availableQuantity: product.quantityRemaining,
+                landedCost: product.landedCost,
+                quantity: "",
+                sellingPrice: formatDecimalWithCommas(String(product.landedCost)),
+            }))
+
+        if (rows.length === 0) {
+            return
+        }
+
+        setSaleMode("bulk")
+        setSaleSelectedProduct(null)
+        setSaleQuantity("")
+        setSalePrice("")
+        setSaleStep("bulk-details")
+        setSaleErrors({})
+        setSaleProductSearch("")
+        setBulkSaleRows(rows)
+        setBulkSaleRowErrors({})
+        setBulkSaleGeneralError("")
+        setShowSaleModal(true)
+    }, [])
+
+    const hasUnsavedSaleDraft =
+        Boolean(saleSelectedProduct) ||
+        Boolean(saleQuantity) ||
+        Boolean(saleProductSearch) ||
+        bulkSaleRows.some((row) => Boolean(row.quantity) || Boolean(row.sellingPrice))
 
     const requestCloseSaleModal = () => {
         if (isSaleSubmitting) {
@@ -589,6 +649,77 @@ export function ProductsPage() {
 
     const submitSaleFromModal = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
+
+        if (saleMode === "bulk") {
+            setIsSaleSubmitting(true)
+            setBulkSaleRowErrors({})
+            setBulkSaleGeneralError("")
+
+            const nextRowErrors: BulkSaleRowErrors = {}
+
+            for (const row of bulkSaleRows) {
+                const quantity = Number(row.quantity || 0)
+                const sellingPrice = Number(stripCommas(row.sellingPrice) || 0)
+
+                if (!Number.isFinite(quantity) || quantity <= 0) {
+                    nextRowErrors[row.productId] = {
+                        ...(nextRowErrors[row.productId] ?? {}),
+                        quantity: "Quantity must be greater than 0",
+                    }
+                } else if (quantity > row.availableQuantity) {
+                    nextRowErrors[row.productId] = {
+                        ...(nextRowErrors[row.productId] ?? {}),
+                        quantity: "Requested quantity is higher than available stock",
+                    }
+                }
+
+                if (!Number.isFinite(sellingPrice) || sellingPrice < 0) {
+                    nextRowErrors[row.productId] = {
+                        ...(nextRowErrors[row.productId] ?? {}),
+                        sellingPrice: "Selling price must be 0 or higher",
+                    }
+                }
+            }
+
+            if (Object.keys(nextRowErrors).length > 0) {
+                setBulkSaleRowErrors(nextRowErrors)
+                setIsSaleSubmitting(false)
+                return
+            }
+
+            try {
+                const failedProducts: string[] = []
+
+                for (const row of bulkSaleRows) {
+                    const response = await fetch("/api/sales", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            productId: row.productId,
+                            quantity: Number(row.quantity),
+                            sellingPrice: Number(stripCommas(row.sellingPrice)),
+                        }),
+                    })
+
+                    if (!response.ok) {
+                        failedProducts.push(row.name)
+                    }
+                }
+
+                if (failedProducts.length > 0) {
+                    setBulkSaleGeneralError(`Failed to record sale for: ${failedProducts.join(", ")}`)
+                    return
+                }
+
+                setShowSaleModal(false)
+                resetSaleDraft()
+                setSelectedProductIds(new Set())
+                await loadProducts()
+                return
+            } finally {
+                setIsSaleSubmitting(false)
+            }
+        }
 
         if (!saleSelectedProduct) {
             setSaleErrors({ productId: "Product is required" })
@@ -617,6 +748,7 @@ export function ProductsPage() {
 
             setShowSaleModal(false)
             resetSaleDraft()
+            setSelectedProductIds(new Set())
             await loadProducts()
         } finally {
             setIsSaleSubmitting(false)
@@ -764,12 +896,52 @@ export function ProductsPage() {
     }, [])
 
     const handleDeleteSelectedProduct = React.useCallback(() => {
-        if (!singleSelectedProduct) {
+        if (selectedProducts.length === 0) {
             return
         }
 
-        void handleDeleteProduct(singleSelectedProduct)
-    }, [singleSelectedProduct])
+        if (selectedProducts.length === 1) {
+            void handleDeleteProduct(selectedProducts[0])
+            return
+        }
+
+        setBulkDeleteError("")
+        setShowBulkDeleteConfirm(true)
+    }, [handleDeleteProduct, selectedProducts])
+
+    const confirmBulkDeleteProducts = React.useCallback(async () => {
+        if (selectedProducts.length === 0) {
+            return
+        }
+
+        setIsBulkDeleting(true)
+        setBulkDeleteError("")
+
+        try {
+            const failedProducts: string[] = []
+
+            for (const product of selectedProducts) {
+                const response = await fetch(`/api/products/${product._id}?confirm=true`, {
+                    method: "DELETE",
+                })
+
+                if (!response.ok) {
+                    failedProducts.push(product.name)
+                }
+            }
+
+            if (failedProducts.length > 0) {
+                setBulkDeleteError(`Failed to delete: ${failedProducts.join(", ")}`)
+                return
+            }
+
+            setShowBulkDeleteConfirm(false)
+            setSelectedProductIds(new Set())
+            await loadProducts()
+        } finally {
+            setIsBulkDeleting(false)
+        }
+    }, [loadProducts, selectedProducts])
 
     const renderProductActions = (product: Product) => (
         <div className="flex gap-2">
@@ -1589,12 +1761,12 @@ export function ProductsPage() {
                                         <Button
                                             size="sm"
                                             variant="outline"
-                                            disabled={!singleSelectedProduct || singleSelectedProduct.quantityRemaining <= 0}
+                                            disabled={selectedProducts.filter((product) => product.quantityRemaining > 0).length === 0}
                                             onClick={() => {
-                                                if (!singleSelectedProduct) {
+                                                if (selectedProducts.length === 0) {
                                                     return
                                                 }
-                                                openSaleModalForProduct(singleSelectedProduct)
+                                                openBulkSaleModalForProducts(selectedProducts)
                                             }}
                                         >
                                             <ShoppingCartIcon className="h-4 w-4" />
@@ -1603,7 +1775,7 @@ export function ProductsPage() {
                                         <Button
                                             size="sm"
                                             variant="destructive"
-                                            disabled={!singleSelectedProduct}
+                                            disabled={selectedProducts.length === 0}
                                             onClick={handleDeleteSelectedProduct}
                                         >
                                             <Trash2Icon className="h-4 w-4" />
@@ -1837,7 +2009,7 @@ export function ProductsPage() {
                                         Cancel
                                     </Button>
                                 </>
-                            ) : (
+                            ) : saleStep === "details" ? (
                                 <>
                                     <div className="mb-6">
                                         <h2 className="text-lg font-semibold text-foreground mb-2">
@@ -1937,11 +2109,163 @@ export function ProductsPage() {
                                         </Button>
                                     </div>
                                 </>
+                            ) : (
+                                <>
+                                    <div className="mb-4">
+                                        <h2 className="text-lg font-semibold text-foreground">Record Bulk Sale</h2>
+                                        <p className="text-sm text-muted-foreground">
+                                            Set quantity and selling price for each selected product.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-4 mb-6 max-h-[55vh] overflow-y-auto pr-1">
+                                        {bulkSaleRows.map((row) => {
+                                            const quantityValue = Number(row.quantity || 0)
+                                            const sellingPriceValue = Number(stripCommas(row.sellingPrice) || 0)
+                                            const totalLandedCost = row.landedCost * quantityValue
+                                            const totalSellingValue = sellingPriceValue * quantityValue
+                                            const totalProfit = totalSellingValue - totalLandedCost
+
+                                            return (
+                                                <div key={row.productId} className="rounded-lg border border-border p-3">
+                                                    <div className="mb-3">
+                                                        <p className="font-medium text-foreground truncate">{row.name}</p>
+                                                        <p className="text-xs text-muted-foreground">Available: {row.availableQuantity}</p>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                                        <div>
+                                                            <label className="text-sm font-medium text-foreground block mb-2">Quantity</label>
+                                                            <Input
+                                                                type="text"
+                                                                inputMode="numeric"
+                                                                placeholder="Enter quantity"
+                                                                value={row.quantity}
+                                                                onChange={(event) => {
+                                                                    const nextQuantity = toIntegerInput(event.target.value)
+                                                                    setBulkSaleRows((current) =>
+                                                                        current.map((currentRow) =>
+                                                                            currentRow.productId === row.productId
+                                                                                ? { ...currentRow, quantity: nextQuantity }
+                                                                                : currentRow
+                                                                        )
+                                                                    )
+                                                                }}
+                                                            />
+                                                            {bulkSaleRowErrors[row.productId]?.quantity ? (
+                                                                <FieldError className="text-destructive text-xs mt-2">
+                                                                    {bulkSaleRowErrors[row.productId]?.quantity}
+                                                                </FieldError>
+                                                            ) : null}
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="text-sm font-medium text-foreground block mb-2">Selling Price / Unit</label>
+                                                            <Input
+                                                                type="text"
+                                                                inputMode="decimal"
+                                                                placeholder="Enter selling price"
+                                                                value={row.sellingPrice}
+                                                                onChange={(event) => {
+                                                                    const nextSellingPrice = toDecimalInput(event.target.value)
+                                                                    setBulkSaleRows((current) =>
+                                                                        current.map((currentRow) =>
+                                                                            currentRow.productId === row.productId
+                                                                                ? { ...currentRow, sellingPrice: nextSellingPrice }
+                                                                                : currentRow
+                                                                        )
+                                                                    )
+                                                                }}
+                                                            />
+                                                            {bulkSaleRowErrors[row.productId]?.sellingPrice ? (
+                                                                <FieldError className="text-destructive text-xs mt-2">
+                                                                    {bulkSaleRowErrors[row.productId]?.sellingPrice}
+                                                                </FieldError>
+                                                            ) : null}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mt-3 rounded-md bg-muted p-2 text-xs text-muted-foreground">
+                                                        <p>
+                                                            Total landed cost: <span className="font-semibold text-foreground">{totalLandedCost.toLocaleString()} RWF</span>
+                                                        </p>
+                                                        <p>
+                                                            Total value: <span className="font-semibold text-foreground">{totalSellingValue.toLocaleString()} RWF</span>
+                                                        </p>
+                                                        <p>
+                                                            {totalProfit >= 0 ? "Profit" : "Loss"}: <span className={totalProfit >= 0 ? "font-semibold text-primary" : "font-semibold text-destructive"}>{Math.abs(totalProfit).toLocaleString()} RWF</span>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+
+                                        {bulkSaleGeneralError ? <FieldError className="text-destructive text-xs">{bulkSaleGeneralError}</FieldError> : null}
+                                    </div>
+
+                                    <div className="flex gap-3">
+                                        <Button type="button" variant="outline" onClick={requestCloseSaleModal}>
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            loading={isSaleSubmitting}
+                                            loadingText="Recording sales"
+                                            className="flex-1"
+                                        >
+                                            Record Sales
+                                        </Button>
+                                    </div>
+                                </>
                             )}
                         </form>
                     </div>
                 </div>
             )}
+
+            {showBulkDeleteConfirm ? (
+                <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 animate-in fade-in duration-150">
+                    <div className="modal-pop-in w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-950">
+                        <h3 className="text-lg font-semibold text-destructive">Delete Selected Products?</h3>
+                        <p className="mt-3 text-sm text-muted-foreground">
+                            You are about to permanently delete <span className="font-semibold text-foreground">{selectedProducts.length}</span> products.
+                        </p>
+                        <p className="mt-2 text-xs text-muted-foreground">This action cannot be undone.</p>
+
+                        {bulkDeleteError ? (
+                            <FieldError className="mt-3 text-destructive text-xs">{bulkDeleteError}</FieldError>
+                        ) : null}
+
+                        <div className="mt-6 flex justify-end gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    if (isBulkDeleting) {
+                                        return
+                                    }
+                                    setShowBulkDeleteConfirm(false)
+                                }}
+                                disabled={isBulkDeleting}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                onClick={() => {
+                                    void confirmBulkDeleteProducts()
+                                }}
+                                disabled={isBulkDeleting}
+                                loading={isBulkDeleting}
+                                loadingText="Deleting products"
+                            >
+                                Delete Selected
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
 
             {showDiscardSaleConfirm && (
                 <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 animate-in fade-in duration-150">

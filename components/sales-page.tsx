@@ -42,6 +42,17 @@ type Product = {
     unitOfMeasurement?: string
 }
 
+type BulkSaleRow = {
+    productId: string
+    name: string
+    availableQuantity: number
+    landedCost: number
+    quantity: string
+    sellingPrice: string
+}
+
+type BulkSaleRowErrors = Record<string, { quantity?: string; sellingPrice?: string }>
+
 export function SalesPage() {
     const [sales, setSales] = React.useState<Sale[]>([])
     const [isLoading, setIsLoading] = React.useState(true)
@@ -50,9 +61,10 @@ export function SalesPage() {
     const [productsLoadError, setProductsLoadError] = React.useState<string | null>(null)
     const [showNewSaleModal, setShowNewSaleModal] = React.useState(false)
     const [step, setStep] = React.useState<"product" | "details">("product")
-    const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null)
-    const [quantity, setQuantity] = React.useState("")
-    const [sellingPrice, setSellingPrice] = React.useState("")
+    const [selectedProductIds, setSelectedProductIds] = React.useState<Set<string>>(new Set())
+    const [bulkSaleRows, setBulkSaleRows] = React.useState<BulkSaleRow[]>([])
+    const [bulkSaleRowErrors, setBulkSaleRowErrors] = React.useState<BulkSaleRowErrors>({})
+    const [bulkSaleGeneralError, setBulkSaleGeneralError] = React.useState("")
     const [productSearch, setProductSearch] = React.useState("")
     const [isSaving, setIsSaving] = React.useState(false)
     const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false)
@@ -149,6 +161,10 @@ export function SalesPage() {
     const openNewSaleModal = () => {
         setShowNewSaleModal(true)
         setStep("product")
+        setSelectedProductIds(new Set())
+        setBulkSaleRows([])
+        setBulkSaleRowErrors({})
+        setBulkSaleGeneralError("")
         if (products.length === 0 && !isLoadingProducts) {
             void loadProducts()
         }
@@ -156,13 +172,17 @@ export function SalesPage() {
 
     const resetSaleDraft = () => {
         setStep("product")
-        setSelectedProduct(null)
-        setQuantity("")
-        setSellingPrice("")
+        setSelectedProductIds(new Set())
+        setBulkSaleRows([])
+        setBulkSaleRowErrors({})
+        setBulkSaleGeneralError("")
         setProductSearch("")
     }
 
-    const hasUnsavedSaleDraft = Boolean(selectedProduct) || Boolean(quantity) || Boolean(productSearch)
+    const hasUnsavedSaleDraft =
+        selectedProductIds.size > 0 ||
+        bulkSaleRows.some((row) => Boolean(row.quantity) || Boolean(row.sellingPrice)) ||
+        Boolean(productSearch)
 
     const requestCloseSaleModal = () => {
         if (isSaving) {
@@ -184,39 +204,107 @@ export function SalesPage() {
         resetSaleDraft()
     }
 
-    const handleProductSelect = (product: Product) => {
-        setSelectedProduct(product)
-        setSellingPrice(toDecimalInput(String(product.landedCost)))
+    const toggleProductSelection = (productId: string) => {
+        setSelectedProductIds((current) => {
+            const next = new Set(current)
+            if (next.has(productId)) {
+                next.delete(productId)
+            } else {
+                next.add(productId)
+            }
+            return next
+        })
+    }
+
+    const openBulkSaleDetails = () => {
+        const selected = products.filter((product) => selectedProductIds.has(product._id) && product.quantityRemaining > 0)
+
+        const rows = selected.map((product) => ({
+            productId: product._id,
+            name: product.name,
+            availableQuantity: product.quantityRemaining,
+            landedCost: product.landedCost,
+            quantity: "",
+            sellingPrice: formatDecimalWithCommas(String(product.landedCost)),
+        }))
+
+        setBulkSaleRows(rows)
+        setBulkSaleRowErrors({})
+        setBulkSaleGeneralError("")
         setStep("details")
     }
 
     const handleSaveSale = async () => {
-        if (!selectedProduct || !quantity || !sellingPrice) return
-
         setIsSaving(true)
-        try {
-            const response = await fetch("/api/sales", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    productId: selectedProduct._id,
-                    quantity: Number(quantity),
-                    sellingPrice: Number(stripCommas(sellingPrice)),
-                }),
-            })
+        setBulkSaleRowErrors({})
+        setBulkSaleGeneralError("")
 
-            if (response.ok) {
-                // Close modal and reset
-                setShowNewSaleModal(false)
-                resetSaleDraft()
+        const nextErrors: BulkSaleRowErrors = {}
 
-                // Reload sales
-                const salesResponse = await fetch("/api/sales")
-                if (salesResponse.ok) {
-                    const data = await salesResponse.json()
-                    setSales(data.sales ?? [])
+        for (const row of bulkSaleRows) {
+            const parsedQuantity = Number(row.quantity || 0)
+            const parsedSellingPrice = Number(stripCommas(row.sellingPrice) || 0)
+
+            if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+                nextErrors[row.productId] = {
+                    ...(nextErrors[row.productId] ?? {}),
+                    quantity: "Quantity must be greater than 0",
+                }
+            } else if (parsedQuantity > row.availableQuantity) {
+                nextErrors[row.productId] = {
+                    ...(nextErrors[row.productId] ?? {}),
+                    quantity: "Requested quantity is higher than available stock",
                 }
             }
+
+            if (!Number.isFinite(parsedSellingPrice) || parsedSellingPrice < 0) {
+                nextErrors[row.productId] = {
+                    ...(nextErrors[row.productId] ?? {}),
+                    sellingPrice: "Selling price must be 0 or higher",
+                }
+            }
+        }
+
+        if (Object.keys(nextErrors).length > 0) {
+            setBulkSaleRowErrors(nextErrors)
+            setIsSaving(false)
+            return
+        }
+
+        try {
+            const failedProducts: string[] = []
+
+            for (const row of bulkSaleRows) {
+                const response = await fetch("/api/sales", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        productId: row.productId,
+                        quantity: Number(row.quantity),
+                        sellingPrice: Number(stripCommas(row.sellingPrice)),
+                    }),
+                })
+
+                if (!response.ok) {
+                    failedProducts.push(row.name)
+                }
+            }
+
+            if (failedProducts.length > 0) {
+                setBulkSaleGeneralError(`Failed to record sale for: ${failedProducts.join(", ")}`)
+                return
+            }
+
+            setShowNewSaleModal(false)
+            resetSaleDraft()
+
+            const salesResponse = await fetch("/api/sales")
+            if (salesResponse.ok) {
+                const data = await salesResponse.json()
+                setSales(data.sales ?? [])
+            }
+
+            void loadProducts()
         } finally {
             setIsSaving(false)
         }
@@ -227,17 +315,10 @@ export function SalesPage() {
             p.name.toLowerCase().includes(productSearch.toLowerCase())
     )
 
-    const profit = selectedProduct
-        ? Number(stripCommas(sellingPrice) || 0) - selectedProduct.landedCost
-        : 0
-
-    const selectedQuantity = Number(quantity || 0)
-    const totalLandedCost = selectedProduct
-        ? selectedProduct.landedCost * selectedQuantity
-        : 0
-    const availableQuantity = selectedProduct?.quantityRemaining ?? 0
-    const isQuantityAboveAvailable = Boolean(selectedProduct) && selectedQuantity > availableQuantity
-    const canSubmitSale = selectedQuantity > 0 && Boolean(sellingPrice) && !isSaving && !isQuantityAboveAvailable
+    const selectedCount = selectedProductIds.size
+    const selectedInStockCount = products.filter((product) => selectedProductIds.has(product._id) && product.quantityRemaining > 0).length
+    const canProceedToDetails = selectedInStockCount > 0
+    const canSubmitSale = bulkSaleRows.length > 0 && !isSaving
 
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
@@ -355,6 +436,15 @@ export function SalesPage() {
                                         />
                                     </div>
 
+                                    <div className="mb-3 flex items-center justify-between text-sm">
+                                        <p className="text-muted-foreground">
+                                            Selected: <span className="font-semibold text-foreground">{selectedCount}</span>
+                                        </p>
+                                        <p className="text-muted-foreground">
+                                            In stock: <span className="font-semibold text-foreground">{selectedInStockCount}</span>
+                                        </p>
+                                    </div>
+
                                     <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
                                         {isLoadingProducts ? (
                                             <p className="text-sm text-muted-foreground text-center py-4">
@@ -382,116 +472,149 @@ export function SalesPage() {
                                         ) : (
                                             filteredProducts.map((product) => {
                                                 const isOutOfStock = product.quantityRemaining === 0
+                                                const isSelected = selectedProductIds.has(product._id)
                                                 return (
                                                     <button
                                                         key={product._id}
-                                                        onClick={() => handleProductSelect(product)}
-                                                        disabled={isOutOfStock}
+                                                        type="button"
+                                                        onClick={() => toggleProductSelection(product._id)}
                                                         className={`w-full text-left p-3 rounded-lg border transition-colors ${isOutOfStock
-                                                            ? "cursor-not-allowed opacity-50 border-border"
+                                                            ? "border-border opacity-70"
                                                             : "border-border hover:bg-muted"
-                                                            }`}
+                                                            } ${isSelected ? "bg-primary/10" : ""}`}
                                                     >
-                                                        <p className="truncate font-medium text-foreground">
-                                                            {product.name}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            In stock: {product.quantityRemaining} {product.unitOfMeasurement ?? ""}
-                                                            {isOutOfStock && <span className="ml-2 font-medium text-destructive">(Out of stock)</span>}
-                                                        </p>
+                                                        <div className="flex items-start gap-3">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isSelected}
+                                                                onChange={() => toggleProductSelection(product._id)}
+                                                                onClick={(event) => event.stopPropagation()}
+                                                                className="mt-0.5 rounded"
+                                                                aria-label={`Select ${product.name}`}
+                                                            />
+                                                            <div className="min-w-0">
+                                                                <p className="truncate font-medium text-foreground">
+                                                                    {product.name}
+                                                                </p>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    In stock: {product.quantityRemaining} {product.unitOfMeasurement ?? ""}
+                                                                    {isOutOfStock ? <span className="ml-2 font-medium text-destructive">(Out of stock)</span> : null}
+                                                                </p>
+                                                            </div>
+                                                        </div>
                                                     </button>
                                                 )
                                             })
                                         )}
                                     </div>
 
-                                    <Button
-                                        variant="outline"
-                                        onClick={requestCloseSaleModal}
-                                        className="w-full"
-                                    >
-                                        Cancel
-                                    </Button>
+                                    <div className="flex gap-3">
+                                        <Button
+                                            variant="outline"
+                                            onClick={requestCloseSaleModal}
+                                            className="flex-1"
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            onClick={openBulkSaleDetails}
+                                            className="flex-1"
+                                            disabled={!canProceedToDetails}
+                                        >
+                                            Continue
+                                        </Button>
+                                    </div>
                                 </>
                             ) : (
                                 <>
-                                    <div className="mb-6">
-                                        <h2 className="text-lg font-semibold text-foreground mb-2">
-                                            {selectedProduct?.name}
-                                        </h2>
+                                    <div className="mb-4">
+                                        <h2 className="text-lg font-semibold text-foreground">Record Bulk Sale</h2>
                                         <p className="text-sm text-muted-foreground">
-                                            Available quantity: <span className="font-semibold text-foreground">{availableQuantity}</span>
+                                            Enter quantity and selling price for each selected product.
                                         </p>
                                     </div>
 
-                                    <div className="space-y-4 mb-6">
-                                        <div>
-                                            <label className="text-sm font-medium text-foreground block mb-2">
-                                                Quantity
-                                            </label>
-                                            <Input
-                                                type="text"
-                                                inputMode="numeric"
-                                                placeholder="Enter quantity"
-                                                value={quantity}
-                                                onChange={(e) => setQuantity(toIntegerInput(e.target.value))}
-                                                min="1"
-                                                max={selectedProduct?.quantityRemaining}
-                                            />
-                                            {isQuantityAboveAvailable ? (
-                                                <p className="mt-2 text-xs font-medium text-destructive">
-                                                    Requested quantity is higher than available stock.
-                                                </p>
-                                            ) : null}
-                                        </div>
+                                    <div className="space-y-4 mb-6 max-h-[55vh] overflow-y-auto pr-1">
+                                        {bulkSaleRows.map((row) => {
+                                            const quantityValue = Number(row.quantity || 0)
+                                            const sellingPriceValue = Number(stripCommas(row.sellingPrice) || 0)
+                                            const totalLandedCost = row.landedCost * quantityValue
+                                            const totalSellingValue = sellingPriceValue * quantityValue
+                                            const totalProfit = totalSellingValue - totalLandedCost
 
-                                        <div>
-                                            <label className="text-sm font-medium text-foreground block mb-2">
-                                                Selling Price per Unit
-                                            </label>
-                                            <Input
-                                                type="text"
-                                                inputMode="decimal"
-                                                placeholder="Enter selling price"
-                                                value={sellingPrice}
-                                                onChange={(e) => setSellingPrice(toDecimalInput(e.target.value))}
-                                                min="0"
-                                            />
-                                        </div>
+                                            return (
+                                                <div key={row.productId} className="rounded-lg border border-border p-3">
+                                                    <div className="mb-3">
+                                                        <h3 className="font-medium text-foreground truncate">{row.name}</h3>
+                                                        <p className="text-xs text-muted-foreground">Available quantity: {row.availableQuantity}</p>
+                                                    </div>
 
-                                        {sellingPrice && (
-                                            <div className="p-3 rounded-lg bg-muted border border-border">
-                                                {profit > 0 ? (
-                                                    <p className="text-sm font-medium text-primary">
-                                                        -œ“ You&apos;re making a profit of {profit.toLocaleString()} RWF per unit
-                                                    </p>
-                                                ) : profit < 0 ? (
-                                                    <p className="text-sm font-medium text-destructive">
-                                                        -š  You&apos;re taking a loss of {Math.abs(profit).toLocaleString()} RWF per unit
-                                                    </p>
-                                                ) : (
-                                                    <p className="text-sm font-medium text-muted-foreground">
-                                                        = Break even price
-                                                    </p>
-                                                )}
-                                            </div>
-                                        )}
+                                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                                        <div>
+                                                            <label className="text-sm font-medium text-foreground block mb-2">Quantity</label>
+                                                            <Input
+                                                                type="text"
+                                                                inputMode="numeric"
+                                                                placeholder="Enter quantity"
+                                                                value={row.quantity}
+                                                                onChange={(event) => {
+                                                                    const nextQuantity = toIntegerInput(event.target.value)
+                                                                    setBulkSaleRows((current) =>
+                                                                        current.map((currentRow) =>
+                                                                            currentRow.productId === row.productId
+                                                                                ? { ...currentRow, quantity: nextQuantity }
+                                                                                : currentRow
+                                                                        )
+                                                                    )
+                                                                }}
+                                                            />
+                                                            {bulkSaleRowErrors[row.productId]?.quantity ? (
+                                                                <p className="mt-2 text-xs font-medium text-destructive">
+                                                                    {bulkSaleRowErrors[row.productId]?.quantity}
+                                                                </p>
+                                                            ) : null}
+                                                        </div>
 
-                                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
-                                            <p className="text-sm text-muted-foreground">
-                                                Quantity selected: <span className="font-semibold text-foreground">{selectedQuantity || 0}</span>
-                                            </p>
-                                            <p className="text-sm text-muted-foreground">
-                                                Landed cost per unit: <span className="font-semibold text-foreground">
-                                                    {(selectedProduct?.landedCost ?? 0).toLocaleString()} RWF
-                                                </span>
-                                            </p>
-                                            <p className="text-sm text-muted-foreground">
-                                                Total landed cost: <span className="font-semibold text-foreground">
-                                                    {totalLandedCost.toLocaleString()} RWF
-                                                </span>
-                                            </p>
-                                        </div>
+                                                        <div>
+                                                            <label className="text-sm font-medium text-foreground block mb-2">Selling Price / Unit</label>
+                                                            <Input
+                                                                type="text"
+                                                                inputMode="decimal"
+                                                                placeholder="Enter selling price"
+                                                                value={row.sellingPrice}
+                                                                onChange={(event) => {
+                                                                    const nextSellingPrice = toDecimalInput(event.target.value)
+                                                                    setBulkSaleRows((current) =>
+                                                                        current.map((currentRow) =>
+                                                                            currentRow.productId === row.productId
+                                                                                ? { ...currentRow, sellingPrice: nextSellingPrice }
+                                                                                : currentRow
+                                                                        )
+                                                                    )
+                                                                }}
+                                                            />
+                                                            {bulkSaleRowErrors[row.productId]?.sellingPrice ? (
+                                                                <p className="mt-2 text-xs font-medium text-destructive">
+                                                                    {bulkSaleRowErrors[row.productId]?.sellingPrice}
+                                                                </p>
+                                                            ) : null}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mt-3 rounded-md bg-muted p-2 text-xs text-muted-foreground">
+                                                        <p>Total landed cost: <span className="font-semibold text-foreground">{totalLandedCost.toLocaleString()} RWF</span></p>
+                                                        <p>Total value: <span className="font-semibold text-foreground">{totalSellingValue.toLocaleString()} RWF</span></p>
+                                                        <p>
+                                                            {totalProfit >= 0 ? "Profit" : "Loss"}: <span className={totalProfit >= 0 ? "font-semibold text-primary" : "font-semibold text-destructive"}>{Math.abs(totalProfit).toLocaleString()} RWF</span>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+
+                                        {bulkSaleGeneralError ? (
+                                            <p className="text-xs font-medium text-destructive">{bulkSaleGeneralError}</p>
+                                        ) : null}
                                     </div>
 
                                     <div className="flex gap-3">
@@ -499,7 +622,6 @@ export function SalesPage() {
                                             variant="outline"
                                             onClick={() => {
                                                 setStep("product")
-                                                setSelectedProduct(null)
                                             }}
                                         >
                                             Back
@@ -520,7 +642,7 @@ export function SalesPage() {
             )}
 
             {showDiscardConfirm && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 animate-in fade-in duration-150">
+                <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 animate-in fade-in duration-150">
                     <div className="modal-pop-in w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-lg dark:border-slate-800 dark:bg-slate-950">
                         <h3 className="text-base font-semibold text-foreground">
                             Discard this sale draft?
