@@ -92,7 +92,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
   }, [])
 
-  const visibleRecentProducts = recentProducts.slice(0, 3).map((product) => ({
+  const visibleRecentProducts = recentProducts.slice(0, 4).map((product) => ({
     name: product.name,
     url: `/app/products?productId=${product._id}`,
     image: product.images?.[0] ?? "",
@@ -133,7 +133,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavDocuments
           items={visibleRecentProducts}
           isLoading={isLoadingRecentProducts}
-          hasMore={recentProducts.length > 3}
         />
       </SidebarContent>
       <SidebarFooter>

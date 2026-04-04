@@ -1723,8 +1723,8 @@ export function ProductsPage() {
                     </Empty>
                 ) : viewMode === "list" ? (
                     <>
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex gap-2 items-center">
+                        <div className="mb-4 flex flex-wrap items-center gap-2">
+                            <div className="flex w-full items-center gap-2 sm:w-auto">
                                 <h3 className="text-sm text-muted-foreground">Total</h3>
                                 <p className="text-lg font-semibold">{products.length}</p>
                                 {selectedProductIds.size > 0 && (
@@ -1734,7 +1734,7 @@ export function ProductsPage() {
                                     </>
                                 )}
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end sm:ml-auto">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button size="sm" variant="outline">

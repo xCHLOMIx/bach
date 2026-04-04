@@ -9,13 +9,10 @@ import {
 } from "@/components/ui/sidebar"
 import { Skeleton } from "@/components/ui/skeleton"
 import Image from "next/image"
-import { MoreHorizontalIcon } from "lucide-react"
-import Link from "next/link"
 
 export function NavDocuments({
   items,
   isLoading,
-  hasMore,
 }: {
   items?: {
     name: string
@@ -23,7 +20,6 @@ export function NavDocuments({
     image?: string
   }[]
   isLoading?: boolean
-  hasMore?: boolean
 }) {
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
@@ -68,16 +64,6 @@ export function NavDocuments({
           <div className="text-center py-6 text-sm text-muted-foreground">
             <p>No products yet</p>
           </div>
-        )}
-        {hasMore && !isLoading && (
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link href="/app/products" className="text-sidebar-foreground/70">
-                <MoreHorizontalIcon className="text-sidebar-foreground/70" />
-                <span>More</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
         )}
       </SidebarMenu>
     </SidebarGroup>
