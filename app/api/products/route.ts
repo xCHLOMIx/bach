@@ -69,6 +69,9 @@ export async function POST(request: NextRequest) {
       errors.externalLink = "Enter a valid URL"
     }
   }
+  if (images.length > 4) {
+    errors.images = "You can upload a maximum of 4 images"
+  }
 
   if (Object.keys(errors).length > 0) {
     return errorResponse(errors, 400)

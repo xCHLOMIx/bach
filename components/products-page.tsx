@@ -45,8 +45,16 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import {
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ChevronLeftIcon, ChevronRightIcon, ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon, PencilIcon, XIcon } from "lucide-react"
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, Columns3Icon, ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon, ShoppingCartIcon, Trash2Icon, XIcon } from "lucide-react"
 
 const SOURCE_CURRENCY_OPTIONS = ["RWF", "USD", "KSH", "UGX", "AED", "EUR", "GBP"]
 const NO_CATEGORY_VALUE = "__none__"
@@ -88,6 +96,15 @@ type Product = {
     createdAt: string
 }
 
+type ProductTableColumnKey =
+    | "image"
+    | "name"
+    | "batch"
+    | "onHand"
+    | "buyingPrice"
+    | "landedPrice"
+    | "totalLandedCost"
+
 export function ProductsPage() {
     const router = useRouter()
     const pathname = usePathname()
@@ -102,6 +119,15 @@ export function ProductsPage() {
     const [isAddProductSheetOpen, setIsAddProductSheetOpen] = React.useState(false)
     const [isEditProductSheetOpen, setIsEditProductSheetOpen] = React.useState(false)
     const [selectedProductIds, setSelectedProductIds] = React.useState<Set<string>>(new Set())
+    const [visibleColumns, setVisibleColumns] = React.useState<Record<ProductTableColumnKey, boolean>>({
+        image: true,
+        name: true,
+        batch: true,
+        onHand: true,
+        buyingPrice: true,
+        landedPrice: true,
+        totalLandedCost: true,
+    })
     const [errors, setErrors] = React.useState<Record<string, string>>({})
     const [isSubmitting, setIsSubmitting] = React.useState(false)
 
@@ -270,7 +296,7 @@ export function ProductsPage() {
 
     const openAddProductSheet = React.useCallback(() => {
         void ensureFormOptionsLoaded()
-        openAddProductSheet()
+        setIsAddProductSheetOpen(true)
     }, [ensureFormOptionsLoaded])
 
     const handleAddProductSheetOpenChange = React.useCallback((open: boolean) => {
@@ -716,6 +742,8 @@ export function ProductsPage() {
     const saleFilteredProducts = products.filter((product) =>
         product.name.toLowerCase().includes(saleProductSearch.toLowerCase())
     )
+    const selectedProducts = products.filter((product) => selectedProductIds.has(product._id))
+    const singleSelectedProduct = selectedProducts.length === 1 ? selectedProducts[0] : null
 
     const saleSelectedQuantity = Number(saleQuantity || 0)
     const saleAvailableQuantity = saleSelectedProduct?.quantityRemaining ?? 0
@@ -727,6 +755,21 @@ export function ProductsPage() {
         ? saleSelectedProduct.landedCost * saleSelectedQuantity
         : 0
     const canSubmitSale = Boolean(saleSelectedProduct) && saleSelectedQuantity > 0 && Boolean(salePrice) && !saleIsQuantityAboveAvailable && !isSaleSubmitting
+
+    const handleColumnVisibilityChange = React.useCallback((column: ProductTableColumnKey, isVisible: boolean) => {
+        setVisibleColumns((current) => ({
+            ...current,
+            [column]: isVisible,
+        }))
+    }, [])
+
+    const handleDeleteSelectedProduct = React.useCallback(() => {
+        if (!singleSelectedProduct) {
+            return
+        }
+
+        void handleDeleteProduct(singleSelectedProduct)
+    }, [singleSelectedProduct])
 
     const renderProductActions = (product: Product) => (
         <div className="flex gap-2">
@@ -937,6 +980,28 @@ export function ProductsPage() {
                                         })()}
                                     </div>
                                 )}
+
+                            {(() => {
+                                const totalExistingAfterDelete = editProductImages.filter((_, i) => !editDeletedImageIndices.has(i)).length
+                                const totalImages = totalExistingAfterDelete + editNewImages.length
+
+                                if (totalImages < 4) {
+                                    return null
+                                }
+
+                                return (
+                                    <button
+                                        type="button"
+                                        disabled
+                                        className="w-full rounded-md border-2 border-dashed border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground"
+                                    >
+                                        <span className="inline-flex items-center gap-2">
+                                            <ImagePlusIcon className="h-4 w-4" />
+                                            Max 4 images reached. Remove one to add another.
+                                        </span>
+                                    </button>
+                                )
+                            })()}
                         </div>
 
                         {/* Product Details Section */}
@@ -1237,6 +1302,21 @@ export function ProductsPage() {
                                                                 accept="image/*"
                                                                 className="hidden"
                                                                 onChange={(event) => {
+
+                                                                    {
+                                                                        imageFiles.length >= 4 ? (
+                                                                            <button
+                                                                                type="button"
+                                                                                disabled
+                                                                                className="w-full rounded-md border-2 border-dashed border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground"
+                                                                            >
+                                                                                <span className="inline-flex items-center gap-2">
+                                                                                    <ImagePlusIcon className="h-4 w-4" />
+                                                                                    Max 4 images reached. Remove one to add another.
+                                                                                </span>
+                                                                            </button>
+                                                                        ) : null
+                                                                    }
                                                                     const file = event.target.files?.[0]
                                                                     if (file) {
                                                                         setImageFiles((current) => [...current, file].slice(0, 4))
@@ -1482,9 +1562,57 @@ export function ProductsPage() {
                                     </>
                                 )}
                             </div>
-                            {selectedProductIds.size > 0 && (
-                                <Button size="sm" variant="outline" onClick={() => setSelectedProductIds(new Set())}>Clear Selection</Button>
-                            )}
+                            <div className="flex items-center gap-2">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button size="sm" variant="outline">
+                                            <Columns3Icon className="h-4 w-4" />
+                                            Columns
+                                            <ChevronDownIcon className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-56">
+                                        <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuCheckboxItem checked={visibleColumns.image} onCheckedChange={(value) => handleColumnVisibilityChange("image", Boolean(value))}>Image</DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem checked={visibleColumns.name} onCheckedChange={(value) => handleColumnVisibilityChange("name", Boolean(value))}>Name</DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem checked={visibleColumns.batch} onCheckedChange={(value) => handleColumnVisibilityChange("batch", Boolean(value))}>Batch</DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem checked={visibleColumns.onHand} onCheckedChange={(value) => handleColumnVisibilityChange("onHand", Boolean(value))}>On Hand</DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem checked={visibleColumns.buyingPrice} onCheckedChange={(value) => handleColumnVisibilityChange("buyingPrice", Boolean(value))}>Buying Price</DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem checked={visibleColumns.landedPrice} onCheckedChange={(value) => handleColumnVisibilityChange("landedPrice", Boolean(value))}>Landed Price</DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem checked={visibleColumns.totalLandedCost} onCheckedChange={(value) => handleColumnVisibilityChange("totalLandedCost", Boolean(value))}>Total Landed Cost</DropdownMenuCheckboxItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+
+                                {selectedProductIds.size > 0 ? (
+                                    <>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={!singleSelectedProduct || singleSelectedProduct.quantityRemaining <= 0}
+                                            onClick={() => {
+                                                if (!singleSelectedProduct) {
+                                                    return
+                                                }
+                                                openSaleModalForProduct(singleSelectedProduct)
+                                            }}
+                                        >
+                                            <ShoppingCartIcon className="h-4 w-4" />
+                                            Sell Selected
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            disabled={!singleSelectedProduct}
+                                            onClick={handleDeleteSelectedProduct}
+                                        >
+                                            <Trash2Icon className="h-4 w-4" />
+                                            Delete Selected
+                                        </Button>
+                                        <Button size="sm" variant="outline" onClick={() => setSelectedProductIds(new Set())}>Clear Selection</Button>
+                                    </>
+                                ) : null}
+                            </div>
                         </div>
                         <div className="overflow-x-auto rounded-xl border">
                             <div className="min-w-245">
@@ -1498,12 +1626,13 @@ export function ProductsPage() {
                                                     setSelectedProductIds(new Set())
                                                 }
                                             }} checked={selectedProductIds.size === products.length && products.length > 0} title="Select all" /></TableHead>
-                                            <TableHead>Image</TableHead>
-                                            <TableHead>Name</TableHead>
-                                            <TableHead>Batch</TableHead>
-                                            <TableHead>On Hand</TableHead>
-                                            <TableHead>Buying Price (RWF)</TableHead>
-                                            <TableHead>Landed Price (RWF)</TableHead>
+                                            {visibleColumns.image ? <TableHead>Image</TableHead> : null}
+                                            {visibleColumns.name ? <TableHead>Name</TableHead> : null}
+                                            {visibleColumns.batch ? <TableHead>Batch</TableHead> : null}
+                                            {visibleColumns.onHand ? <TableHead>On Hand</TableHead> : null}
+                                            {visibleColumns.buyingPrice ? <TableHead>Buying Price (RWF)</TableHead> : null}
+                                            {visibleColumns.landedPrice ? <TableHead>Landed Price (RWF)</TableHead> : null}
+                                            {visibleColumns.totalLandedCost ? <TableHead>Total Landed Cost (RWF)</TableHead> : null}
                                             <TableHead>Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -1524,48 +1653,67 @@ export function ProductsPage() {
                                                         setSelectedProductIds(newSelected)
                                                     }} />
                                                 </TableCell>
-                                                <TableCell className="p-0">
-                                                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                        {product.images?.[0] ? (
-                                                            <img
-                                                                src={product.images[0]}
-                                                                alt={product.name}
-                                                                className="h-10 w-10 rounded-md object-cover"
-                                                            />
-                                                        ) : (
-                                                            <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground">
-                                                                {product.name.replace(/\s+/g, "").slice(0, 2).toUpperCase()}
-                                                            </div>
-                                                        )}
-                                                    </Link>
-                                                </TableCell>
-                                                <TableCell className="p-0 truncate max-w-xs">
-                                                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                        {product.name}
-                                                    </Link>
-                                                </TableCell>
-                                                <TableCell className="p-0">
-                                                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                        {product.batchId?.batchName ?? "Unassigned"}
-                                                    </Link>
-                                                </TableCell>
-                                                <TableCell className="p-0">
-                                                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                        <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
-                                                            {product.quantityRemaining}
-                                                        </Badge>
-                                                    </Link>
-                                                </TableCell>
-                                                <TableCell className="p-0">
-                                                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                        {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                    </Link>
-                                                </TableCell>
-                                                <TableCell className="p-0">
-                                                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                        {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                    </Link>
-                                                </TableCell>
+                                                {visibleColumns.image ? (
+                                                    <TableCell className="p-0">
+                                                        <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                                                            {product.images?.[0] ? (
+                                                                <img
+                                                                    src={product.images[0]}
+                                                                    alt={product.name}
+                                                                    className="h-10 w-10 rounded-md object-cover"
+                                                                />
+                                                            ) : (
+                                                                <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground">
+                                                                    {product.name.replace(/\s+/g, "").slice(0, 2).toUpperCase()}
+                                                                </div>
+                                                            )}
+                                                        </Link>
+                                                    </TableCell>
+                                                ) : null}
+                                                {visibleColumns.name ? (
+                                                    <TableCell className="p-0 truncate max-w-xs">
+                                                        <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                                                            {product.name}
+                                                        </Link>
+                                                    </TableCell>
+                                                ) : null}
+                                                {visibleColumns.batch ? (
+                                                    <TableCell className="p-0">
+                                                        <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                                                            {product.batchId?.batchName ?? "Unassigned"}
+                                                        </Link>
+                                                    </TableCell>
+                                                ) : null}
+                                                {visibleColumns.onHand ? (
+                                                    <TableCell className="p-0">
+                                                        <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                                                            <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
+                                                                {product.quantityRemaining}
+                                                            </Badge>
+                                                        </Link>
+                                                    </TableCell>
+                                                ) : null}
+                                                {visibleColumns.buyingPrice ? (
+                                                    <TableCell className="p-0">
+                                                        <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                                                            {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </Link>
+                                                    </TableCell>
+                                                ) : null}
+                                                {visibleColumns.landedPrice ? (
+                                                    <TableCell className="p-0">
+                                                        <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                                                            {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </Link>
+                                                    </TableCell>
+                                                ) : null}
+                                                {visibleColumns.totalLandedCost ? (
+                                                    <TableCell className="p-0">
+                                                        <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                                                            {(product.landedCost * product.quantityRemaining).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </Link>
+                                                    </TableCell>
+                                                ) : null}
                                                 <TableCell onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</TableCell>
                                             </TableRow>
                                         ))}
@@ -1611,6 +1759,9 @@ export function ProductsPage() {
                                 </div>
                                 <div className="mt-3 text-xs text-muted-foreground">
                                     Landed Price (RWF): {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                    Total Landed Cost (RWF): {(product.landedCost * product.quantityRemaining).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </div>
                                 <div className="mt-4" onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</div>
                             </div>

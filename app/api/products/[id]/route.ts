@@ -153,6 +153,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (batchId !== undefined && batchId && !Types.ObjectId.isValid(batchId)) {
     errors.batchId = "Invalid batch"
   }
+  if (existingImages.length + newImageFiles.length > 4) {
+    errors.images = "You can upload a maximum of 4 images"
+  }
 
   if (Object.keys(errors).length > 0) {
     return errorResponse(errors, 400)
