@@ -164,6 +164,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     const normalizedFormSignature = React.useMemo(() => {
         return JSON.stringify({
             batchName: form.batchName.trim(),
+            trackingId: form.trackingId.trim(),
             intlShipping: Number(stripCommas(form.intlShipping) || 0),
             taxValue: Number(stripCommas(form.taxValue) || 0),
             customsDuties: Number(stripCommas(form.customsDuties) || 0),
@@ -179,6 +180,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     const normalizedInitialFormSignature = React.useMemo(() => {
         return JSON.stringify({
             batchName: initialForm.batchName.trim(),
+            trackingId: initialForm.trackingId.trim(),
             intlShipping: Number(stripCommas(initialForm.intlShipping) || 0),
             taxValue: Number(stripCommas(initialForm.taxValue) || 0),
             customsDuties: Number(stripCommas(initialForm.customsDuties) || 0),
