@@ -4,7 +4,7 @@ import { Types } from "mongoose"
 import { connectToDatabase } from "@/lib/db"
 import { errorResponse, successResponse } from "@/lib/api"
 import { getAuthorizedUser } from "@/lib/auth-guard"
-import { calculateBatchProductLandedCosts } from "@/lib/costs"
+import { buildBatchCostInputsFromBatch, calculateBatchProductLandedCosts } from "@/lib/costs"
 import { BatchModel } from "@/models/Batch"
 import { ProductModel } from "@/models/Product"
 
@@ -21,19 +21,7 @@ async function recalculateBatchProducts(batchId: string) {
       quantityInitial: product.quantityInitial,
       unitPriceLocalRWF: product.unitPriceLocalRWF ?? product.purchasePriceRWF,
     })),
-    {
-      intlShipping: batch.intlShipping,
-      taxValue: batch.taxValue,
-      collectionFee: batch.collectionFee ?? 0,
-      customsDuties: batch.customsDuties,
-      declaration: batch.declaration,
-      arrivalNotif: batch.arrivalNotif,
-      warehouseStorage: batch.warehouseStorage,
-      localTransport: batch.localTransport ?? 0,
-      amazonPrime: batch.amazonPrime,
-      warehouseUSA: batch.warehouseUSA,
-      miscellaneous: batch.miscellaneous,
-    }
+    buildBatchCostInputsFromBatch(batch)
   )
 
   const operations = allocations.map((allocation) => ({

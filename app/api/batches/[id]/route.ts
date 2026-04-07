@@ -4,7 +4,7 @@ import { Types } from "mongoose"
 import { connectToDatabase } from "@/lib/db"
 import { errorResponse, successResponse, type FieldErrors } from "@/lib/api"
 import { getAuthorizedUser } from "@/lib/auth-guard"
-import { calculateBatchProductLandedCosts } from "@/lib/costs"
+import { buildBatchCostInputsFromBatch, calculateBatchProductLandedCosts } from "@/lib/costs"
 import { BatchModel } from "@/models/Batch"
 import { ProductModel } from "@/models/Product"
 
@@ -48,19 +48,7 @@ async function recalculateBatchProducts(batchId: string) {
       quantityInitial: product.quantityInitial,
       unitPriceLocalRWF: product.unitPriceLocalRWF ?? product.purchasePriceRWF,
     })),
-    {
-      intlShipping: batch.intlShipping,
-      taxValue: batch.taxValue,
-      collectionFee: batch.collectionFee ?? 0,
-      customsDuties: batch.customsDuties,
-      declaration: batch.declaration,
-      arrivalNotif: batch.arrivalNotif,
-      warehouseStorage: batch.warehouseStorage,
-      localTransport: batch.localTransport ?? 0,
-      amazonPrime: batch.amazonPrime,
-      warehouseUSA: batch.warehouseUSA,
-      miscellaneous: batch.miscellaneous,
-    }
+    buildBatchCostInputsFromBatch(batch)
   )
 
   const operations = allocations.map((allocation) => ({
@@ -105,6 +93,8 @@ export async function PATCH(
   const trackingId = String(body.trackingId ?? "").trim()
   const pickupMethod = body.pickupMethod === undefined ? String(batch.pickupMethod ?? "advanced") : String(body.pickupMethod ?? "advanced").trim()
   const intlShipping = Number(body.intlShipping ?? 0)
+  const intlShippingCurrency = String(body.intlShippingCurrency ?? batch.intlShippingCurrency ?? "RWF").trim() || "RWF"
+  const intlShippingExchangeRate = Number(body.intlShippingExchangeRate ?? batch.intlShippingExchangeRate ?? 1)
   const taxValue = Number(body.taxValue ?? 0)
   const collectionFee = body.collectionFee === undefined ? Number(batch.collectionFee ?? 0) : Number(body.collectionFee ?? 0)
   const customsDuties = Number(body.customsDuties ?? 0)
@@ -113,7 +103,11 @@ export async function PATCH(
   const warehouseStorage = Number(body.warehouseStorage ?? 0)
   const localTransport = body.localTransport === undefined ? Number(batch.localTransport ?? 0) : Number(body.localTransport ?? 0)
   const amazonPrime = Number(body.amazonPrime ?? 0)
+  const amazonPrimeCurrency = String(body.amazonPrimeCurrency ?? batch.amazonPrimeCurrency ?? "RWF").trim() || "RWF"
+  const amazonPrimeExchangeRate = Number(body.amazonPrimeExchangeRate ?? batch.amazonPrimeExchangeRate ?? 1)
   const warehouseUSA = Number(body.warehouseUSA ?? 0)
+  const warehouseUSACurrency = String(body.warehouseUSACurrency ?? batch.warehouseUSACurrency ?? "RWF").trim() || "RWF"
+  const warehouseUSAExchangeRate = Number(body.warehouseUSAExchangeRate ?? batch.warehouseUSAExchangeRate ?? 1)
   const miscellaneous = Number(body.miscellaneous ?? 0)
 
   const errors: FieldErrors = {}
@@ -121,6 +115,28 @@ export async function PATCH(
   if (!batchName) errors.batchName = "Batch name is required"
   if (!["easy", "advanced"].includes(pickupMethod)) {
     errors.pickupMethod = "Pickup method must be easy or advanced"
+  }
+
+  const currencyFields = {
+    intlShippingCurrency,
+    amazonPrimeCurrency,
+    warehouseUSACurrency,
+  }
+
+  for (const [field, value] of Object.entries(currencyFields)) {
+    if (!value) {
+      errors[field] = "Currency is required"
+    }
+  }
+
+  if (intlShipping > 0 && intlShippingCurrency !== "RWF" && (!Number.isFinite(intlShippingExchangeRate) || intlShippingExchangeRate <= 0)) {
+    errors.intlShippingExchangeRate = "Exchange rate must be greater than 0"
+  }
+  if (amazonPrime > 0 && amazonPrimeCurrency !== "RWF" && (!Number.isFinite(amazonPrimeExchangeRate) || amazonPrimeExchangeRate <= 0)) {
+    errors.amazonPrimeExchangeRate = "Exchange rate must be greater than 0"
+  }
+  if (warehouseUSA > 0 && warehouseUSACurrency !== "RWF" && (!Number.isFinite(warehouseUSAExchangeRate) || warehouseUSAExchangeRate <= 0)) {
+    errors.warehouseUSAExchangeRate = "Exchange rate must be greater than 0"
   }
 
   const numberFields = {
@@ -156,6 +172,8 @@ export async function PATCH(
     batch.trackingId = trackingId
     batch.pickupMethod = pickupMethod
     batch.intlShipping = intlShipping
+    batch.intlShippingCurrency = intlShippingCurrency
+    batch.intlShippingExchangeRate = intlShippingExchangeRate
     batch.taxValue = taxValue
     batch.collectionFee = collectionFee
     batch.customsDuties = customsDuties
@@ -164,7 +182,11 @@ export async function PATCH(
     batch.warehouseStorage = warehouseStorage
     batch.localTransport = localTransport
     batch.amazonPrime = amazonPrime
+    batch.amazonPrimeCurrency = amazonPrimeCurrency
+    batch.amazonPrimeExchangeRate = amazonPrimeExchangeRate
     batch.warehouseUSA = warehouseUSA
+    batch.warehouseUSACurrency = warehouseUSACurrency
+    batch.warehouseUSAExchangeRate = warehouseUSAExchangeRate
     batch.miscellaneous = miscellaneous
 
     await batch.save()

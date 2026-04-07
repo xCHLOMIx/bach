@@ -237,6 +237,34 @@ export function BatchesPage() {
         load()
     }, [load])
 
+    const handleAddPickupMethodChange = (method: PickupMethod) => {
+        setAddForm((current) => {
+            if (method === current.pickupMethod) {
+                return current
+            }
+
+            if (method === "easy") {
+                return {
+                    ...current,
+                    pickupMethod: "easy",
+                    customsDuties: "",
+                    declaration: "",
+                    arrivalNotif: "",
+                    warehouseStorage: "",
+                    localTransport: "",
+                    miscellaneous: "",
+                }
+            }
+
+            return {
+                ...current,
+                pickupMethod: "advanced",
+                collectionFee: "",
+                localTransport: "",
+            }
+        })
+    }
+
     const submitAddBatch = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
         setIsAddSubmitting(true)
@@ -253,15 +281,6 @@ export function BatchesPage() {
                 return
             }
 
-            const payload = Object.fromEntries(
-                Object.entries(addForm).map(([key, value]) => {
-                    if (key === "batchName" || key === "trackingId" || key === "pickupMethod") {
-                        return [key, value]
-                    }
-                    return [key, value]
-                })
-            )
-
             const nextErrors: Record<string, string> = {}
             const toAmount = (value: string) => Number(stripCommas(value) || 0)
 
@@ -273,6 +292,10 @@ export function BatchesPage() {
             ) => {
                 if (!Number.isFinite(amount) || amount < 0) {
                     nextErrors[fieldPrefix] = "Value must be 0 or higher"
+                    return 0
+                }
+
+                if (amount <= 0) {
                     return 0
                 }
 
@@ -289,20 +312,24 @@ export function BatchesPage() {
                 return amount * parsedRate
             }
 
-            const intlShipping = convertToRwf(
-                toAmount(addForm.intlShipping),
+            const intlShippingAmount = toAmount(addForm.intlShipping)
+            const warehouseUSAAmount = toAmount(addForm.warehouseUSA)
+            const amazonPrimeAmount = toAmount(addForm.amazonPrime)
+
+            convertToRwf(
+                intlShippingAmount,
                 addForm.intlShippingCurrency,
                 addForm.intlShippingExchangeRate,
                 "intlShipping"
             )
-            const warehouseUSA = convertToRwf(
-                toAmount(addForm.warehouseUSA),
+            convertToRwf(
+                warehouseUSAAmount,
                 addForm.warehouseUSACurrency,
                 addForm.warehouseUSAExchangeRate,
                 "warehouseUSA"
             )
-            const amazonPrime = convertToRwf(
-                toAmount(addForm.amazonPrime),
+            convertToRwf(
+                amazonPrimeAmount,
                 addForm.amazonPrimeCurrency,
                 addForm.amazonPrimeExchangeRate,
                 "amazonPrime"
@@ -350,12 +377,24 @@ export function BatchesPage() {
             }
 
             const requestPayload = {
-                batchName: String(payload.batchName ?? ""),
-                trackingId: String(payload.trackingId ?? ""),
+                batchName: addForm.batchName.trim(),
+                trackingId: addForm.trackingId.trim(),
                 pickupMethod: addForm.pickupMethod,
-                intlShipping,
-                warehouseUSA,
-                amazonPrime,
+                intlShipping: intlShippingAmount,
+                intlShippingCurrency: addForm.intlShippingCurrency,
+                intlShippingExchangeRate: addForm.intlShippingCurrency === "RWF"
+                    ? 1
+                    : Number(stripCommas(addForm.intlShippingExchangeRate) || 1),
+                warehouseUSA: warehouseUSAAmount,
+                warehouseUSACurrency: addForm.warehouseUSACurrency,
+                warehouseUSAExchangeRate: addForm.warehouseUSACurrency === "RWF"
+                    ? 1
+                    : Number(stripCommas(addForm.warehouseUSAExchangeRate) || 1),
+                amazonPrime: amazonPrimeAmount,
+                amazonPrimeCurrency: addForm.amazonPrimeCurrency,
+                amazonPrimeExchangeRate: addForm.amazonPrimeCurrency === "RWF"
+                    ? 1
+                    : Number(stripCommas(addForm.amazonPrimeExchangeRate) || 1),
                 taxValue: 0,
                 collectionFee: localNumbers.collectionFee,
                 customsDuties: localNumbers.customsDuties,
@@ -495,7 +534,7 @@ export function BatchesPage() {
                                     />
                                 </div>
                                 <div className="space-y-3 rounded-lg border p-3">
-                                    <p className="text-sm font-semibold">International Expenses (Always Paid)</p>
+                                    <p className="text-sm font-semibold">International Expenses</p>
                                     <div className="grid gap-3 sm:grid-cols-3">
                                         <div className="grid gap-1.5">
                                             <label htmlFor="add-intl-shipping" className="text-sm font-medium">Intl shipping</label>
@@ -655,7 +694,7 @@ export function BatchesPage() {
                                                     "rounded px-3 py-1.5 text-sm",
                                                     addForm.pickupMethod === "easy" ? "bg-background shadow-sm" : "text-muted-foreground"
                                                 )}
-                                                onClick={() => setAddForm((current) => ({ ...current, pickupMethod: "easy" }))}
+                                                onClick={() => handleAddPickupMethodChange("easy")}
                                             >
                                                 Easy
                                             </button>
@@ -665,7 +704,7 @@ export function BatchesPage() {
                                                     "rounded px-3 py-1.5 text-sm",
                                                     addForm.pickupMethod === "advanced" ? "bg-background shadow-sm" : "text-muted-foreground"
                                                 )}
-                                                onClick={() => setAddForm((current) => ({ ...current, pickupMethod: "advanced" }))}
+                                                onClick={() => handleAddPickupMethodChange("advanced")}
                                             >
                                                 Advanced
                                             </button>

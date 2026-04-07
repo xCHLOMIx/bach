@@ -60,6 +60,8 @@ async function recalculateBatchProducts(batchId: string) {
       warehouseStorage: batch.warehouseStorage,
       amazonPrime: batch.amazonPrime,
       warehouseUSA: batch.warehouseUSA,
+      collectionFee: batch.collectionFee ?? 0,
+      localTransport: batch.localTransport ?? 0,
       miscellaneous: batch.miscellaneous,
     }
   )

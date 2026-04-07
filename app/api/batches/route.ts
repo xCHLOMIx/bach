@@ -92,6 +92,8 @@ export async function POST(request: NextRequest) {
   const trackingId = String(body.trackingId ?? "").trim()
   const pickupMethod = String(body.pickupMethod ?? "advanced").trim()
   const intlShipping = Number(body.intlShipping ?? 0)
+  const intlShippingCurrency = String(body.intlShippingCurrency ?? "RWF").trim() || "RWF"
+  const intlShippingExchangeRate = Number(body.intlShippingExchangeRate ?? 1)
   const taxValue = Number(body.taxValue ?? 0)
   const collectionFee = Number(body.collectionFee ?? 0)
   const customsDuties = Number(body.customsDuties ?? 0)
@@ -100,7 +102,11 @@ export async function POST(request: NextRequest) {
   const warehouseStorage = Number(body.warehouseStorage ?? 0)
   const localTransport = Number(body.localTransport ?? 0)
   const amazonPrime = Number(body.amazonPrime ?? 0)
+  const amazonPrimeCurrency = String(body.amazonPrimeCurrency ?? "RWF").trim() || "RWF"
+  const amazonPrimeExchangeRate = Number(body.amazonPrimeExchangeRate ?? 1)
   const warehouseUSA = Number(body.warehouseUSA ?? 0)
+  const warehouseUSACurrency = String(body.warehouseUSACurrency ?? "RWF").trim() || "RWF"
+  const warehouseUSAExchangeRate = Number(body.warehouseUSAExchangeRate ?? 1)
   const miscellaneous = Number(body.miscellaneous ?? 0)
 
   const errors: FieldErrors = {}
@@ -108,6 +114,28 @@ export async function POST(request: NextRequest) {
   if (!batchName) errors.batchName = "Batch name is required"
   if (!["easy", "advanced"].includes(pickupMethod)) {
     errors.pickupMethod = "Pickup method must be easy or advanced"
+  }
+
+  const currencyFields = {
+    intlShippingCurrency,
+    amazonPrimeCurrency,
+    warehouseUSACurrency,
+  }
+
+  for (const [field, value] of Object.entries(currencyFields)) {
+    if (!value) {
+      errors[field] = "Currency is required"
+    }
+  }
+
+  if (intlShipping > 0 && intlShippingCurrency !== "RWF" && (!Number.isFinite(intlShippingExchangeRate) || intlShippingExchangeRate <= 0)) {
+    errors.intlShippingExchangeRate = "Exchange rate must be greater than 0"
+  }
+  if (amazonPrime > 0 && amazonPrimeCurrency !== "RWF" && (!Number.isFinite(amazonPrimeExchangeRate) || amazonPrimeExchangeRate <= 0)) {
+    errors.amazonPrimeExchangeRate = "Exchange rate must be greater than 0"
+  }
+  if (warehouseUSA > 0 && warehouseUSACurrency !== "RWF" && (!Number.isFinite(warehouseUSAExchangeRate) || warehouseUSAExchangeRate <= 0)) {
+    errors.warehouseUSAExchangeRate = "Exchange rate must be greater than 0"
   }
 
   const numberFields = {
@@ -145,6 +173,8 @@ export async function POST(request: NextRequest) {
       trackingId,
       pickupMethod,
       intlShipping,
+      intlShippingCurrency,
+      intlShippingExchangeRate,
       taxValue,
       collectionFee,
       customsDuties,
@@ -153,7 +183,11 @@ export async function POST(request: NextRequest) {
       warehouseStorage,
       localTransport,
       amazonPrime,
+      amazonPrimeCurrency,
+      amazonPrimeExchangeRate,
       warehouseUSA,
+      warehouseUSACurrency,
+      warehouseUSAExchangeRate,
       miscellaneous,
     })
 
