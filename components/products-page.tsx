@@ -52,8 +52,9 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, Columns3Icon, ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon, ShoppingCartIcon, Trash2Icon, XIcon } from "lucide-react"
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, Columns3Icon, ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon, SearchIcon, ShoppingCartIcon, Trash2Icon, XIcon } from "lucide-react"
 
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"]
 const NO_CATEGORY_VALUE = "__none__"
@@ -109,6 +110,24 @@ type BulkSaleRow = {
 
 type BulkSaleRowErrors = Record<string, { quantity?: string; sellingPrice?: string }>
 
+type EditImageItem = {
+    id: string
+    type: "existing" | "new"
+    src: string
+    file?: File
+}
+
+function moveItem<T>(items: T[], fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= items.length || toIndex >= items.length) {
+        return items
+    }
+
+    const next = [...items]
+    const [moved] = next.splice(fromIndex, 1)
+    next.splice(toIndex, 0, moved)
+    return next
+}
+
 export function ProductsPage() {
     const router = useRouter()
     const pathname = usePathname()
@@ -136,6 +155,7 @@ export function ProductsPage() {
     const [draggedColumn, setDraggedColumn] = React.useState<ProductTableColumnKey | null>(null)
     const [errors, setErrors] = React.useState<Record<string, string>>({})
     const [isSubmitting, setIsSubmitting] = React.useState(false)
+    const [productSearch, setProductSearch] = React.useState("")
 
     const [productName, setProductName] = React.useState("")
     const [categoryId, setCategoryId] = React.useState("")
@@ -148,6 +168,7 @@ export function ProductsPage() {
     const [exchangeRate, setExchangeRate] = React.useState("")
     const [imageFiles, setImageFiles] = React.useState<File[]>([])
     const [imagePreviews, setImagePreviews] = React.useState<string[]>([])
+    const [draggedAddImageIndex, setDraggedAddImageIndex] = React.useState<number | null>(null)
 
     const [showSaleModal, setShowSaleModal] = React.useState(false)
     const [showDiscardSaleConfirm, setShowDiscardSaleConfirm] = React.useState(false)
@@ -171,10 +192,8 @@ export function ProductsPage() {
     const [editSourceCurrency, setEditSourceCurrency] = React.useState("USD")
     const [editExchangeRate, setEditExchangeRate] = React.useState("")
     const [editBatchId, setEditBatchId] = React.useState("")
-    const [editProductImages, setEditProductImages] = React.useState<string[]>([])
-    const [editNewImages, setEditNewImages] = React.useState<File[]>([])
-    const [editNewImagePreviews, setEditNewImagePreviews] = React.useState<string[]>([])
-    const [editDeletedImageIndices, setEditDeletedImageIndices] = React.useState<Set<number>>(new Set())
+    const [editImages, setEditImages] = React.useState<EditImageItem[]>([])
+    const [draggedEditImageId, setDraggedEditImageId] = React.useState<string | null>(null)
     const [editErrors, setEditErrors] = React.useState<Record<string, string>>({})
     const [isEditSubmitting, setIsEditSubmitting] = React.useState(false)
 
@@ -195,6 +214,8 @@ export function ProductsPage() {
     const [previewImageIndex, setPreviewImageIndex] = React.useState(0)
     const previewImageSrc = previewImages[previewImageIndex] ?? null
     const isPreviewOpen = previewImages.length > 0
+    const editGeneratedObjectUrlsRef = React.useRef<string[]>([])
+    const productSearchInputRef = React.useRef<HTMLInputElement | null>(null)
 
     const openImagePreview = React.useCallback((images: string[], index: number) => {
         if (images.length === 0) {
@@ -231,6 +252,50 @@ export function ProductsPage() {
 
     const toSelectedFiles = (event: React.ChangeEvent<HTMLInputElement>) =>
         Array.from(event.target.files ?? [])
+
+    const reorderAddImageFiles = React.useCallback((toIndex: number) => {
+        setImageFiles((current) => {
+            if (draggedAddImageIndex === null) {
+                return current
+            }
+
+            return moveItem(current, draggedAddImageIndex, toIndex)
+        })
+
+        setDraggedAddImageIndex(null)
+    }, [draggedAddImageIndex])
+
+    const reorderEditImages = React.useCallback((targetId: string) => {
+        if (!draggedEditImageId || draggedEditImageId === targetId) {
+            return
+        }
+
+        setEditImages((current) => {
+            const fromIndex = current.findIndex((item) => item.id === draggedEditImageId)
+            const toIndex = current.findIndex((item) => item.id === targetId)
+            return moveItem(current, fromIndex, toIndex)
+        })
+
+        setDraggedEditImageId(null)
+    }, [draggedEditImageId])
+
+    const clearEditImages = React.useCallback(() => {
+        editGeneratedObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
+        editGeneratedObjectUrlsRef.current = []
+        setEditImages([])
+    }, [])
+
+    const removeEditImage = React.useCallback((imageId: string) => {
+        setEditImages((current) => {
+            const target = current.find((item) => item.id === imageId)
+            if (target?.type === "new") {
+                URL.revokeObjectURL(target.src)
+                editGeneratedObjectUrlsRef.current = editGeneratedObjectUrlsRef.current.filter((url) => url !== target.src)
+            }
+
+            return current.filter((item) => item.id !== imageId)
+        })
+    }, [])
 
     const canSubmitAddProduct =
         Boolean(productName.trim()) &&
@@ -377,13 +442,11 @@ export function ProductsPage() {
     }, [editSourceCurrency])
 
     React.useEffect(() => {
-        const previews = editNewImages.map((file) => URL.createObjectURL(file))
-        setEditNewImagePreviews(previews)
-
         return () => {
-            previews.forEach((url) => URL.revokeObjectURL(url))
+            editGeneratedObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
+            editGeneratedObjectUrlsRef.current = []
         }
-    }, [editNewImages])
+    }, [])
 
     React.useEffect(() => {
         if (!isPreviewOpen) {
@@ -412,6 +475,25 @@ export function ProductsPage() {
         window.addEventListener("keydown", handlePreviewKeyboardControls)
         return () => window.removeEventListener("keydown", handlePreviewKeyboardControls)
     }, [closeImagePreview, isPreviewOpen, showNextPreviewImage, showPreviousPreviewImage])
+
+    React.useEffect(() => {
+        const handleSearchShortcut = (event: KeyboardEvent) => {
+            if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "f") {
+                return
+            }
+
+            event.preventDefault()
+            setViewMode("list")
+
+            requestAnimationFrame(() => {
+                productSearchInputRef.current?.focus()
+                productSearchInputRef.current?.select()
+            })
+        }
+
+        window.addEventListener("keydown", handleSearchShortcut)
+        return () => window.removeEventListener("keydown", handleSearchShortcut)
+    }, [])
 
     const submitProduct = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -499,6 +581,7 @@ export function ProductsPage() {
 
     const openEditProductSheet = React.useCallback((product: Product) => {
         void ensureFormOptionsLoaded()
+        clearEditImages()
         setEditProductId(product._id)
         setEditProductName(product.name)
         setEditQuantityInitial(String(product.quantityInitial))
@@ -507,13 +590,14 @@ export function ProductsPage() {
         setEditSourceCurrency(product.sourceCurrency)
         setEditExchangeRate(formatDecimalWithCommas(String(product.exchangeRate ?? 1)))
         setEditBatchId(product.batchId?._id ?? "")
-        setEditProductImages(product.images ?? [])
-        setEditNewImages([])
-        setEditNewImagePreviews([])
-        setEditDeletedImageIndices(new Set())
+        setEditImages((product.images ?? []).map((image, index) => ({
+            id: `existing-${index}-${image}`,
+            type: "existing",
+            src: image,
+        })))
         setEditErrors({})
         setIsEditProductSheetOpen(true)
-    }, [ensureFormOptionsLoaded])
+    }, [clearEditImages, ensureFormOptionsLoaded])
 
     const resetSaleDraft = () => {
         setSaleStep("product")
@@ -758,17 +842,24 @@ export function ProductsPage() {
             formData.append("sourceCurrency", editSourceCurrency)
             formData.append("exchangeRate", stripCommas(editExchangeRate))
             formData.append("batchId", editBatchId || "")
+            formData.append("imagesTouched", "1")
 
-            // Add remaining existing images (not deleted)
-            editProductImages.forEach((image, index) => {
-                if (!editDeletedImageIndices.has(index)) {
-                    formData.append("existingImages", image)
+            let existingCount = 0
+            let newCount = 0
+
+            editImages.forEach((image) => {
+                if (image.type === "existing") {
+                    formData.append("existingImages", image.src)
+                    formData.append("imageOrder", `existing:${existingCount}`)
+                    existingCount += 1
+                    return
                 }
-            })
 
-            // Add new images
-            editNewImages.forEach((file) => {
-                formData.append("newImages", file)
+                if (image.file) {
+                    formData.append("newImages", image.file)
+                    formData.append("imageOrder", `new:${newCount}`)
+                    newCount += 1
+                }
             })
 
             const response = await fetch(`/api/products/${editProductId}`, {
@@ -790,10 +881,7 @@ export function ProductsPage() {
             setEditSourceCurrency("USD")
             setEditExchangeRate("")
             setEditBatchId("")
-            setEditProductImages([])
-            setEditNewImages([])
-            setEditNewImagePreviews([])
-            setEditDeletedImageIndices(new Set())
+            clearEditImages()
             setIsEditProductSheetOpen(false)
             await loadProducts()
         } finally {
@@ -855,6 +943,9 @@ export function ProductsPage() {
 
     const saleFilteredProducts = products.filter((product) =>
         product.name.toLowerCase().includes(saleProductSearch.toLowerCase())
+    )
+    const filteredProducts = products.filter((product) =>
+        product.name.toLowerCase().includes(productSearch.toLowerCase().trim())
     )
     const selectedProducts = products.filter((product) => selectedProductIds.has(product._id))
     const singleSelectedProduct = selectedProducts.length === 1 ? selectedProducts[0] : null
@@ -1097,42 +1188,24 @@ export function ProductsPage() {
                         <div className="space-y-3 border-b pb-4">
                             <h3 className="font-semibold text-sm">Images</h3>
 
-                            {/* Main Image Display (first existing image or first new image) */}
+                            {/* Main Image Display */}
                             <div className="relative h-64 w-full overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center group">
-                                {editProductImages[0] && !editDeletedImageIndices.has(0) ? (
+                                {editImages[0] ? (
                                     <>
                                         <img
-                                            src={editProductImages[0]}
+                                            src={editImages[0].src}
                                             alt="Main product image"
                                             className="h-full w-full cursor-pointer object-cover"
-                                            onClick={() => openImagePreview([...(editProductImages.filter((_, index) => !editDeletedImageIndices.has(index))), ...editNewImagePreviews], 0)}
+                                            draggable
+                                            onDragStart={() => setDraggedEditImageId(editImages[0].id)}
+                                            onDragEnd={() => setDraggedEditImageId(null)}
+                                            onDragOver={(event) => event.preventDefault()}
+                                            onDrop={() => reorderEditImages(editImages[0].id)}
+                                            onClick={() => openImagePreview(editImages.map((image) => image.src), 0)}
                                         />
                                         <button
                                             type="button"
-                                            onClick={() => {
-                                                const newDeleted = new Set(editDeletedImageIndices)
-                                                newDeleted.add(0)
-                                                setEditDeletedImageIndices(newDeleted)
-                                            }}
-                                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                            <XIcon className="h-4 w-4" />
-                                        </button>
-                                    </>
-                                ) : editNewImagePreviews[0] ? (
-                                    <>
-                                        <img
-                                            src={editNewImagePreviews[0]}
-                                            alt="New main image"
-                                            className="h-full w-full cursor-pointer object-cover"
-                                            onClick={() => openImagePreview([...(editProductImages.filter((_, index) => !editDeletedImageIndices.has(index))), ...editNewImagePreviews], Math.max(0, editProductImages.filter((_, index) => !editDeletedImageIndices.has(index)).length))}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                const newNewImages = editNewImages.filter((_, i) => i !== 0)
-                                                setEditNewImages(newNewImages)
-                                            }}
+                                            onClick={() => removeEditImage(editImages[0].id)}
                                             className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                                         >
                                             <XIcon className="h-4 w-4" />
@@ -1153,8 +1226,20 @@ export function ProductsPage() {
                                             onChange={(event) => {
                                                 const selectedFiles = toSelectedFiles(event)
                                                 if (selectedFiles.length > 0) {
-                                                    setEditNewImages((current) => [
-                                                        ...selectedFiles,
+                                                    const nextImages = selectedFiles.map((file, index) => {
+                                                        const src = URL.createObjectURL(file)
+                                                        editGeneratedObjectUrlsRef.current.push(src)
+
+                                                        return {
+                                                            id: `new-${Date.now()}-${index}-${file.name}`,
+                                                            type: "new" as const,
+                                                            src,
+                                                            file,
+                                                        }
+                                                    })
+
+                                                    setEditImages((current) => [
+                                                        ...nextImages,
                                                         ...current,
                                                     ])
                                                 }
@@ -1166,61 +1251,26 @@ export function ProductsPage() {
                                 )}
                             </div>
 
-                            {/* Image Grid - Dynamic cells for remaining images */}
-                            {(editProductImages.length > 0 || editNewImages.length > 0) && (
+                            {editImages.length > 0 && (
                                 <div className="grid grid-cols-3 gap-2">
-                                    {/* Show remaining existing images */}
-                                    {editProductImages.slice(1).map((image, sliceIndex) => {
-                                        const actualIndex = sliceIndex + 1
-                                        if (editDeletedImageIndices.has(actualIndex)) return null
-
+                                    {editImages.slice(1).map((image, index) => {
+                                        const imageIndex = index + 1
                                         return (
-                                            <div key={`existing-${actualIndex}`} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
+                                            <div key={image.id} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
                                                 <img
-                                                    src={image}
-                                                    alt={`Product image ${actualIndex + 1}`}
+                                                    src={image.src}
+                                                    alt={`Product image ${imageIndex + 1}`}
                                                     className="w-full h-full cursor-pointer object-cover"
-                                                    onClick={() => {
-                                                        const previewList = [...(editProductImages.filter((_, index) => !editDeletedImageIndices.has(index))), ...editNewImagePreviews]
-                                                        const imageIndex = previewList.indexOf(image)
-                                                        openImagePreview(previewList, imageIndex === -1 ? 0 : imageIndex)
-                                                    }}
+                                                    draggable
+                                                    onDragStart={() => setDraggedEditImageId(image.id)}
+                                                    onDragEnd={() => setDraggedEditImageId(null)}
+                                                    onDragOver={(event) => event.preventDefault()}
+                                                    onDrop={() => reorderEditImages(image.id)}
+                                                    onClick={() => openImagePreview(editImages.map((entry) => entry.src), imageIndex)}
                                                 />
                                                 <button
                                                     type="button"
-                                                    onClick={() => {
-                                                        const newDeleted = new Set(editDeletedImageIndices)
-                                                        newDeleted.add(actualIndex)
-                                                        setEditDeletedImageIndices(newDeleted)
-                                                    }}
-                                                    className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                                >
-                                                    <XIcon className="h-3 w-3" />
-                                                </button>
-                                            </div>
-                                        )
-                                    })}
-
-                                    {/* Show all new images */}
-                                    {editNewImages.map((file, newIndex) => {
-                                        return (
-                                            <div key={`new-${newIndex}`} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
-                                                <img
-                                                    src={editNewImagePreviews[newIndex]}
-                                                    alt={`New image ${newIndex + 1}`}
-                                                    className="w-full h-full cursor-pointer object-cover"
-                                                    onClick={() => {
-                                                        const previewList = [...(editProductImages.filter((_, index) => !editDeletedImageIndices.has(index))), ...editNewImagePreviews]
-                                                        const imageIndex = previewList.indexOf(editNewImagePreviews[newIndex])
-                                                        openImagePreview(previewList, imageIndex === -1 ? 0 : imageIndex)
-                                                    }}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        const newNewImages = editNewImages.filter((_, i) => i !== newIndex)
-                                                        setEditNewImages(newNewImages)
-                                                    }}
+                                                    onClick={() => removeEditImage(image.id)}
                                                     className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                                                 >
                                                     <XIcon className="h-3 w-3" />
@@ -1239,9 +1289,21 @@ export function ProductsPage() {
                                             onChange={(event) => {
                                                 const selectedFiles = toSelectedFiles(event)
                                                 if (selectedFiles.length > 0) {
-                                                    setEditNewImages((current) => [
+                                                    const nextImages = selectedFiles.map((file, index) => {
+                                                        const src = URL.createObjectURL(file)
+                                                        editGeneratedObjectUrlsRef.current.push(src)
+
+                                                        return {
+                                                            id: `new-${Date.now()}-${index}-${file.name}`,
+                                                            type: "new" as const,
+                                                            src,
+                                                            file,
+                                                        }
+                                                    })
+
+                                                    setEditImages((current) => [
                                                         ...current,
-                                                        ...selectedFiles,
+                                                        ...nextImages,
                                                     ])
                                                 }
 
@@ -1483,6 +1545,11 @@ export function ProductsPage() {
                                                             src={imagePreviews[0]}
                                                             alt="Main product image"
                                                             className="h-full w-full cursor-pointer object-cover"
+                                                            draggable
+                                                            onDragStart={() => setDraggedAddImageIndex(0)}
+                                                            onDragEnd={() => setDraggedAddImageIndex(null)}
+                                                            onDragOver={(event) => event.preventDefault()}
+                                                            onDrop={() => reorderAddImageFiles(0)}
                                                             onClick={() => openImagePreview(imagePreviews, 0)}
                                                         />
                                                         <button
@@ -1534,6 +1601,11 @@ export function ProductsPage() {
                                                                     src={preview}
                                                                     alt={`New image ${imageIndex + 1}`}
                                                                     className="w-full h-full cursor-pointer object-cover"
+                                                                    draggable
+                                                                    onDragStart={() => setDraggedAddImageIndex(imageIndex)}
+                                                                    onDragEnd={() => setDraggedAddImageIndex(null)}
+                                                                    onDragOver={(event) => event.preventDefault()}
+                                                                    onDrop={() => reorderAddImageFiles(imageIndex)}
                                                                     onClick={() => openImagePreview(imagePreviews, imageIndex)}
                                                                 />
                                                                 <button
@@ -1794,9 +1866,23 @@ export function ProductsPage() {
                 ) : viewMode === "list" ? (
                     <>
                         <div className="mb-4 flex flex-wrap items-center gap-2">
+                            <div className="relative w-full sm:w-64">
+                                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    ref={productSearchInputRef}
+                                    value={productSearch}
+                                    onChange={(event) => setProductSearch(event.target.value)}
+                                    placeholder="Search products"
+                                    className="pr-18 pl-9"
+                                />
+                                <KbdGroup className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex">
+                                    <Kbd>Ctrl</Kbd>
+                                    <Kbd>F</Kbd>
+                                </KbdGroup>
+                            </div>
                             <div className="flex w-full items-center gap-2 sm:w-auto">
                                 <h3 className="text-sm text-muted-foreground">Total</h3>
-                                <p className="text-lg font-semibold">{products.length}</p>
+                                <p className="text-sm font-semibold">{products.length}</p>
                                 {selectedProductIds.size > 0 && (
                                     <>
                                         <span className="text-xs text-muted-foreground">|</span>
@@ -1863,11 +1949,11 @@ export function ProductsPage() {
                                         <TableRow>
                                             <TableHead className="w-12"><input type="checkbox" className="rounded" onChange={(e) => {
                                                 if (e.target.checked) {
-                                                    setSelectedProductIds(new Set(products.map(p => p._id)))
+                                                    setSelectedProductIds(new Set(filteredProducts.map(p => p._id)))
                                                 } else {
                                                     setSelectedProductIds(new Set())
                                                 }
-                                            }} checked={selectedProductIds.size === products.length && products.length > 0} title="Select all" /></TableHead>
+                                            }} checked={selectedProductIds.size === filteredProducts.length && filteredProducts.length > 0} title="Select all" /></TableHead>
                                             {orderedVisibleColumns.map((columnKey) => (
                                                 <TableHead
                                                     key={columnKey}
@@ -1886,7 +1972,7 @@ export function ProductsPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {products.map((product) => (
+                                        {filteredProducts.map((product) => (
                                             <TableRow
                                                 key={product._id}
                                                 className="p-0"
@@ -1917,7 +2003,7 @@ export function ProductsPage() {
                     </>
                 ) : (
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                        {products.map((product) => (
+                        {filteredProducts.map((product) => (
                             <div
                                 key={product._id}
                                 className="rounded-lg border bg-card p-4"

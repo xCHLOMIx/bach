@@ -123,6 +123,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const hasExchangeRate = formData.has("exchangeRate")
   const hasExternalLink = formData.has("externalLink")
   const hasBatchId = formData.has("batchId")
+  const hasImagesTouched = formData.get("imagesTouched") === "1"
 
   const name = hasName ? String(formData.get("name") ?? "").trim() : undefined
   const rawQuantityInitial = hasQuantityInitial ? String(formData.get("quantityInitial") ?? "").trim() : undefined
@@ -139,6 +140,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   // Handle multiple images
   const existingImages = formData.getAll("existingImages").map((img) => String(img))
   const newImageFiles = Array.from(formData.getAll("newImages")).filter((file) => file instanceof File) as File[]
+  const imageOrder = formData.getAll("imageOrder").map((entry) => String(entry))
 
   const errors: FieldErrors = {}
 
@@ -222,14 +224,51 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
     }
 
-    // Handle image updates - support multiple images
-    if (existingImages.length > 0 || newImageFiles.length > 0) {
-      const updatedImages: string[] = [...existingImages]
+    // Handle image updates and preserve dragged order from the client.
+    if (hasImagesTouched) {
+      const updatedImages: string[] = []
 
-      // Upload new image files
-      for (const imageFile of newImageFiles) {
-        const uploadedImageUrl = await uploadImageFile(imageFile)
-        updatedImages.push(uploadedImageUrl)
+      if (imageOrder.length > 0) {
+        let existingIndex = 0
+        let newIndex = 0
+
+        for (const token of imageOrder) {
+          if (token.startsWith("existing:")) {
+            const existingImage = existingImages[existingIndex]
+            existingIndex += 1
+            if (existingImage) {
+              updatedImages.push(existingImage)
+            }
+            continue
+          }
+
+          if (token.startsWith("new:")) {
+            const imageFile = newImageFiles[newIndex]
+            newIndex += 1
+            if (imageFile) {
+              const uploadedImageUrl = await uploadImageFile(imageFile)
+              updatedImages.push(uploadedImageUrl)
+            }
+          }
+        }
+
+        while (existingIndex < existingImages.length) {
+          updatedImages.push(existingImages[existingIndex])
+          existingIndex += 1
+        }
+
+        while (newIndex < newImageFiles.length) {
+          const uploadedImageUrl = await uploadImageFile(newImageFiles[newIndex])
+          updatedImages.push(uploadedImageUrl)
+          newIndex += 1
+        }
+      } else {
+        updatedImages.push(...existingImages)
+
+        for (const imageFile of newImageFiles) {
+          const uploadedImageUrl = await uploadImageFile(imageFile)
+          updatedImages.push(uploadedImageUrl)
+        }
       }
 
       updateData.images = updatedImages
