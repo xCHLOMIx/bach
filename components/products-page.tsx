@@ -972,6 +972,7 @@ export function ProductsPage() {
         () => columnOrder.filter((columnKey) => visibleColumns[columnKey]),
         [columnOrder, visibleColumns]
     )
+    const productsTableColumnCount = orderedVisibleColumns.length + 2
 
     const columnLabels: Record<ProductTableColumnKey, string> = {
         image: "Image",
@@ -1972,30 +1973,38 @@ export function ProductsPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {filteredProducts.map((product) => (
-                                            <TableRow
-                                                key={product._id}
-                                                className="p-0"
-                                            >
-                                                <TableCell onClick={(e) => e.stopPropagation()} className="p-3">
-                                                    <input type="checkbox" className="rounded" checked={selectedProductIds.has(product._id)} onChange={(e) => {
-                                                        const newSelected = new Set(selectedProductIds)
-                                                        if (e.target.checked) {
-                                                            newSelected.add(product._id)
-                                                        } else {
-                                                            newSelected.delete(product._id)
-                                                        }
-                                                        setSelectedProductIds(newSelected)
-                                                    }} />
+                                        {filteredProducts.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={productsTableColumnCount} className="py-8 text-center text-muted-foreground">
+                                                    No results found.
                                                 </TableCell>
-                                                {orderedVisibleColumns.map((columnKey) => (
-                                                    <React.Fragment key={`${product._id}-${columnKey}`}>
-                                                        {renderProductColumnCell(product, columnKey)}
-                                                    </React.Fragment>
-                                                ))}
-                                                <TableCell onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</TableCell>
                                             </TableRow>
-                                        ))}
+                                        ) : (
+                                            filteredProducts.map((product) => (
+                                                <TableRow
+                                                    key={product._id}
+                                                    className="p-0"
+                                                >
+                                                    <TableCell onClick={(e) => e.stopPropagation()} className="p-3">
+                                                        <input type="checkbox" className="rounded" checked={selectedProductIds.has(product._id)} onChange={(e) => {
+                                                            const newSelected = new Set(selectedProductIds)
+                                                            if (e.target.checked) {
+                                                                newSelected.add(product._id)
+                                                            } else {
+                                                                newSelected.delete(product._id)
+                                                            }
+                                                            setSelectedProductIds(newSelected)
+                                                        }} />
+                                                    </TableCell>
+                                                    {orderedVisibleColumns.map((columnKey) => (
+                                                        <React.Fragment key={`${product._id}-${columnKey}`}>
+                                                            {renderProductColumnCell(product, columnKey)}
+                                                        </React.Fragment>
+                                                    ))}
+                                                    <TableCell onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
                                     </TableBody>
                                 </Table>
                             </div>

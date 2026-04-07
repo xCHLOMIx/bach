@@ -90,6 +90,12 @@ export function DashboardOverview() {
                                             <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                                         </TableRow>
                                     ))
+                                ) : (data?.latestSales ?? []).length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                                            No sales yet.
+                                        </TableCell>
+                                    </TableRow>
                                 ) : (
                                     (data?.latestSales ?? []).map((sale) => (
                                         <TableRow key={sale._id}>
