@@ -16,10 +16,12 @@ import {
 } from "@/components/ui/table"
 import { calculateBatchProductLandedCosts } from "@/lib/costs"
 import { cn } from "@/lib/utils"
+import { CopyIcon } from "lucide-react"
 
 type Batch = {
     _id: string
     batchName: string
+    trackingId?: string
     intlShipping: number
     taxValue: number
     customsDuties: number
@@ -49,6 +51,7 @@ type Product = {
 
 const initialBatchForm = {
     batchName: "",
+    trackingId: "",
     intlShipping: "0",
     taxValue: "0",
     customsDuties: "0",
@@ -133,6 +136,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
 
     const formatBatchForm = (batch: Batch) => ({
         batchName: batch.batchName,
+        trackingId: batch.trackingId ?? "",
         intlShipping: String(batch.intlShipping ?? 0),
         taxValue: String(batch.taxValue ?? 0),
         customsDuties: String(batch.customsDuties ?? 0),
@@ -215,6 +219,14 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         const selectedIdSet = new Set(selectedProductIds)
         return products.filter((product) => selectedIdSet.has(product._id))
     }, [products, selectedProductIds])
+
+    const copyTrackingNumber = React.useCallback(async () => {
+        if (!form.trackingId.trim()) {
+            return
+        }
+
+        await navigator.clipboard.writeText(form.trackingId.trim())
+    }, [form.trackingId])
 
     const allocationPreviewByProductId = React.useMemo(() => {
         const calculated = calculateBatchProductLandedCosts(
@@ -317,7 +329,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
 
             const payload = Object.fromEntries(
                 Object.entries(form).map(([key, value]) => {
-                    if (key === "batchName") return [key, value]
+                    if (key === "batchName" || key === "trackingId") return [key, value]
                     return [key, Number(stripCommas(value) || 0)]
                 })
             )
@@ -448,6 +460,52 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         )
     }
 
+    const renderBatchProductsTable = () => {
+        if (selectedProducts.length === 0) {
+            return (
+                <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                    No products in this batch yet.
+                </div>
+            )
+        }
+
+        return (
+            <div className="overflow-hidden rounded-md border">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Product</TableHead>
+                            <TableHead>Base Unit (RWF)</TableHead>
+                            <TableHead className="text-right">Weight %</TableHead>
+                            <TableHead className="text-right">After Distribution (RWF)</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {selectedProducts.map((product) => {
+                            const preview = allocationPreviewByProductId.get(product._id)
+                            const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
+
+                            return (
+                                <TableRow key={product._id}>
+                                    <TableCell className="truncate max-w-xs font-medium">{product.name}</TableCell>
+                                    <TableCell>{baseUnitPrice.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right">
+                                        {preview ? `${preview.weightPercentage.toFixed(2)}%` : "-"}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {preview
+                                            ? preview.landedCost.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                                            : baseUnitPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        })}
+                    </TableBody>
+                </Table>
+            </div>
+        )
+    }
+
     if (isLoading) {
         return (
             <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
@@ -481,6 +539,22 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             <CardHeader className="flex items-center justify-between gap-3 px-0">
                 <div>
                     <CardTitle className="text-2xl font-bold">{form.batchName || "Batch"}</CardTitle>
+                    <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>Tracking number:</span>
+                        <span className="font-medium text-foreground">{form.trackingId || "Not set"}</span>
+                        {form.trackingId ? (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={copyTrackingNumber}
+                                aria-label="Copy tracking number"
+                            >
+                                <CopyIcon className="h-4 w-4" />
+                            </Button>
+                        ) : null}
+                    </div>
                 </div>
                 {isEditing ? (
                     <div className="flex items-center gap-2">
@@ -524,6 +598,15 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             onChange={(event) => setForm((current) => ({ ...current, batchName: event.target.value }))}
                         />
                         {renderFieldError("batchName")}
+                    </div>
+                    <div className="grid gap-1.5 sm:col-span-2">
+                        <label htmlFor="tracking-id" className="text-sm font-medium">Tracking number</label>
+                        <Input
+                            id="tracking-id"
+                            placeholder="Optional tracking number"
+                            value={form.trackingId}
+                            onChange={(event) => setForm((current) => ({ ...current, trackingId: event.target.value }))}
+                        />
                     </div>
                     <div className="grid gap-1.5">
                         <label htmlFor="intl-shipping" className="text-sm font-medium">Intl shipping</label>
@@ -651,12 +734,30 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <p className="text-sm font-medium">{Number(stripCommas(item.value) || 0).toLocaleString()}</p>
                         </div>
                     ))}
+                    <div className="rounded-md bg-muted/20 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs text-muted-foreground">Tracking number</p>
+                            {form.trackingId ? (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    onClick={copyTrackingNumber}
+                                    aria-label="Copy tracking number"
+                                >
+                                    <CopyIcon className="h-4 w-4" />
+                                </Button>
+                            ) : null}
+                        </div>
+                        <p className="mt-2 text-sm font-medium text-foreground">{form.trackingId || "Not set"}</p>
+                    </div>
                 </div>
             )}
 
             <div className="space-y-2">
                 <p className="text-sm font-medium">Products</p>
-                {renderProductSelector()}
+                {isEditing ? renderProductSelector() : renderBatchProductsTable()}
             </div>
 
             {errors.general ? <p className="text-sm text-destructive">{errors.general}</p> : null}

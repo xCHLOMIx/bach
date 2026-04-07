@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
 
   const batchName = String(body.batchName ?? "").trim()
+  const trackingId = String(body.trackingId ?? "").trim()
   const intlShipping = Number(body.intlShipping ?? 0)
   const taxValue = Number(body.taxValue ?? 0)
   const customsDuties = Number(body.customsDuties ?? 0)
@@ -133,6 +134,7 @@ export async function POST(request: NextRequest) {
     const batch = await BatchModel.create({
       userId: user._id,
       batchName,
+      trackingId,
       intlShipping,
       taxValue,
       customsDuties,

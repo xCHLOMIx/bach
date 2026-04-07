@@ -4,6 +4,7 @@ const batchSchema = new Schema(
   {
     userId: { type: Types.ObjectId, ref: "User", required: true, index: true },
     batchName: { type: String, required: true, trim: true },
+    trackingId: { type: String, trim: true, default: "" },
     intlShipping: { type: Number, required: true, min: 0, default: 0 },
     taxValue: { type: Number, required: true, min: 0, default: 0 },
     customsDuties: { type: Number, required: true, min: 0, default: 0 },

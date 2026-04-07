@@ -35,11 +35,12 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import { CheckIcon, PackageSearchIcon } from "lucide-react"
+import { CheckIcon, CopyIcon, PackageSearchIcon } from "lucide-react"
 
 type Batch = {
     _id: string
     batchName: string
+    trackingId?: string
     intlShipping: number
     taxValue: number
     customsDuties: number
@@ -62,6 +63,7 @@ type Product = { _id: string; name: string; batchId?: { _id?: string } | null }
 
 const initialBatchForm = {
     batchName: "",
+    trackingId: "",
     intlShipping: "0",
     taxValue: "0",
     customsDuties: "0",
@@ -153,6 +155,14 @@ export function BatchesPage() {
         return products.filter((product) => !product.batchId?._id)
     }, [products])
 
+    const copyTrackingId = React.useCallback(async (trackingId: string) => {
+        if (!trackingId.trim()) {
+            return
+        }
+
+        await navigator.clipboard.writeText(trackingId.trim())
+    }, [])
+
     const hasSelectedProducts = addSelectedProductIds.length > 0
     const canCreateBatch = hasAnyExpenseAmount(addForm) && hasSelectedProducts
 
@@ -208,7 +218,7 @@ export function BatchesPage() {
 
             const payload = Object.fromEntries(
                 Object.entries(addForm).map(([key, value]) => {
-                    if (key === "batchName") return [key, value]
+                    if (key === "batchName" || key === "trackingId") return [key, value]
                     return [key, Number(stripCommas(value) || 0)]
                 })
             )
@@ -324,6 +334,17 @@ export function BatchesPage() {
                                         }
                                     />
                                     {renderFieldError(addErrors, "batchName")}
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <label htmlFor="add-tracking-id" className="text-sm font-medium">Tracking number</label>
+                                    <Input
+                                        id="add-tracking-id"
+                                        placeholder="Optional tracking number"
+                                        value={addForm.trackingId}
+                                        onChange={(event) =>
+                                            setAddForm((current) => ({ ...current, trackingId: event.target.value }))
+                                        }
+                                    />
                                 </div>
                                 <div className="grid gap-3 sm:grid-cols-2">
                                     <div className="grid gap-1.5">
@@ -481,11 +502,12 @@ export function BatchesPage() {
 
             {isLoading ? (
                 <div className="overflow-x-auto rounded-xl border">
-                    <div className="min-w-[720px]">
+                    <div className="min-w-180">
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Name</TableHead>
+                                    <TableHead>Tracking number</TableHead>
                                     <TableHead>Intl Shipping</TableHead>
                                     <TableHead>Products</TableHead>
                                     <TableHead>Product Names</TableHead>
@@ -496,6 +518,7 @@ export function BatchesPage() {
                                 {Array.from({ length: 6 }).map((_, index) => (
                                     <TableRow key={`batches-loading-${index}`}>
                                         <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                                         <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                                         <TableCell><Skeleton className="h-4 w-10" /></TableCell>
                                         <TableCell><Skeleton className="h-4 w-40" /></TableCell>
@@ -523,11 +546,12 @@ export function BatchesPage() {
                 </Empty>
             ) : (
                 <div className="overflow-x-auto rounded-xl border">
-                    <div className="min-w-[720px]">
+                    <div className="min-w-180">
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Name</TableHead>
+                                    <TableHead>Tracking number</TableHead>
                                     <TableHead>Intl Shipping</TableHead>
                                     <TableHead>Products</TableHead>
                                     <TableHead>Product Names</TableHead>
@@ -542,6 +566,26 @@ export function BatchesPage() {
                                         onClick={() => router.push(`/app/batches/${batch._id}`)}
                                     >
                                         <TableCell className="font-medium">{batch.batchName}</TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            <div className="flex items-center gap-2">
+                                                <span className="truncate">{batch.trackingId || "-"}</span>
+                                                {batch.trackingId ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-7 w-7 shrink-0"
+                                                        onClick={(event) => {
+                                                            event.stopPropagation()
+                                                            void copyTrackingId(batch.trackingId ?? "")
+                                                        }}
+                                                        aria-label={`Copy tracking number for ${batch.batchName}`}
+                                                    >
+                                                        <CopyIcon className="h-4 w-4" />
+                                                    </Button>
+                                                ) : null}
+                                            </div>
+                                        </TableCell>
                                         <TableCell>{batch.intlShipping.toLocaleString()}</TableCell>
                                         <TableCell>{batch.productCount ?? 0}</TableCell>
                                         <TableCell className="truncate max-w-xs">

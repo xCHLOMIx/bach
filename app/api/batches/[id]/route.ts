@@ -100,6 +100,7 @@ export async function PATCH(
   const body = await request.json()
 
   const batchName = String(body.batchName ?? "").trim()
+  const trackingId = String(body.trackingId ?? "").trim()
   const intlShipping = Number(body.intlShipping ?? 0)
   const taxValue = Number(body.taxValue ?? 0)
   const customsDuties = Number(body.customsDuties ?? 0)
@@ -142,6 +143,7 @@ export async function PATCH(
 
   try {
     batch.batchName = batchName
+    batch.trackingId = trackingId
     batch.intlShipping = intlShipping
     batch.taxValue = taxValue
     batch.customsDuties = customsDuties
