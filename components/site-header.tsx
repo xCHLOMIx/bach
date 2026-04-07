@@ -3,11 +3,11 @@
 import { usePathname } from "next/navigation"
 
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { getAppHeaderTitle } from "@/lib/navigation"
 
 export function SiteHeader() {
   const pathname = usePathname()
-  const segment = pathname.split("/").filter(Boolean).at(-1) ?? "dashboard"
-  const title = segment.charAt(0).toUpperCase() + segment.slice(1)
+  const title = getAppHeaderTitle(pathname)
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
