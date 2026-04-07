@@ -54,10 +54,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, Columns3Icon, ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon, SearchIcon, ShoppingCartIcon, Trash2Icon, XIcon } from "lucide-react"
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Columns3Icon, ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon, SearchIcon, ShoppingCartIcon, Trash2Icon, XIcon } from "lucide-react"
 
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"]
 const NO_CATEGORY_VALUE = "__none__"
+const PRODUCTS_VIEW_MODE_STORAGE_KEY = "products:view-mode"
 
 type Category = { _id: string; name: string }
 type Batch = { _id: string; batchName: string }
@@ -88,6 +89,9 @@ type ProductTableColumnKey =
     | "buyingPrice"
     | "landedPrice"
     | "totalLandedCost"
+
+type ProductSortColumn = Exclude<ProductTableColumnKey, "image">
+type ProductSortDirection = "asc" | "desc"
 
 const DEFAULT_PRODUCT_COLUMN_ORDER: ProductTableColumnKey[] = [
     "image",
@@ -153,6 +157,8 @@ export function ProductsPage() {
     })
     const [columnOrder, setColumnOrder] = React.useState<ProductTableColumnKey[]>(DEFAULT_PRODUCT_COLUMN_ORDER)
     const [draggedColumn, setDraggedColumn] = React.useState<ProductTableColumnKey | null>(null)
+    const [sortColumn, setSortColumn] = React.useState<ProductSortColumn>("name")
+    const [sortDirection, setSortDirection] = React.useState<ProductSortDirection>("asc")
     const [errors, setErrors] = React.useState<Record<string, string>>({})
     const [isSubmitting, setIsSubmitting] = React.useState(false)
     const [productSearch, setProductSearch] = React.useState("")
@@ -422,6 +428,17 @@ export function ProductsPage() {
     React.useEffect(() => {
         loadProducts()
     }, [loadProducts])
+
+    React.useEffect(() => {
+        const savedViewMode = window.localStorage.getItem(PRODUCTS_VIEW_MODE_STORAGE_KEY)
+        if (savedViewMode === "list" || savedViewMode === "grid") {
+            setViewMode(savedViewMode)
+        }
+    }, [])
+
+    React.useEffect(() => {
+        window.localStorage.setItem(PRODUCTS_VIEW_MODE_STORAGE_KEY, viewMode)
+    }, [viewMode])
 
     React.useEffect(() => {
         const previews = imageFiles.map((file) => URL.createObjectURL(file))
@@ -992,6 +1009,55 @@ export function ProductsPage() {
     const filteredProducts = products.filter((product) =>
         product.name.toLowerCase().includes(productSearch.toLowerCase().trim())
     )
+    const sortedFilteredProducts = React.useMemo(() => {
+        const sorted = [...filteredProducts]
+
+        const stringCollator = new Intl.Collator(undefined, {
+            sensitivity: "base",
+            numeric: true,
+        })
+
+        const getSortValue = (product: Product, column: ProductSortColumn) => {
+            if (column === "name") {
+                return product.name
+            }
+
+            if (column === "batch") {
+                return product.batchId?.batchName ?? ""
+            }
+
+            if (column === "onHand") {
+                return product.quantityRemaining
+            }
+
+            if (column === "buyingPrice") {
+                return product.purchasePriceRWF
+            }
+
+            if (column === "landedPrice") {
+                return product.landedCost
+            }
+
+            return product.landedCost * product.quantityRemaining
+        }
+
+        sorted.sort((a, b) => {
+            const aValue = getSortValue(a, sortColumn)
+            const bValue = getSortValue(b, sortColumn)
+
+            let result = 0
+
+            if (typeof aValue === "number" && typeof bValue === "number") {
+                result = aValue - bValue
+            } else {
+                result = stringCollator.compare(String(aValue), String(bValue))
+            }
+
+            return sortDirection === "asc" ? result : -result
+        })
+
+        return sorted
+    }, [filteredProducts, sortColumn, sortDirection])
     const selectedProducts = products.filter((product) => selectedProductIds.has(product._id))
     const singleSelectedProduct = selectedProducts.length === 1 ? selectedProducts[0] : null
 
@@ -1050,6 +1116,22 @@ export function ProductsPage() {
 
         setDraggedColumn(null)
     }, [draggedColumn])
+
+    const handleSortColumnClick = React.useCallback((columnKey: ProductTableColumnKey) => {
+        if (columnKey === "image") {
+            return
+        }
+
+        setSortColumn((currentColumn) => {
+            if (currentColumn === columnKey) {
+                setSortDirection((currentDirection) => (currentDirection === "asc" ? "desc" : "asc"))
+                return currentColumn
+            }
+
+            setSortDirection("asc")
+            return columnKey
+        })
+    }, [])
 
     const renderProductColumnCell = React.useCallback((product: Product, columnKey: ProductTableColumnKey) => {
         if (columnKey === "image") {
@@ -2057,11 +2139,11 @@ export function ProductsPage() {
                                         <TableRow>
                                             <TableHead className="w-12"><input type="checkbox" className="rounded" onChange={(e) => {
                                                 if (e.target.checked) {
-                                                    setSelectedProductIds(new Set(filteredProducts.map(p => p._id)))
+                                                    setSelectedProductIds(new Set(sortedFilteredProducts.map(p => p._id)))
                                                 } else {
                                                     setSelectedProductIds(new Set())
                                                 }
-                                            }} checked={selectedProductIds.size === filteredProducts.length && filteredProducts.length > 0} title="Select all" /></TableHead>
+                                            }} checked={selectedProductIds.size === sortedFilteredProducts.length && sortedFilteredProducts.length > 0} title="Select all" /></TableHead>
                                             {orderedVisibleColumns.map((columnKey) => (
                                                 <TableHead
                                                     key={columnKey}
@@ -2073,21 +2155,34 @@ export function ProductsPage() {
                                                     className="cursor-move select-none"
                                                     title="Drag to reorder columns"
                                                 >
-                                                    {columnLabels[columnKey]}
+                                                    <button
+                                                        type="button"
+                                                        className="flex items-center gap-1"
+                                                        onClick={() => handleSortColumnClick(columnKey)}
+                                                    >
+                                                        {columnLabels[columnKey]}
+                                                        {columnKey !== "image" && sortColumn === columnKey ? (
+                                                            sortDirection === "asc" ? (
+                                                                <ChevronUpIcon className="h-4 w-4" />
+                                                            ) : (
+                                                                <ChevronDownIcon className="h-4 w-4" />
+                                                            )
+                                                        ) : null}
+                                                    </button>
                                                 </TableHead>
                                             ))}
                                             <TableHead>Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {filteredProducts.length === 0 ? (
+                                        {sortedFilteredProducts.length === 0 ? (
                                             <TableRow>
                                                 <TableCell colSpan={productsTableColumnCount} className="py-8 text-center text-muted-foreground">
                                                     No results found.
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
-                                            filteredProducts.map((product) => (
+                                            sortedFilteredProducts.map((product) => (
                                                 <TableRow
                                                     key={product._id}
                                                     className="p-0"
@@ -2122,7 +2217,16 @@ export function ProductsPage() {
                         {filteredProducts.map((product) => (
                             <div
                                 key={product._id}
-                                className="rounded-lg border bg-card p-4"
+                                className="cursor-pointer rounded-lg border bg-card p-4"
+                                role="link"
+                                tabIndex={0}
+                                onClick={() => router.push(`/app/products/${product._id}`)}
+                                onKeyDown={(event) => {
+                                    if (event.key === "Enter" || event.key === " ") {
+                                        event.preventDefault()
+                                        router.push(`/app/products/${product._id}`)
+                                    }
+                                }}
                             >
                                 <Link href={`/app/products/${product._id}`} className="block mb-3 overflow-hidden rounded-md border bg-muted">
                                     {product.images?.[0] ? (
@@ -2150,7 +2254,7 @@ export function ProductsPage() {
                                     <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
                                         Stock: {product.quantityRemaining}
                                     </Badge>
-                                    <Badge variant="secondary">Buying Price: RWF {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Badge>
+                                    <Badge variant="secondary" className="text-white">Buying Price: RWF {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Badge>
                                 </div>
                                 <div className="mt-3 text-xs text-muted-foreground">
                                     Landed Price (RWF): {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

@@ -15,10 +15,12 @@ export type BatchProductCostOutput = {
 export type BatchCostInputs = {
   intlShipping: number
   taxValue: number
+  collectionFee: number
   customsDuties: number
   declaration: number
   arrivalNotif: number
   warehouseStorage: number
+  localTransport: number
   amazonPrime: number
   warehouseUSA: number
   miscellaneous: number
@@ -31,10 +33,12 @@ export function calculateBatchProductLandedCosts(
   const batchExtraCosts =
     costs.intlShipping +
     costs.taxValue +
+    costs.collectionFee +
     costs.customsDuties +
     costs.declaration +
     costs.arrivalNotif +
     costs.warehouseStorage +
+    costs.localTransport +
     costs.amazonPrime +
     costs.warehouseUSA +
     costs.miscellaneous

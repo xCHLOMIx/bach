@@ -90,12 +90,15 @@ export async function POST(request: NextRequest) {
 
   const batchName = String(body.batchName ?? "").trim()
   const trackingId = String(body.trackingId ?? "").trim()
+  const pickupMethod = String(body.pickupMethod ?? "advanced").trim()
   const intlShipping = Number(body.intlShipping ?? 0)
   const taxValue = Number(body.taxValue ?? 0)
+  const collectionFee = Number(body.collectionFee ?? 0)
   const customsDuties = Number(body.customsDuties ?? 0)
   const declaration = Number(body.declaration ?? 0)
   const arrivalNotif = Number(body.arrivalNotif ?? 0)
   const warehouseStorage = Number(body.warehouseStorage ?? 0)
+  const localTransport = Number(body.localTransport ?? 0)
   const amazonPrime = Number(body.amazonPrime ?? 0)
   const warehouseUSA = Number(body.warehouseUSA ?? 0)
   const miscellaneous = Number(body.miscellaneous ?? 0)
@@ -103,14 +106,19 @@ export async function POST(request: NextRequest) {
   const errors: FieldErrors = {}
 
   if (!batchName) errors.batchName = "Batch name is required"
+  if (!["easy", "advanced"].includes(pickupMethod)) {
+    errors.pickupMethod = "Pickup method must be easy or advanced"
+  }
 
   const numberFields = {
     intlShipping,
     taxValue,
+    collectionFee,
     customsDuties,
     declaration,
     arrivalNotif,
     warehouseStorage,
+    localTransport,
     amazonPrime,
     warehouseUSA,
     miscellaneous,
@@ -135,12 +143,15 @@ export async function POST(request: NextRequest) {
       userId: user._id,
       batchName,
       trackingId,
+      pickupMethod,
       intlShipping,
       taxValue,
+      collectionFee,
       customsDuties,
       declaration,
       arrivalNotif,
       warehouseStorage,
+      localTransport,
       amazonPrime,
       warehouseUSA,
       miscellaneous,

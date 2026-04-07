@@ -51,10 +51,12 @@ async function recalculateBatchProducts(batchId: string) {
     {
       intlShipping: batch.intlShipping,
       taxValue: batch.taxValue,
+      collectionFee: batch.collectionFee ?? 0,
       customsDuties: batch.customsDuties,
       declaration: batch.declaration,
       arrivalNotif: batch.arrivalNotif,
       warehouseStorage: batch.warehouseStorage,
+      localTransport: batch.localTransport ?? 0,
       amazonPrime: batch.amazonPrime,
       warehouseUSA: batch.warehouseUSA,
       miscellaneous: batch.miscellaneous,
@@ -101,12 +103,15 @@ export async function PATCH(
 
   const batchName = String(body.batchName ?? "").trim()
   const trackingId = String(body.trackingId ?? "").trim()
+  const pickupMethod = body.pickupMethod === undefined ? String(batch.pickupMethod ?? "advanced") : String(body.pickupMethod ?? "advanced").trim()
   const intlShipping = Number(body.intlShipping ?? 0)
   const taxValue = Number(body.taxValue ?? 0)
+  const collectionFee = body.collectionFee === undefined ? Number(batch.collectionFee ?? 0) : Number(body.collectionFee ?? 0)
   const customsDuties = Number(body.customsDuties ?? 0)
   const declaration = Number(body.declaration ?? 0)
   const arrivalNotif = Number(body.arrivalNotif ?? 0)
   const warehouseStorage = Number(body.warehouseStorage ?? 0)
+  const localTransport = body.localTransport === undefined ? Number(batch.localTransport ?? 0) : Number(body.localTransport ?? 0)
   const amazonPrime = Number(body.amazonPrime ?? 0)
   const warehouseUSA = Number(body.warehouseUSA ?? 0)
   const miscellaneous = Number(body.miscellaneous ?? 0)
@@ -114,14 +119,19 @@ export async function PATCH(
   const errors: FieldErrors = {}
 
   if (!batchName) errors.batchName = "Batch name is required"
+  if (!["easy", "advanced"].includes(pickupMethod)) {
+    errors.pickupMethod = "Pickup method must be easy or advanced"
+  }
 
   const numberFields = {
     intlShipping,
     taxValue,
+    collectionFee,
     customsDuties,
     declaration,
     arrivalNotif,
     warehouseStorage,
+    localTransport,
     amazonPrime,
     warehouseUSA,
     miscellaneous,
@@ -144,12 +154,15 @@ export async function PATCH(
   try {
     batch.batchName = batchName
     batch.trackingId = trackingId
+    batch.pickupMethod = pickupMethod
     batch.intlShipping = intlShipping
     batch.taxValue = taxValue
+    batch.collectionFee = collectionFee
     batch.customsDuties = customsDuties
     batch.declaration = declaration
     batch.arrivalNotif = arrivalNotif
     batch.warehouseStorage = warehouseStorage
+    batch.localTransport = localTransport
     batch.amazonPrime = amazonPrime
     batch.warehouseUSA = warehouseUSA
     batch.miscellaneous = miscellaneous

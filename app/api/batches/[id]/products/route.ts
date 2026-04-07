@@ -24,10 +24,12 @@ async function recalculateBatchProducts(batchId: string) {
     {
       intlShipping: batch.intlShipping,
       taxValue: batch.taxValue,
+      collectionFee: batch.collectionFee ?? 0,
       customsDuties: batch.customsDuties,
       declaration: batch.declaration,
       arrivalNotif: batch.arrivalNotif,
       warehouseStorage: batch.warehouseStorage,
+      localTransport: batch.localTransport ?? 0,
       amazonPrime: batch.amazonPrime,
       warehouseUSA: batch.warehouseUSA,
       miscellaneous: batch.miscellaneous,

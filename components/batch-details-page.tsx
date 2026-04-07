@@ -22,12 +22,15 @@ type Batch = {
     _id: string
     batchName: string
     trackingId?: string
+    pickupMethod?: "easy" | "advanced"
     intlShipping: number
     taxValue: number
+    collectionFee?: number
     customsDuties: number
     declaration: number
     arrivalNotif: number
     warehouseStorage: number
+    localTransport?: number
     amazonPrime: number
     warehouseUSA: number
     miscellaneous: number
@@ -52,12 +55,15 @@ type Product = {
 const initialBatchForm = {
     batchName: "",
     trackingId: "",
+    pickupMethod: "advanced" as "easy" | "advanced",
     intlShipping: "0",
     taxValue: "0",
+    collectionFee: "0",
     customsDuties: "0",
     declaration: "0",
     arrivalNotif: "0",
     warehouseStorage: "0",
+    localTransport: "0",
     amazonPrime: "0",
     warehouseUSA: "0",
     miscellaneous: "0",
@@ -66,10 +72,12 @@ const initialBatchForm = {
 const expenseFieldKeys = [
     "intlShipping",
     "taxValue",
+    "collectionFee",
     "customsDuties",
     "declaration",
     "arrivalNotif",
     "warehouseStorage",
+    "localTransport",
     "amazonPrime",
     "warehouseUSA",
     "miscellaneous",
@@ -137,12 +145,15 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     const formatBatchForm = (batch: Batch) => ({
         batchName: batch.batchName,
         trackingId: batch.trackingId ?? "",
+        pickupMethod: batch.pickupMethod ?? "advanced",
         intlShipping: String(batch.intlShipping ?? 0),
         taxValue: String(batch.taxValue ?? 0),
+        collectionFee: String(batch.collectionFee ?? 0),
         customsDuties: String(batch.customsDuties ?? 0),
         declaration: String(batch.declaration ?? 0),
         arrivalNotif: String(batch.arrivalNotif ?? 0),
         warehouseStorage: String(batch.warehouseStorage ?? 0),
+        localTransport: String(batch.localTransport ?? 0),
         amazonPrime: String(batch.amazonPrime ?? 0),
         warehouseUSA: String(batch.warehouseUSA ?? 0),
         miscellaneous: String(batch.miscellaneous ?? 0),
@@ -165,12 +176,15 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         return JSON.stringify({
             batchName: form.batchName.trim(),
             trackingId: form.trackingId.trim(),
+            pickupMethod: form.pickupMethod,
             intlShipping: Number(stripCommas(form.intlShipping) || 0),
             taxValue: Number(stripCommas(form.taxValue) || 0),
+            collectionFee: Number(stripCommas(form.collectionFee) || 0),
             customsDuties: Number(stripCommas(form.customsDuties) || 0),
             declaration: Number(stripCommas(form.declaration) || 0),
             arrivalNotif: Number(stripCommas(form.arrivalNotif) || 0),
             warehouseStorage: Number(stripCommas(form.warehouseStorage) || 0),
+            localTransport: Number(stripCommas(form.localTransport) || 0),
             amazonPrime: Number(stripCommas(form.amazonPrime) || 0),
             warehouseUSA: Number(stripCommas(form.warehouseUSA) || 0),
             miscellaneous: Number(stripCommas(form.miscellaneous) || 0),
@@ -181,12 +195,15 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         return JSON.stringify({
             batchName: initialForm.batchName.trim(),
             trackingId: initialForm.trackingId.trim(),
+            pickupMethod: initialForm.pickupMethod,
             intlShipping: Number(stripCommas(initialForm.intlShipping) || 0),
             taxValue: Number(stripCommas(initialForm.taxValue) || 0),
+            collectionFee: Number(stripCommas(initialForm.collectionFee) || 0),
             customsDuties: Number(stripCommas(initialForm.customsDuties) || 0),
             declaration: Number(stripCommas(initialForm.declaration) || 0),
             arrivalNotif: Number(stripCommas(initialForm.arrivalNotif) || 0),
             warehouseStorage: Number(stripCommas(initialForm.warehouseStorage) || 0),
+            localTransport: Number(stripCommas(initialForm.localTransport) || 0),
             amazonPrime: Number(stripCommas(initialForm.amazonPrime) || 0),
             warehouseUSA: Number(stripCommas(initialForm.warehouseUSA) || 0),
             miscellaneous: Number(stripCommas(initialForm.miscellaneous) || 0),
@@ -207,10 +224,12 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         return {
             intlShipping: Number(stripCommas(form.intlShipping) || 0),
             taxValue: Number(stripCommas(form.taxValue) || 0),
+            collectionFee: Number(stripCommas(form.collectionFee) || 0),
             customsDuties: Number(stripCommas(form.customsDuties) || 0),
             declaration: Number(stripCommas(form.declaration) || 0),
             arrivalNotif: Number(stripCommas(form.arrivalNotif) || 0),
             warehouseStorage: Number(stripCommas(form.warehouseStorage) || 0),
+            localTransport: Number(stripCommas(form.localTransport) || 0),
             amazonPrime: Number(stripCommas(form.amazonPrime) || 0),
             warehouseUSA: Number(stripCommas(form.warehouseUSA) || 0),
             miscellaneous: Number(stripCommas(form.miscellaneous) || 0),
@@ -331,7 +350,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
 
             const payload = Object.fromEntries(
                 Object.entries(form).map(([key, value]) => {
-                    if (key === "batchName" || key === "trackingId") return [key, value]
+                    if (key === "batchName" || key === "trackingId" || key === "pickupMethod") return [key, value]
                     return [key, Number(stripCommas(value) || 0)]
                 })
             )
@@ -411,7 +430,12 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             return (
                                 <TableRow
                                     key={product._id}
-                                    className={cn("cursor-pointer", isSelected ? "bg-border/60" : "hover:bg-muted/40")}
+                                    className={cn(
+                                        "cursor-pointer",
+                                        isSelected
+                                            ? "bg-primary/20 ring-1 ring-inset ring-primary/40"
+                                            : "hover:bg-muted/40"
+                                    )}
                                     onClick={() => {
                                         if (!isEditing) {
                                             return
@@ -527,10 +551,12 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     const detailItems = [
         { label: "Intl shipping", value: form.intlShipping },
         { label: "Tax value", value: form.taxValue },
+        { label: "Collection fee", value: form.collectionFee },
         { label: "Customs duties", value: form.customsDuties },
         { label: "Declaration", value: form.declaration },
         { label: "Arrival notification", value: form.arrivalNotif },
         { label: "Warehouse storage", value: form.warehouseStorage },
+        { label: "Local transport", value: form.localTransport },
         { label: "Amazon Prime", value: form.amazonPrime },
         { label: "Warehouse USA", value: form.warehouseUSA },
         { label: "Miscellaneous", value: form.miscellaneous },
