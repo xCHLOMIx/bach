@@ -7,6 +7,7 @@ import { getAuthorizedUser } from "@/lib/auth-guard"
 import { calculateBatchProductLandedCosts } from "@/lib/costs"
 import { uploadImageFile } from "@/lib/cloudinary"
 import { BatchModel } from "@/models/Batch"
+import { CategoryModel } from "@/models/Category"
 import { ProductModel } from "@/models/Product"
 import { SaleModel } from "@/models/Sale"
 import "@/models/Category"
@@ -122,6 +123,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const hasSourceCurrency = formData.has("sourceCurrency")
   const hasExchangeRate = formData.has("exchangeRate")
   const hasExternalLink = formData.has("externalLink")
+  const hasCategoryId = formData.has("categoryId")
   const hasBatchId = formData.has("batchId")
   const hasImagesTouched = formData.get("imagesTouched") === "1"
 
@@ -131,6 +133,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const sourceCurrency = hasSourceCurrency ? String(formData.get("sourceCurrency") ?? "").trim().toUpperCase() : undefined
   const rawExchangeRate = hasExchangeRate ? String(formData.get("exchangeRate") ?? "").trim() : undefined
   const externalLink = hasExternalLink ? String(formData.get("externalLink") ?? "").trim() : undefined
+  const categoryId = hasCategoryId ? (formData.get("categoryId") ? String(formData.get("categoryId")).trim() : null) : undefined
   const batchId = hasBatchId ? (formData.get("batchId") ? String(formData.get("batchId")).trim() : null) : undefined
 
   const quantityInitial = rawQuantityInitial !== undefined ? Number(rawQuantityInitial) : undefined
@@ -175,6 +178,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       errors.externalLink = "Enter a valid URL"
     }
   }
+  if (categoryId !== undefined && categoryId && !Types.ObjectId.isValid(categoryId)) {
+    errors.categoryId = "Invalid category"
+  }
   if (batchId !== undefined && batchId && !Types.ObjectId.isValid(batchId)) {
     errors.batchId = "Invalid batch"
   }
@@ -189,11 +195,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return errorResponse({ id: "Product not found" }, 404)
     }
 
+    if (categoryId !== undefined && categoryId) {
+      const category = await CategoryModel.findOne({ _id: categoryId, userId: user._id }).lean()
+      if (!category) {
+        return errorResponse({ categoryId: "Category not found" }, 404)
+      }
+    }
+
     const updateData: Record<string, unknown> = {}
     const previousBatchId = existingProduct.batchId ? String(existingProduct.batchId) : null
     let nextBatchId = previousBatchId
 
     if (name !== undefined) updateData.name = name
+    if (categoryId !== undefined) updateData.categoryId = categoryId || null
     if (quantityInitial !== undefined) updateData.quantityInitial = quantityInitial
     if (externalLink !== undefined) updateData.externalLink = externalLink
     if (batchId !== undefined) {

@@ -186,6 +186,9 @@ export function ProductsPage() {
 
     const [editProductId, setEditProductId] = React.useState("")
     const [editProductName, setEditProductName] = React.useState("")
+    const [editCategoryId, setEditCategoryId] = React.useState("")
+    const [isAddingEditCustomCategory, setIsAddingEditCustomCategory] = React.useState(false)
+    const [editCustomCategoryName, setEditCustomCategoryName] = React.useState("")
     const [editQuantityInitial, setEditQuantityInitial] = React.useState("")
     const [editUnitPriceForeign, setEditUnitPriceForeign] = React.useState("")
     const [editExternalLink, setEditExternalLink] = React.useState("")
@@ -584,6 +587,9 @@ export function ProductsPage() {
         clearEditImages()
         setEditProductId(product._id)
         setEditProductName(product.name)
+        setEditCategoryId(product.categoryId?._id ?? "")
+        setIsAddingEditCustomCategory(false)
+        setEditCustomCategoryName("")
         setEditQuantityInitial(String(product.quantityInitial))
         setEditUnitPriceForeign(formatDecimalWithCommas(String(product.unitPriceForeign)))
         setEditExternalLink(product.externalLink ?? "")
@@ -834,8 +840,44 @@ export function ProductsPage() {
         setIsEditSubmitting(true)
 
         try {
+            let resolvedCategoryId = editCategoryId
+
+            if (isAddingEditCustomCategory) {
+                const customName = editCustomCategoryName.trim()
+                if (!customName) {
+                    setEditErrors({ categoryId: "Category name is required" })
+                    return
+                }
+
+                const existingCategory = categories.find(
+                    (category) => category.name.trim().toLowerCase() === customName.toLowerCase()
+                )
+
+                if (existingCategory?._id) {
+                    resolvedCategoryId = existingCategory._id
+                } else {
+                    const createCategoryResponse = await fetch("/api/categories", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: customName }),
+                    })
+
+                    const createCategoryData = await createCategoryResponse.json()
+                    if (!createCategoryResponse.ok) {
+                        setEditErrors(createCategoryData.errors ?? { categoryId: "Failed to create category" })
+                        return
+                    }
+
+                    resolvedCategoryId = createCategoryData.category?._id ?? ""
+                    if (createCategoryData.category?._id && createCategoryData.category?.name) {
+                        setCategories((current) => [createCategoryData.category, ...current])
+                    }
+                }
+            }
+
             const formData = new FormData()
             formData.append("name", editProductName)
+            formData.append("categoryId", resolvedCategoryId || "")
             formData.append("quantityInitial", editQuantityInitial)
             formData.append("unitPriceForeign", stripCommas(editUnitPriceForeign))
             formData.append("externalLink", editExternalLink)
@@ -875,6 +917,9 @@ export function ProductsPage() {
 
             setEditProductId("")
             setEditProductName("")
+            setEditCategoryId("")
+            setIsAddingEditCustomCategory(false)
+            setEditCustomCategoryName("")
             setEditQuantityInitial("")
             setEditUnitPriceForeign("")
             setEditExternalLink("")
@@ -1345,6 +1390,68 @@ export function ProductsPage() {
                                     value={editExternalLink}
                                     onChange={(event) => setEditExternalLink(event.target.value)}
                                 />
+                            </Field>
+
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-category">Category (optional)</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.categoryId}</FieldError>
+                                </div>
+                                {isAddingEditCustomCategory ? (
+                                    <div className="flex gap-2">
+                                        <Input
+                                            id="edit-category"
+                                            placeholder="Type new category name"
+                                            value={editCustomCategoryName}
+                                            onChange={(event) => setEditCustomCategoryName(event.target.value)}
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setIsAddingEditCustomCategory(false)
+                                                setEditCustomCategoryName("")
+                                                setEditCategoryId("")
+                                            }}
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <Select
+                                            value={editCategoryId || NO_CATEGORY_VALUE}
+                                            onValueChange={(value) => {
+                                                setIsAddingEditCustomCategory(false)
+                                                setEditCustomCategoryName("")
+                                                setEditCategoryId(value === NO_CATEGORY_VALUE ? "" : value)
+                                            }}
+                                        >
+                                            <SelectTrigger id="edit-category" className="w-full">
+                                                <SelectValue placeholder="Choose category (optional)" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value={NO_CATEGORY_VALUE}>No category</SelectItem>
+                                                {categories.map((category) => (
+                                                    <SelectItem key={category._id} value={category._id}>
+                                                        {category.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            className="h-8 px-3"
+                                            onClick={() => {
+                                                setIsAddingEditCustomCategory(true)
+                                                setEditCategoryId("")
+                                            }}
+                                        >
+                                            Add category
+                                        </Button>
+                                    </div>
+                                )}
                             </Field>
 
                             <Field>
