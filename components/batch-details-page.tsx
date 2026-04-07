@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -23,7 +24,7 @@ import {
 } from "@/components/ui/table"
 import { calculateBatchProductLandedCosts, convertInternationalExpenseToRwf } from "@/lib/costs"
 import { cn } from "@/lib/utils"
-import { CopyIcon } from "lucide-react"
+import { ChevronLeft, CopyIcon } from "lucide-react"
 
 const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "EUR"] as const
 
@@ -105,6 +106,7 @@ const expenseFieldKeys = [
 ] as const
 
 export function BatchDetailsPage({ batchId }: { batchId: string }) {
+    const router = useRouter()
     const [isLoading, setIsLoading] = React.useState(true)
     const [loadError, setLoadError] = React.useState("")
 
@@ -515,7 +517,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableHead className="w-16">Pick</TableHead>
                             <TableHead>Product</TableHead>
                             <TableHead>Assigned</TableHead>
+                            <TableHead className="text-right">Quantity</TableHead>
                             <TableHead className="text-right">Base Unit (RWF)</TableHead>
+                            <TableHead className="text-right">Total (RWF)</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
                             <TableHead className="text-right">After Distribution (RWF)</TableHead>
                         </TableRow>
@@ -527,6 +531,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             const assignedBatchName = assignedBatchId ? batchIdToName.get(assignedBatchId) : null
                             const preview = allocationPreviewByProductId.get(product._id)
                             const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
+                            const productTotal = baseUnitPrice * product.quantityInitial
 
                             return (
                                 <TableRow
@@ -567,7 +572,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                     </TableCell>
                                     <TableCell className="truncate max-w-xs font-medium">{product.name}</TableCell>
                                     <TableCell>{assignedBatchName ?? "Unassigned"}</TableCell>
+                                    <TableCell className="text-right">{product.quantityInitial.toLocaleString()}</TableCell>
                                     <TableCell className="text-right">{baseUnitPrice.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right">{productTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
                                     <TableCell className="text-right">
                                         {isSelected
                                             ? `${(preview?.weightPercentage ?? 0).toFixed(2)}%`
@@ -602,7 +609,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Product</TableHead>
-                            <TableHead>Base Unit (RWF)</TableHead>
+                            <TableHead className="text-right">Quantity</TableHead>
+                            <TableHead className="text-right">Base Unit (RWF)</TableHead>
+                            <TableHead className="text-right">Total (RWF)</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
                             <TableHead className="text-right">After Distribution (RWF)</TableHead>
                         </TableRow>
@@ -611,11 +620,14 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         {selectedProducts.map((product) => {
                             const preview = allocationPreviewByProductId.get(product._id)
                             const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
+                            const productTotal = baseUnitPrice * product.quantityInitial
 
                             return (
                                 <TableRow key={product._id}>
                                     <TableCell className="truncate max-w-xs font-medium">{product.name}</TableCell>
-                                    <TableCell>{baseUnitPrice.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right">{product.quantityInitial.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right">{baseUnitPrice.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right">{productTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
                                     <TableCell className="text-right">
                                         {preview ? `${preview.weightPercentage.toFixed(2)}%` : "-"}
                                     </TableCell>
@@ -704,6 +716,13 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
 
     return (
         <form className="flex flex-1 flex-col gap-4 p-4 lg:p-6" onSubmit={submit}>
+            <div className="mb-1 flex items-center gap-3">
+                <Button variant="outline" className="h-9 w-9 p-0" type="button" onClick={() => router.push("/app/batches")}>
+                    <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <p className="text-sm font-medium text-muted-foreground">Back to Batches</p>
+            </div>
+
             <CardHeader className="flex items-center justify-between gap-3 px-0">
                 <div>
                     <CardTitle className="text-2xl font-bold">{form.batchName || "Batch"}</CardTitle>

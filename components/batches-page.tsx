@@ -41,6 +41,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
+import { convertInternationalExpenseToRwf } from "@/lib/costs"
 import { cn } from "@/lib/utils"
 import { CheckIcon, CopyIcon, PackageSearchIcon } from "lucide-react"
 
@@ -53,6 +54,8 @@ type Batch = {
     trackingId?: string
     pickupMethod?: PickupMethod
     intlShipping: number
+    intlShippingCurrency?: string
+    intlShippingExchangeRate?: number
     taxValue: number
     collectionFee?: number
     customsDuties: number
@@ -61,7 +64,11 @@ type Batch = {
     warehouseStorage: number
     localTransport?: number
     amazonPrime: number
+    amazonPrimeCurrency?: string
+    amazonPrimeExchangeRate?: number
     warehouseUSA: number
+    warehouseUSACurrency?: string
+    warehouseUSAExchangeRate?: number
     miscellaneous: number
     createdAt: string
     productCount?: number
@@ -202,6 +209,40 @@ export function BatchesPage() {
 
     const hasSelectedProducts = addSelectedProductIds.length > 0
     const canCreateBatch = hasAnyExpenseAmount(addForm) && hasSelectedProducts
+
+    const getBatchTotalCosts = React.useCallback((batch: Batch) => {
+        const intlShippingRwf = convertInternationalExpenseToRwf(
+            Number(batch.intlShipping ?? 0),
+            batch.intlShippingCurrency ?? "RWF",
+            Number(batch.intlShippingExchangeRate ?? 1)
+        )
+
+        const warehouseUSARwf = convertInternationalExpenseToRwf(
+            Number(batch.warehouseUSA ?? 0),
+            batch.warehouseUSACurrency ?? "RWF",
+            Number(batch.warehouseUSAExchangeRate ?? 1)
+        )
+
+        const amazonPrimeRwf = convertInternationalExpenseToRwf(
+            Number(batch.amazonPrime ?? 0),
+            batch.amazonPrimeCurrency ?? "RWF",
+            Number(batch.amazonPrimeExchangeRate ?? 1)
+        )
+
+        return (
+            intlShippingRwf +
+            Number(batch.taxValue ?? 0) +
+            Number(batch.collectionFee ?? 0) +
+            Number(batch.customsDuties ?? 0) +
+            Number(batch.declaration ?? 0) +
+            Number(batch.arrivalNotif ?? 0) +
+            Number(batch.warehouseStorage ?? 0) +
+            Number(batch.localTransport ?? 0) +
+            amazonPrimeRwf +
+            warehouseUSARwf +
+            Number(batch.miscellaneous ?? 0)
+        )
+    }, [])
 
     const renderFieldError = (errors: Record<string, string>, field: string) => {
         if (!errors[field]) {
@@ -865,7 +906,7 @@ export function BatchesPage() {
                                 <TableRow>
                                     <TableHead>Name</TableHead>
                                     <TableHead>Tracking number</TableHead>
-                                    <TableHead>Intl Shipping</TableHead>
+                                    <TableHead>Total costs (RWF)</TableHead>
                                     <TableHead>Products</TableHead>
                                     <TableHead>Product Names</TableHead>
                                     <TableHead>Created</TableHead>
@@ -876,7 +917,7 @@ export function BatchesPage() {
                                     <TableRow key={`batches-loading-${index}`}>
                                         <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                                         <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                                         <TableCell><Skeleton className="h-4 w-10" /></TableCell>
                                         <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                                         <TableCell><Skeleton className="h-4 w-24" /></TableCell>
@@ -909,7 +950,7 @@ export function BatchesPage() {
                                 <TableRow>
                                     <TableHead>Name</TableHead>
                                     <TableHead>Tracking number</TableHead>
-                                    <TableHead>Intl Shipping</TableHead>
+                                    <TableHead>Total costs (RWF)</TableHead>
                                     <TableHead>Products</TableHead>
                                     <TableHead>Product Names</TableHead>
                                     <TableHead>Created</TableHead>
@@ -943,7 +984,7 @@ export function BatchesPage() {
                                                 ) : null}
                                             </div>
                                         </TableCell>
-                                        <TableCell>{batch.intlShipping.toLocaleString()}</TableCell>
+                                        <TableCell>{getBatchTotalCosts(batch).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
                                         <TableCell>{batch.productCount ?? 0}</TableCell>
                                         <TableCell className="truncate max-w-xs">
                                             {batch.products?.length
