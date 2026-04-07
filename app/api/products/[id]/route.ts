@@ -12,7 +12,7 @@ import { SaleModel } from "@/models/Sale"
 import "@/models/Category"
 import "@/models/Batch"
 
-const SUPPORTED_SOURCE_CURRENCIES = ["RWF", "USD", "KSH", "UGX", "AED", "EUR", "GBP"]
+const SUPPORTED_SOURCE_CURRENCIES = ["USD", "RWF", "CNY", "AED"]
 
 function mapProductPersistenceError(error: unknown) {
   const errors: FieldErrors = {}
@@ -116,13 +116,25 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const formData = await request.formData()
 
-  const name = formData.get("name") !== undefined ? String(formData.get("name") ?? "").trim() : undefined
-  const quantityInitial = formData.get("quantityInitial") !== undefined ? Number(formData.get("quantityInitial") ?? 0) : undefined
-  const unitPriceForeign = formData.get("unitPriceForeign") !== undefined ? Number(formData.get("unitPriceForeign") ?? 0) : undefined
-  const sourceCurrency = formData.get("sourceCurrency") !== undefined ? String(formData.get("sourceCurrency") ?? "").trim().toUpperCase() : undefined
-  const exchangeRate = formData.get("exchangeRate") !== undefined ? Number(formData.get("exchangeRate") ?? 1) : undefined
-  const externalLink = formData.get("externalLink") !== undefined ? String(formData.get("externalLink") ?? "").trim() : undefined
-  const batchId = formData.get("batchId") !== undefined ? (formData.get("batchId") ? String(formData.get("batchId")).trim() : null) : undefined
+  const hasName = formData.has("name")
+  const hasQuantityInitial = formData.has("quantityInitial")
+  const hasUnitPriceForeign = formData.has("unitPriceForeign")
+  const hasSourceCurrency = formData.has("sourceCurrency")
+  const hasExchangeRate = formData.has("exchangeRate")
+  const hasExternalLink = formData.has("externalLink")
+  const hasBatchId = formData.has("batchId")
+
+  const name = hasName ? String(formData.get("name") ?? "").trim() : undefined
+  const rawQuantityInitial = hasQuantityInitial ? String(formData.get("quantityInitial") ?? "").trim() : undefined
+  const rawUnitPriceForeign = hasUnitPriceForeign ? String(formData.get("unitPriceForeign") ?? "").trim() : undefined
+  const sourceCurrency = hasSourceCurrency ? String(formData.get("sourceCurrency") ?? "").trim().toUpperCase() : undefined
+  const rawExchangeRate = hasExchangeRate ? String(formData.get("exchangeRate") ?? "").trim() : undefined
+  const externalLink = hasExternalLink ? String(formData.get("externalLink") ?? "").trim() : undefined
+  const batchId = hasBatchId ? (formData.get("batchId") ? String(formData.get("batchId")).trim() : null) : undefined
+
+  const quantityInitial = rawQuantityInitial !== undefined ? Number(rawQuantityInitial) : undefined
+  const unitPriceForeign = rawUnitPriceForeign !== undefined ? Number(rawUnitPriceForeign) : undefined
+  const exchangeRate = rawExchangeRate !== undefined ? Number(rawExchangeRate) : undefined
   
   // Handle multiple images
   const existingImages = formData.getAll("existingImages").map((img) => String(img))
@@ -131,16 +143,27 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const errors: FieldErrors = {}
 
   if (name !== undefined && !name) errors.name = "Product name is required"
-  if (quantityInitial !== undefined && (!Number.isFinite(quantityInitial) || quantityInitial < 0)) {
+  if (rawQuantityInitial !== undefined && !rawQuantityInitial) {
+    errors.quantityInitial = "Quantity is required"
+  } else if (quantityInitial !== undefined && (!Number.isFinite(quantityInitial) || quantityInitial < 0)) {
     errors.quantityInitial = "Quantity must be a non-negative number"
   }
-  if (unitPriceForeign !== undefined && (!Number.isFinite(unitPriceForeign) || unitPriceForeign < 0)) {
+  if (rawUnitPriceForeign !== undefined && !rawUnitPriceForeign) {
+    errors.unitPriceForeign = "Unit price is required"
+  } else if (unitPriceForeign !== undefined && (!Number.isFinite(unitPriceForeign) || unitPriceForeign < 0)) {
     errors.unitPriceForeign = "Unit price must be a non-negative number"
   }
   if (sourceCurrency !== undefined && !SUPPORTED_SOURCE_CURRENCIES.includes(sourceCurrency)) {
     errors.sourceCurrency = "Invalid currency"
   }
-  if (exchangeRate !== undefined && (!Number.isFinite(exchangeRate) || exchangeRate <= 0)) {
+  const nextSourceCurrencyForValidation = sourceCurrency ?? undefined
+  if (rawExchangeRate !== undefined && !rawExchangeRate && nextSourceCurrencyForValidation !== "RWF") {
+    errors.exchangeRate = "Exchange rate is required"
+  } else if (
+    exchangeRate !== undefined &&
+    nextSourceCurrencyForValidation !== "RWF" &&
+    (!Number.isFinite(exchangeRate) || exchangeRate <= 0)
+  ) {
     errors.exchangeRate = "Exchange rate must be a positive number"
   }
   if (externalLink !== undefined && externalLink) {
@@ -153,10 +176,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (batchId !== undefined && batchId && !Types.ObjectId.isValid(batchId)) {
     errors.batchId = "Invalid batch"
   }
-  if (existingImages.length + newImageFiles.length > 4) {
-    errors.images = "You can upload a maximum of 4 images"
-  }
-
   if (Object.keys(errors).length > 0) {
     return errorResponse(errors, 400)
   }

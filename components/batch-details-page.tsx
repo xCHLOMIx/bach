@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -74,8 +73,6 @@ const expenseFieldKeys = [
 ] as const
 
 export function BatchDetailsPage({ batchId }: { batchId: string }) {
-    const router = useRouter()
-
     const [isLoading, setIsLoading] = React.useState(true)
     const [loadError, setLoadError] = React.useState("")
 
@@ -83,12 +80,12 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     const [products, setProducts] = React.useState<Product[]>([])
 
     const [form, setForm] = React.useState(initialBatchForm)
+    const [initialForm, setInitialForm] = React.useState(initialBatchForm)
     const [selectedProductIds, setSelectedProductIds] = React.useState<string[]>([])
+    const [initialSelectedProductIds, setInitialSelectedProductIds] = React.useState<string[]>([])
     const [errors, setErrors] = React.useState<Record<string, string>>({})
     const [isSubmitting, setIsSubmitting] = React.useState(false)
-
-    const [isEditingTitle, setIsEditingTitle] = React.useState(false)
-    const titleInputRef = React.useRef<HTMLInputElement | null>(null)
+    const [isEditing, setIsEditing] = React.useState(false)
 
     const stripCommas = (value: string) => value.replace(/,/g, "")
 
@@ -159,6 +156,46 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     )
 
     const canSave = hasAnyExpenseAmount(form) && selectedProductIds.length > 0
+
+    const normalizedFormSignature = React.useMemo(() => {
+        return JSON.stringify({
+            batchName: form.batchName.trim(),
+            intlShipping: Number(stripCommas(form.intlShipping) || 0),
+            taxValue: Number(stripCommas(form.taxValue) || 0),
+            customsDuties: Number(stripCommas(form.customsDuties) || 0),
+            declaration: Number(stripCommas(form.declaration) || 0),
+            arrivalNotif: Number(stripCommas(form.arrivalNotif) || 0),
+            warehouseStorage: Number(stripCommas(form.warehouseStorage) || 0),
+            amazonPrime: Number(stripCommas(form.amazonPrime) || 0),
+            warehouseUSA: Number(stripCommas(form.warehouseUSA) || 0),
+            miscellaneous: Number(stripCommas(form.miscellaneous) || 0),
+        })
+    }, [form])
+
+    const normalizedInitialFormSignature = React.useMemo(() => {
+        return JSON.stringify({
+            batchName: initialForm.batchName.trim(),
+            intlShipping: Number(stripCommas(initialForm.intlShipping) || 0),
+            taxValue: Number(stripCommas(initialForm.taxValue) || 0),
+            customsDuties: Number(stripCommas(initialForm.customsDuties) || 0),
+            declaration: Number(stripCommas(initialForm.declaration) || 0),
+            arrivalNotif: Number(stripCommas(initialForm.arrivalNotif) || 0),
+            warehouseStorage: Number(stripCommas(initialForm.warehouseStorage) || 0),
+            amazonPrime: Number(stripCommas(initialForm.amazonPrime) || 0),
+            warehouseUSA: Number(stripCommas(initialForm.warehouseUSA) || 0),
+            miscellaneous: Number(stripCommas(initialForm.miscellaneous) || 0),
+        })
+    }, [initialForm])
+
+    const selectedIdsSignature = React.useMemo(() => {
+        return [...selectedProductIds].sort().join("|")
+    }, [selectedProductIds])
+
+    const initialSelectedIdsSignature = React.useMemo(() => {
+        return [...initialSelectedProductIds].sort().join("|")
+    }, [initialSelectedProductIds])
+
+    const hasChanges = normalizedFormSignature !== normalizedInitialFormSignature || selectedIdsSignature !== initialSelectedIdsSignature
 
     const parsedCosts = React.useMemo(() => {
         return {
@@ -237,7 +274,10 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                 }
 
                 setForm(formatBatchForm(currentBatch))
-                setSelectedProductIds((currentBatch.products ?? []).map((product) => product._id))
+                const nextSelectedProductIds = (currentBatch.products ?? []).map((product) => product._id)
+                setInitialForm(formatBatchForm(currentBatch))
+                setSelectedProductIds(nextSelectedProductIds)
+                setInitialSelectedProductIds(nextSelectedProductIds)
 
                 if (productsRes.ok) {
                     const productsData = await productsRes.json()
@@ -250,13 +290,6 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
 
         load()
     }, [batchId])
-
-    React.useEffect(() => {
-        if (isEditingTitle) {
-            titleInputRef.current?.focus()
-            titleInputRef.current?.select()
-        }
-    }, [isEditingTitle])
 
     const renderFieldError = (field: string) => {
         if (!errors[field]) {
@@ -315,12 +348,20 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                 return
             }
 
-            router.push("/app/batches")
-            router.refresh()
+            setInitialForm(form)
+            setInitialSelectedProductIds([...selectedProductIds])
+            setIsEditing(false)
             return
         } finally {
             setIsSubmitting(false)
         }
+    }
+
+    const cancelEditing = () => {
+        setForm(initialForm)
+        setSelectedProductIds(initialSelectedProductIds)
+        setErrors({})
+        setIsEditing(false)
     }
 
     const renderProductSelector = () => {
@@ -358,6 +399,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                     key={product._id}
                                     className={cn("cursor-pointer", isSelected ? "bg-border/60" : "hover:bg-muted/40")}
                                     onClick={() => {
+                                        if (!isEditing) {
+                                            return
+                                        }
                                         setSelectedProductIds((current) =>
                                             current.includes(product._id)
                                                 ? current.filter((id) => id !== product._id)
@@ -368,7 +412,11 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                     <TableCell onClick={(event) => event.stopPropagation()}>
                                         <Checkbox
                                             checked={isSelected}
+                                            disabled={!isEditing}
                                             onCheckedChange={() => {
+                                                if (!isEditing) {
+                                                    return
+                                                }
                                                 setSelectedProductIds((current) =>
                                                     current.includes(product._id)
                                                         ? current.filter((id) => id !== product._id)
@@ -416,169 +464,195 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         )
     }
 
+    const detailItems = [
+        { label: "Intl shipping", value: form.intlShipping },
+        { label: "Tax value", value: form.taxValue },
+        { label: "Customs duties", value: form.customsDuties },
+        { label: "Declaration", value: form.declaration },
+        { label: "Arrival notification", value: form.arrivalNotif },
+        { label: "Warehouse storage", value: form.warehouseStorage },
+        { label: "Amazon Prime", value: form.amazonPrime },
+        { label: "Warehouse USA", value: form.warehouseUSA },
+        { label: "Miscellaneous", value: form.miscellaneous },
+    ]
+
     return (
         <form className="flex flex-1 flex-col gap-4 p-4 lg:p-6" onSubmit={submit}>
             <CardHeader className="flex items-center justify-between gap-3 px-0">
                 <div>
-                    {isEditingTitle ? (
-                        <Input
-                            ref={titleInputRef}
-                            value={form.batchName}
-                            onBlur={() => setIsEditingTitle(false)}
-                            onChange={(event) => setForm((current) => ({ ...current, batchName: event.target.value }))}
-                            onKeyDown={(event) => {
-                                if (event.key === "Enter" || event.key === "Escape") {
-                                    event.preventDefault()
-                                    setIsEditingTitle(false)
-                                }
-                            }}
-                            className="min-w-60 text-2xl font-bold p-0 h-max rounded-none ring-0 border-0 border-b p-3 focus:ring-0 focus-visible:ring-0"
-                        />
-                    ) : (
-                        <button
-                            type="button"
-                            onClick={() => setIsEditingTitle(true)}
-                            className="text-left"
-                        >
-                            <CardTitle className="text-2xl font-bold">{form.batchName || "Batch"}</CardTitle>
-                        </button>
-                    )}
+                    <CardTitle className="text-2xl font-bold">{form.batchName || "Batch"}</CardTitle>
                 </div>
-                <Button
-                    type="submit"
-                    size={"lg"}
-                    className="h-10 px-6 disabled:opacity-50"
-                    disabled={isSubmitting || !canSave}
-                >
-                    {isSubmitting ? "Saving..." : "Save"}
-                </Button>
+                {isEditing ? (
+                    <div className="flex items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={cancelEditing}
+                            disabled={isSubmitting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            size={"lg"}
+                            className="h-10 px-6 disabled:opacity-50"
+                            disabled={isSubmitting || !canSave || !hasChanges}
+                        >
+                            {isSubmitting ? "Saving..." : "Save"}
+                        </Button>
+                    </div>
+                ) : (
+                    <Button type="button" size={"lg"} className="h-10 px-6" onClick={() => setIsEditing(true)}>
+                        Edit
+                    </Button>
+                )}
             </CardHeader>
 
-            {!canSave ? (
+            {isEditing && !canSave ? (
                 <p className="text-xs text-muted-foreground">
                     Add at least one expense amount and select at least one product.
                 </p>
             ) : null}
 
-            <div className="grid gap-3 sm:grid-cols-2">
-                <div className="grid gap-1.5">
-                    <label htmlFor="intl-shipping" className="text-sm font-medium">Intl shipping</label>
-                    <Input
-                        id="intl-shipping"
-                        type="text"
-                        inputMode="decimal"
-                        value={form.intlShipping}
-                        onChange={(event) =>
-                            setForm((current) => ({ ...current, intlShipping: toDecimalInput(event.target.value) }))
-                        }
-                    />
-                    {renderFieldError("intlShipping")}
+            {isEditing ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-1.5 sm:col-span-2">
+                        <label htmlFor="batch-name" className="text-sm font-medium">Batch name</label>
+                        <Input
+                            id="batch-name"
+                            value={form.batchName}
+                            onChange={(event) => setForm((current) => ({ ...current, batchName: event.target.value }))}
+                        />
+                        {renderFieldError("batchName")}
+                    </div>
+                    <div className="grid gap-1.5">
+                        <label htmlFor="intl-shipping" className="text-sm font-medium">Intl shipping</label>
+                        <Input
+                            id="intl-shipping"
+                            type="text"
+                            inputMode="decimal"
+                            value={form.intlShipping}
+                            onChange={(event) =>
+                                setForm((current) => ({ ...current, intlShipping: toDecimalInput(event.target.value) }))
+                            }
+                        />
+                        {renderFieldError("intlShipping")}
+                    </div>
+                    <div className="grid gap-1.5">
+                        <label htmlFor="tax-value" className="text-sm font-medium">Tax value</label>
+                        <Input
+                            id="tax-value"
+                            type="text"
+                            inputMode="decimal"
+                            value={form.taxValue}
+                            onChange={(event) =>
+                                setForm((current) => ({ ...current, taxValue: toDecimalInput(event.target.value) }))
+                            }
+                        />
+                        {renderFieldError("taxValue")}
+                    </div>
+                    <div className="grid gap-1.5">
+                        <label htmlFor="customs-duties" className="text-sm font-medium">Customs duties</label>
+                        <Input
+                            id="customs-duties"
+                            type="text"
+                            inputMode="decimal"
+                            value={form.customsDuties}
+                            onChange={(event) =>
+                                setForm((current) => ({ ...current, customsDuties: toDecimalInput(event.target.value) }))
+                            }
+                        />
+                        {renderFieldError("customsDuties")}
+                    </div>
+                    <div className="grid gap-1.5">
+                        <label htmlFor="declaration" className="text-sm font-medium">Declaration</label>
+                        <Input
+                            id="declaration"
+                            type="text"
+                            inputMode="decimal"
+                            value={form.declaration}
+                            onChange={(event) =>
+                                setForm((current) => ({ ...current, declaration: toDecimalInput(event.target.value) }))
+                            }
+                        />
+                        {renderFieldError("declaration")}
+                    </div>
+                    <div className="grid gap-1.5">
+                        <label htmlFor="arrival-notif" className="text-sm font-medium">Arrival notification</label>
+                        <Input
+                            id="arrival-notif"
+                            type="text"
+                            inputMode="decimal"
+                            value={form.arrivalNotif}
+                            onChange={(event) =>
+                                setForm((current) => ({ ...current, arrivalNotif: toDecimalInput(event.target.value) }))
+                            }
+                        />
+                        {renderFieldError("arrivalNotif")}
+                    </div>
+                    <div className="grid gap-1.5">
+                        <label htmlFor="warehouse-storage" className="text-sm font-medium">Warehouse storage</label>
+                        <Input
+                            id="warehouse-storage"
+                            type="text"
+                            inputMode="decimal"
+                            value={form.warehouseStorage}
+                            onChange={(event) =>
+                                setForm((current) => ({ ...current, warehouseStorage: toDecimalInput(event.target.value) }))
+                            }
+                        />
+                        {renderFieldError("warehouseStorage")}
+                    </div>
+                    <div className="grid gap-1.5">
+                        <label htmlFor="amazon-prime" className="text-sm font-medium">Amazon Prime</label>
+                        <Input
+                            id="amazon-prime"
+                            type="text"
+                            inputMode="decimal"
+                            value={form.amazonPrime}
+                            onChange={(event) =>
+                                setForm((current) => ({ ...current, amazonPrime: toDecimalInput(event.target.value) }))
+                            }
+                        />
+                        {renderFieldError("amazonPrime")}
+                    </div>
+                    <div className="grid gap-1.5">
+                        <label htmlFor="warehouse-usa" className="text-sm font-medium">Warehouse USA</label>
+                        <Input
+                            id="warehouse-usa"
+                            type="text"
+                            inputMode="decimal"
+                            value={form.warehouseUSA}
+                            onChange={(event) =>
+                                setForm((current) => ({ ...current, warehouseUSA: toDecimalInput(event.target.value) }))
+                            }
+                        />
+                        {renderFieldError("warehouseUSA")}
+                    </div>
+                    <div className="grid gap-1.5 sm:col-span-2">
+                        <label htmlFor="miscellaneous" className="text-sm font-medium">Miscellaneous</label>
+                        <Input
+                            id="miscellaneous"
+                            type="text"
+                            inputMode="decimal"
+                            value={form.miscellaneous}
+                            onChange={(event) =>
+                                setForm((current) => ({ ...current, miscellaneous: toDecimalInput(event.target.value) }))
+                            }
+                        />
+                        {renderFieldError("miscellaneous")}
+                    </div>
                 </div>
-                <div className="grid gap-1.5">
-                    <label htmlFor="tax-value" className="text-sm font-medium">Tax value</label>
-                    <Input
-                        id="tax-value"
-                        type="text"
-                        inputMode="decimal"
-                        value={form.taxValue}
-                        onChange={(event) =>
-                            setForm((current) => ({ ...current, taxValue: toDecimalInput(event.target.value) }))
-                        }
-                    />
-                    {renderFieldError("taxValue")}
+            ) : (
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    {detailItems.map((item) => (
+                        <div key={item.label} className="rounded-md bg-muted/20 p-3">
+                            <p className="text-xs text-muted-foreground">{item.label}</p>
+                            <p className="text-sm font-medium">{Number(stripCommas(item.value) || 0).toLocaleString()}</p>
+                        </div>
+                    ))}
                 </div>
-                <div className="grid gap-1.5">
-                    <label htmlFor="customs-duties" className="text-sm font-medium">Customs duties</label>
-                    <Input
-                        id="customs-duties"
-                        type="text"
-                        inputMode="decimal"
-                        value={form.customsDuties}
-                        onChange={(event) =>
-                            setForm((current) => ({ ...current, customsDuties: toDecimalInput(event.target.value) }))
-                        }
-                    />
-                    {renderFieldError("customsDuties")}
-                </div>
-                <div className="grid gap-1.5">
-                    <label htmlFor="declaration" className="text-sm font-medium">Declaration</label>
-                    <Input
-                        id="declaration"
-                        type="text"
-                        inputMode="decimal"
-                        value={form.declaration}
-                        onChange={(event) =>
-                            setForm((current) => ({ ...current, declaration: toDecimalInput(event.target.value) }))
-                        }
-                    />
-                    {renderFieldError("declaration")}
-                </div>
-                <div className="grid gap-1.5">
-                    <label htmlFor="arrival-notif" className="text-sm font-medium">Arrival notification</label>
-                    <Input
-                        id="arrival-notif"
-                        type="text"
-                        inputMode="decimal"
-                        value={form.arrivalNotif}
-                        onChange={(event) =>
-                            setForm((current) => ({ ...current, arrivalNotif: toDecimalInput(event.target.value) }))
-                        }
-                    />
-                    {renderFieldError("arrivalNotif")}
-                </div>
-                <div className="grid gap-1.5">
-                    <label htmlFor="warehouse-storage" className="text-sm font-medium">Warehouse storage</label>
-                    <Input
-                        id="warehouse-storage"
-                        type="text"
-                        inputMode="decimal"
-                        value={form.warehouseStorage}
-                        onChange={(event) =>
-                            setForm((current) => ({ ...current, warehouseStorage: toDecimalInput(event.target.value) }))
-                        }
-                    />
-                    {renderFieldError("warehouseStorage")}
-                </div>
-                <div className="grid gap-1.5">
-                    <label htmlFor="amazon-prime" className="text-sm font-medium">Amazon Prime</label>
-                    <Input
-                        id="amazon-prime"
-                        type="text"
-                        inputMode="decimal"
-                        value={form.amazonPrime}
-                        onChange={(event) =>
-                            setForm((current) => ({ ...current, amazonPrime: toDecimalInput(event.target.value) }))
-                        }
-                    />
-                    {renderFieldError("amazonPrime")}
-                </div>
-                <div className="grid gap-1.5">
-                    <label htmlFor="warehouse-usa" className="text-sm font-medium">Warehouse USA</label>
-                    <Input
-                        id="warehouse-usa"
-                        type="text"
-                        inputMode="decimal"
-                        value={form.warehouseUSA}
-                        onChange={(event) =>
-                            setForm((current) => ({ ...current, warehouseUSA: toDecimalInput(event.target.value) }))
-                        }
-                    />
-                    {renderFieldError("warehouseUSA")}
-                </div>
-                <div className="grid gap-1.5 sm:col-span-2">
-                    <label htmlFor="miscellaneous" className="text-sm font-medium">Miscellaneous</label>
-                    <Input
-                        id="miscellaneous"
-                        type="text"
-                        inputMode="decimal"
-                        value={form.miscellaneous}
-                        onChange={(event) =>
-                            setForm((current) => ({ ...current, miscellaneous: toDecimalInput(event.target.value) }))
-                        }
-                    />
-                    {renderFieldError("miscellaneous")}
-                </div>
-            </div>
+            )}
 
             <div className="space-y-2">
                 <p className="text-sm font-medium">Products</p>

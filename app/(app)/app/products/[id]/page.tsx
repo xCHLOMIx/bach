@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 
-const SOURCE_CURRENCY_OPTIONS = ["RWF", "USD", "KSH", "UGX", "AED", "EUR", "GBP"]
+const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"]
 
 type Product = {
   _id: string

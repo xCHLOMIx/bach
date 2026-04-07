@@ -18,7 +18,6 @@ import {
     Select,
     SelectContent,
     SelectItem,
-    SelectSeparator,
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
@@ -56,24 +55,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, Columns3Icon, ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon, ShoppingCartIcon, Trash2Icon, XIcon } from "lucide-react"
 
-const SOURCE_CURRENCY_OPTIONS = ["RWF", "USD", "KSH", "UGX", "AED", "EUR", "GBP"]
+const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"]
 const NO_CATEGORY_VALUE = "__none__"
-const ADD_CATEGORY_VALUE = "__add_category__"
-const COMMON_CATEGORY_OPTIONS = [
-    "Components & Storage",
-    "Computer Systems",
-    "Computer Peripherals",
-    "Server & Components",
-    "Appliances",
-    "Electronics",
-    "Gaming & VR",
-    "Networking",
-    "Smart Home & Security",
-    "Office Solutions",
-    "Software & Services",
-    "Automotive & Tools",
-    "Home & Outdoors",
-]
 
 type Category = { _id: string; name: string }
 type Batch = { _id: string; batchName: string }
@@ -104,6 +87,16 @@ type ProductTableColumnKey =
     | "buyingPrice"
     | "landedPrice"
     | "totalLandedCost"
+
+const DEFAULT_PRODUCT_COLUMN_ORDER: ProductTableColumnKey[] = [
+    "image",
+    "name",
+    "batch",
+    "onHand",
+    "buyingPrice",
+    "landedPrice",
+    "totalLandedCost",
+]
 
 type BulkSaleRow = {
     productId: string
@@ -139,6 +132,8 @@ export function ProductsPage() {
         landedPrice: true,
         totalLandedCost: true,
     })
+    const [columnOrder, setColumnOrder] = React.useState<ProductTableColumnKey[]>(DEFAULT_PRODUCT_COLUMN_ORDER)
+    const [draggedColumn, setDraggedColumn] = React.useState<ProductTableColumnKey | null>(null)
     const [errors, setErrors] = React.useState<Record<string, string>>({})
     const [isSubmitting, setIsSubmitting] = React.useState(false)
 
@@ -146,11 +141,11 @@ export function ProductsPage() {
     const [categoryId, setCategoryId] = React.useState("")
     const [isAddingCustomCategory, setIsAddingCustomCategory] = React.useState(false)
     const [customCategoryName, setCustomCategoryName] = React.useState("")
-    const [quantityInitial, setQuantityInitial] = React.useState("0")
-    const [unitPriceForeign, setUnitPriceForeign] = React.useState("0")
+    const [quantityInitial, setQuantityInitial] = React.useState("")
+    const [unitPriceForeign, setUnitPriceForeign] = React.useState("")
     const [productExternalLink, setProductExternalLink] = React.useState("")
     const [sourceCurrency, setSourceCurrency] = React.useState("USD")
-    const [exchangeRate, setExchangeRate] = React.useState("1")
+    const [exchangeRate, setExchangeRate] = React.useState("")
     const [imageFiles, setImageFiles] = React.useState<File[]>([])
     const [imagePreviews, setImagePreviews] = React.useState<string[]>([])
 
@@ -170,11 +165,11 @@ export function ProductsPage() {
 
     const [editProductId, setEditProductId] = React.useState("")
     const [editProductName, setEditProductName] = React.useState("")
-    const [editQuantityInitial, setEditQuantityInitial] = React.useState("0")
-    const [editUnitPriceForeign, setEditUnitPriceForeign] = React.useState("0")
+    const [editQuantityInitial, setEditQuantityInitial] = React.useState("")
+    const [editUnitPriceForeign, setEditUnitPriceForeign] = React.useState("")
     const [editExternalLink, setEditExternalLink] = React.useState("")
     const [editSourceCurrency, setEditSourceCurrency] = React.useState("USD")
-    const [editExchangeRate, setEditExchangeRate] = React.useState("1")
+    const [editExchangeRate, setEditExchangeRate] = React.useState("")
     const [editBatchId, setEditBatchId] = React.useState("")
     const [editProductImages, setEditProductImages] = React.useState<string[]>([])
     const [editNewImages, setEditNewImages] = React.useState<File[]>([])
@@ -233,6 +228,21 @@ export function ProductsPage() {
     }, [previewImages.length])
 
     const toIntegerInput = (value: string) => value.replace(/\D/g, "")
+
+    const toSelectedFiles = (event: React.ChangeEvent<HTMLInputElement>) =>
+        Array.from(event.target.files ?? [])
+
+    const canSubmitAddProduct =
+        Boolean(productName.trim()) &&
+        Boolean(quantityInitial.trim()) &&
+        Boolean(unitPriceForeign.trim()) &&
+        (sourceCurrency === "RWF" || Boolean(exchangeRate.trim()))
+
+    const canSubmitEditProduct =
+        Boolean(editProductName.trim()) &&
+        Boolean(editQuantityInitial.trim()) &&
+        Boolean(editUnitPriceForeign.trim()) &&
+        (editSourceCurrency === "RWF" || Boolean(editExchangeRate.trim()))
 
     const stripCommas = (value: string) => value.replace(/,/g, "")
 
@@ -356,7 +366,7 @@ export function ProductsPage() {
 
     React.useEffect(() => {
         if (sourceCurrency === "RWF") {
-            setExchangeRate("1")
+            setExchangeRate("")
         }
     }, [sourceCurrency])
 
@@ -444,34 +454,6 @@ export function ProductsPage() {
                 }
             }
 
-            if (categoryId.startsWith("common:")) {
-                const commonCategoryName = categoryId.slice("common:".length)
-                const existingCategory = categories.find(
-                    (category) => category.name.trim().toLowerCase() === commonCategoryName.toLowerCase()
-                )
-
-                if (existingCategory?._id) {
-                    resolvedCategoryId = existingCategory._id
-                } else {
-                    const createCategoryResponse = await fetch("/api/categories", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ name: commonCategoryName }),
-                    })
-
-                    const createCategoryData = await createCategoryResponse.json()
-                    if (!createCategoryResponse.ok) {
-                        setErrors(createCategoryData.errors ?? { categoryId: "Failed to create selected category" })
-                        return
-                    }
-
-                    resolvedCategoryId = createCategoryData.category?._id ?? ""
-                    if (createCategoryData.category?._id && createCategoryData.category?.name) {
-                        setCategories((current) => [createCategoryData.category, ...current])
-                    }
-                }
-            }
-
             const formData = new FormData()
             formData.append("name", productName)
             if (resolvedCategoryId) {
@@ -502,11 +484,11 @@ export function ProductsPage() {
             setCategoryId("")
             setIsAddingCustomCategory(false)
             setCustomCategoryName("")
-            setQuantityInitial("0")
-            setUnitPriceForeign("0")
+            setQuantityInitial("")
+            setUnitPriceForeign("")
             setProductExternalLink("")
             setSourceCurrency("USD")
-            setExchangeRate("1")
+            setExchangeRate("")
             setImageFiles([])
             setIsAddProductSheetOpen(false)
             await loadProducts()
@@ -802,11 +784,11 @@ export function ProductsPage() {
 
             setEditProductId("")
             setEditProductName("")
-            setEditQuantityInitial("0")
-            setEditUnitPriceForeign("0")
+            setEditQuantityInitial("")
+            setEditUnitPriceForeign("")
             setEditExternalLink("")
             setEditSourceCurrency("USD")
-            setEditExchangeRate("1")
+            setEditExchangeRate("")
             setEditBatchId("")
             setEditProductImages([])
             setEditNewImages([])
@@ -893,6 +875,125 @@ export function ProductsPage() {
             ...current,
             [column]: isVisible,
         }))
+    }, [])
+
+    const orderedVisibleColumns = React.useMemo(
+        () => columnOrder.filter((columnKey) => visibleColumns[columnKey]),
+        [columnOrder, visibleColumns]
+    )
+
+    const columnLabels: Record<ProductTableColumnKey, string> = {
+        image: "Image",
+        name: "Name",
+        batch: "Batch",
+        onHand: "On Hand",
+        buyingPrice: "Buying Price (RWF)",
+        landedPrice: "Landed Price (RWF)",
+        totalLandedCost: "Total Landed Cost (RWF)",
+    }
+
+    const handleColumnDrop = React.useCallback((targetColumn: ProductTableColumnKey) => {
+        if (!draggedColumn || draggedColumn === targetColumn) {
+            return
+        }
+
+        setColumnOrder((current) => {
+            const next = [...current]
+            const fromIndex = next.indexOf(draggedColumn)
+            const toIndex = next.indexOf(targetColumn)
+
+            if (fromIndex === -1 || toIndex === -1) {
+                return current
+            }
+
+            next.splice(fromIndex, 1)
+            next.splice(toIndex, 0, draggedColumn)
+            return next
+        })
+
+        setDraggedColumn(null)
+    }, [draggedColumn])
+
+    const renderProductColumnCell = React.useCallback((product: Product, columnKey: ProductTableColumnKey) => {
+        if (columnKey === "image") {
+            return (
+                <TableCell className="p-0">
+                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                        {product.images?.[0] ? (
+                            <img
+                                src={product.images[0]}
+                                alt={product.name}
+                                className="h-10 w-10 rounded-md object-cover"
+                            />
+                        ) : (
+                            <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground">
+                                {product.name.replace(/\s+/g, "").slice(0, 2).toUpperCase()}
+                            </div>
+                        )}
+                    </Link>
+                </TableCell>
+            )
+        }
+
+        if (columnKey === "name") {
+            return (
+                <TableCell className="p-0 truncate max-w-xs">
+                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                        {product.name}
+                    </Link>
+                </TableCell>
+            )
+        }
+
+        if (columnKey === "batch") {
+            return (
+                <TableCell className="p-0">
+                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                        {product.batchId?.batchName ?? "Unassigned"}
+                    </Link>
+                </TableCell>
+            )
+        }
+
+        if (columnKey === "onHand") {
+            return (
+                <TableCell className="p-0">
+                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                        <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
+                            {product.quantityRemaining}
+                        </Badge>
+                    </Link>
+                </TableCell>
+            )
+        }
+
+        if (columnKey === "buyingPrice") {
+            return (
+                <TableCell className="p-0">
+                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                        {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Link>
+                </TableCell>
+            )
+        }
+
+        if (columnKey === "landedPrice") {
+            return (
+                <TableCell className="p-0">
+                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                        {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Link>
+                </TableCell>
+            )
+        }
+
+        return (
+            <TableCell className="p-0">
+                <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                    {(product.landedCost * product.quantityRemaining).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </Link>
+            </TableCell>
+        )
     }, [])
 
     const handleDeleteSelectedProduct = React.useCallback(() => {
@@ -1047,12 +1148,18 @@ export function ProductsPage() {
                                         <input
                                             type="file"
                                             accept="image/*"
+                                            multiple
                                             className="hidden"
                                             onChange={(event) => {
-                                                const file = event.target.files?.[0]
-                                                if (file) {
-                                                    setEditNewImages([file, ...editNewImages])
+                                                const selectedFiles = toSelectedFiles(event)
+                                                if (selectedFiles.length > 0) {
+                                                    setEditNewImages((current) => [
+                                                        ...selectedFiles,
+                                                        ...current,
+                                                    ])
                                                 }
+
+                                                event.currentTarget.value = ""
                                             }}
                                         />
                                     </label>
@@ -1060,120 +1167,90 @@ export function ProductsPage() {
                             </div>
 
                             {/* Image Grid - Dynamic cells for remaining images */}
-                            {(editProductImages.length > 1 || editNewImages.length > 1 ||
-                                editProductImages.length + editNewImages.length - editDeletedImageIndices.size < 4) && (
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {/* Show remaining existing images (up to 3 after main) */}
-                                        {editProductImages.slice(1).map((image, sliceIndex) => {
-                                            const actualIndex = sliceIndex + 1
-                                            if (editDeletedImageIndices.has(actualIndex) || sliceIndex >= 3) return null
+                            {(editProductImages.length > 0 || editNewImages.length > 0) && (
+                                <div className="grid grid-cols-3 gap-2">
+                                    {/* Show remaining existing images */}
+                                    {editProductImages.slice(1).map((image, sliceIndex) => {
+                                        const actualIndex = sliceIndex + 1
+                                        if (editDeletedImageIndices.has(actualIndex)) return null
 
-                                            return (
-                                                <div key={`existing-${actualIndex}`} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
-                                                    <img
-                                                        src={image}
-                                                        alt={`Product image ${actualIndex + 1}`}
-                                                        className="w-full h-full cursor-pointer object-cover"
-                                                        onClick={() => {
-                                                            const previewList = [...(editProductImages.filter((_, index) => !editDeletedImageIndices.has(index))), ...editNewImagePreviews]
-                                                            const imageIndex = previewList.indexOf(image)
-                                                            openImagePreview(previewList, imageIndex === -1 ? 0 : imageIndex)
-                                                        }}
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const newDeleted = new Set(editDeletedImageIndices)
-                                                            newDeleted.add(actualIndex)
-                                                            setEditDeletedImageIndices(newDeleted)
-                                                        }}
-                                                        className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    >
-                                                        <XIcon className="h-3 w-3" />
-                                                    </button>
-                                                </div>
-                                            )
-                                        })}
+                                        return (
+                                            <div key={`existing-${actualIndex}`} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
+                                                <img
+                                                    src={image}
+                                                    alt={`Product image ${actualIndex + 1}`}
+                                                    className="w-full h-full cursor-pointer object-cover"
+                                                    onClick={() => {
+                                                        const previewList = [...(editProductImages.filter((_, index) => !editDeletedImageIndices.has(index))), ...editNewImagePreviews]
+                                                        const imageIndex = previewList.indexOf(image)
+                                                        openImagePreview(previewList, imageIndex === -1 ? 0 : imageIndex)
+                                                    }}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newDeleted = new Set(editDeletedImageIndices)
+                                                        newDeleted.add(actualIndex)
+                                                        setEditDeletedImageIndices(newDeleted)
+                                                    }}
+                                                    className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <XIcon className="h-3 w-3" />
+                                                </button>
+                                            </div>
+                                        )
+                                    })}
 
-                                        {/* Show new images (up to 3 total after considering remaining existing) */}
-                                        {editNewImages.map((file, newIndex) => {
-                                            const remainingExistingCount = editProductImages.slice(1).filter((_, i) => !editDeletedImageIndices.has(i + 1)).length
-                                            if (newIndex >= 3 - remainingExistingCount) return null
+                                    {/* Show all new images */}
+                                    {editNewImages.map((file, newIndex) => {
+                                        return (
+                                            <div key={`new-${newIndex}`} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
+                                                <img
+                                                    src={editNewImagePreviews[newIndex]}
+                                                    alt={`New image ${newIndex + 1}`}
+                                                    className="w-full h-full cursor-pointer object-cover"
+                                                    onClick={() => {
+                                                        const previewList = [...(editProductImages.filter((_, index) => !editDeletedImageIndices.has(index))), ...editNewImagePreviews]
+                                                        const imageIndex = previewList.indexOf(editNewImagePreviews[newIndex])
+                                                        openImagePreview(previewList, imageIndex === -1 ? 0 : imageIndex)
+                                                    }}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newNewImages = editNewImages.filter((_, i) => i !== newIndex)
+                                                        setEditNewImages(newNewImages)
+                                                    }}
+                                                    className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <XIcon className="h-3 w-3" />
+                                                </button>
+                                            </div>
+                                        )
+                                    })}
 
-                                            return (
-                                                <div key={`new-${newIndex}`} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
-                                                    <img
-                                                        src={editNewImagePreviews[newIndex]}
-                                                        alt={`New image ${newIndex + 1}`}
-                                                        className="w-full h-full cursor-pointer object-cover"
-                                                        onClick={() => {
-                                                            const previewList = [...(editProductImages.filter((_, index) => !editDeletedImageIndices.has(index))), ...editNewImagePreviews]
-                                                            const imageIndex = previewList.indexOf(editNewImagePreviews[newIndex])
-                                                            openImagePreview(previewList, imageIndex === -1 ? 0 : imageIndex)
-                                                        }}
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const newNewImages = editNewImages.filter((_, i) => i !== newIndex)
-                                                            setEditNewImages(newNewImages)
-                                                        }}
-                                                        className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    >
-                                                        <XIcon className="h-3 w-3" />
-                                                    </button>
-                                                </div>
-                                            )
-                                        })}
+                                    <label className="relative aspect-square rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors group">
+                                        <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            className="hidden"
+                                            onChange={(event) => {
+                                                const selectedFiles = toSelectedFiles(event)
+                                                if (selectedFiles.length > 0) {
+                                                    setEditNewImages((current) => [
+                                                        ...current,
+                                                        ...selectedFiles,
+                                                    ])
+                                                }
 
-                                        {/* Add slot - show only if less than 4 total images */}
-                                        {(() => {
-                                            const totalExistingAfterDelete = editProductImages.filter((_, i) => !editDeletedImageIndices.has(i)).length
-                                            const totalImages = totalExistingAfterDelete + editNewImages.length
-                                            const gridCellsNeeded = Math.max(0, totalExistingAfterDelete - 1 + editNewImages.length)
-                                            if (totalImages < 4 && gridCellsNeeded < 3) {
-                                                return (
-                                                    <label className="relative aspect-square rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors group">
-                                                        <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
-                                                        <input
-                                                            type="file"
-                                                            accept="image/*"
-                                                            className="hidden"
-                                                            onChange={(event) => {
-                                                                const file = event.target.files?.[0]
-                                                                if (file) {
-                                                                    setEditNewImages([...editNewImages, file])
-                                                                }
-                                                            }}
-                                                        />
-                                                    </label>
-                                                )
-                                            }
-                                        })()}
-                                    </div>
-                                )}
-
-                            {(() => {
-                                const totalExistingAfterDelete = editProductImages.filter((_, i) => !editDeletedImageIndices.has(i)).length
-                                const totalImages = totalExistingAfterDelete + editNewImages.length
-
-                                if (totalImages < 4) {
-                                    return null
-                                }
-
-                                return (
-                                    <button
-                                        type="button"
-                                        disabled
-                                        className="w-full rounded-md border-2 border-dashed border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground"
-                                    >
-                                        <span className="inline-flex items-center gap-2">
-                                            <ImagePlusIcon className="h-4 w-4" />
-                                            Max 4 images reached. Remove one to add another.
-                                        </span>
-                                    </button>
-                                )
-                            })()}
+                                                event.currentTarget.value = ""
+                                            }}
+                                        />
+                                    </label>
+                                </div>
+                            )}
                         </div>
 
                         {/* Product Details Section */}
@@ -1217,7 +1294,7 @@ export function ProductsPage() {
                                     type="text"
                                     inputMode="numeric"
                                     autoComplete="off"
-                                    placeholder="Initial stock"
+                                    placeholder="Enter initial stock"
                                     value={editQuantityInitial}
                                     onChange={(event) => setEditQuantityInitial(toIntegerInput(event.target.value))}
                                 />
@@ -1233,7 +1310,7 @@ export function ProductsPage() {
                                     type="text"
                                     inputMode="decimal"
                                     autoComplete="off"
-                                    placeholder="Unit price in source currency"
+                                    placeholder="Enter unit price"
                                     value={editUnitPriceForeign}
                                     onChange={(event) => setEditUnitPriceForeign(toDecimalInput(event.target.value))}
                                 />
@@ -1268,7 +1345,7 @@ export function ProductsPage() {
                                     type="text"
                                     inputMode="decimal"
                                     autoComplete="off"
-                                    placeholder="Exchange rate to RWF"
+                                    placeholder={editSourceCurrency === "RWF" ? "Auto-set to 1 for RWF" : "Enter exchange rate to RWF"}
                                     value={editExchangeRate}
                                     disabled={editSourceCurrency === "RWF"}
                                     onChange={(event) => setEditExchangeRate(toDecimalInput(event.target.value))}
@@ -1315,7 +1392,7 @@ export function ProductsPage() {
                         {editErrors.general ? (
                             <p className="text-sm text-destructive">{editErrors.general}</p>
                         ) : null}
-                        <Button type="submit" loading={isEditSubmitting} loadingText="Saving product">
+                        <Button type="submit" disabled={!canSubmitEditProduct || isEditSubmitting} loading={isEditSubmitting} loadingText="Saving product">
                             Save Changes
                         </Button>
                     </form>
@@ -1428,21 +1505,27 @@ export function ProductsPage() {
                                                         <input
                                                             type="file"
                                                             accept="image/*"
+                                                            multiple
                                                             className="hidden"
                                                             onChange={(event) => {
-                                                                const file = event.target.files?.[0]
-                                                                if (file) {
-                                                                    setImageFiles((current) => [file, ...current].slice(0, 4))
+                                                                const selectedFiles = toSelectedFiles(event)
+                                                                if (selectedFiles.length > 0) {
+                                                                    setImageFiles((current) => [
+                                                                        ...selectedFiles,
+                                                                        ...current,
+                                                                    ])
                                                                 }
+
+                                                                event.currentTarget.value = ""
                                                             }}
                                                         />
                                                     </label>
                                                 )}
                                             </div>
 
-                                            {(imageFiles.length > 1 || imageFiles.length < 4) && (
+                                            {imageFiles.length > 0 && (
                                                 <div className="grid grid-cols-3 gap-2">
-                                                    {imagePreviews.slice(1, 4).map((preview, index) => {
+                                                    {imagePreviews.slice(1).map((preview, index) => {
                                                         const imageIndex = index + 1
 
                                                         return (
@@ -1466,37 +1549,26 @@ export function ProductsPage() {
                                                         )
                                                     })}
 
-                                                    {imageFiles.length < 4 ? (
-                                                        <label className="relative aspect-square rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors group">
-                                                            <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
-                                                            <input
-                                                                type="file"
-                                                                accept="image/*"
-                                                                className="hidden"
-                                                                onChange={(event) => {
+                                                    <label className="relative aspect-square rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors group">
+                                                        <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            multiple
+                                                            className="hidden"
+                                                            onChange={(event) => {
+                                                                const selectedFiles = toSelectedFiles(event)
+                                                                if (selectedFiles.length > 0) {
+                                                                    setImageFiles((current) => [
+                                                                        ...current,
+                                                                        ...selectedFiles,
+                                                                    ])
+                                                                }
 
-                                                                    {
-                                                                        imageFiles.length >= 4 ? (
-                                                                            <button
-                                                                                type="button"
-                                                                                disabled
-                                                                                className="w-full rounded-md border-2 border-dashed border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground"
-                                                                            >
-                                                                                <span className="inline-flex items-center gap-2">
-                                                                                    <ImagePlusIcon className="h-4 w-4" />
-                                                                                    Max 4 images reached. Remove one to add another.
-                                                                                </span>
-                                                                            </button>
-                                                                        ) : null
-                                                                    }
-                                                                    const file = event.target.files?.[0]
-                                                                    if (file) {
-                                                                        setImageFiles((current) => [...current, file].slice(0, 4))
-                                                                    }
-                                                                }}
-                                                            />
-                                                        </label>
-                                                    ) : null}
+                                                                event.currentTarget.value = ""
+                                                            }}
+                                                        />
+                                                    </label>
                                                 </div>
                                             )}
                                         </div>
@@ -1555,41 +1627,39 @@ export function ProductsPage() {
                                                 </Button>
                                             </div>
                                         ) : (
-                                            <Select
-                                                value={categoryId || NO_CATEGORY_VALUE}
-                                                onValueChange={(value) => {
-                                                    if (value === ADD_CATEGORY_VALUE) {
+                                            <div className="flex items-center gap-2">
+                                                <Select
+                                                    value={categoryId || NO_CATEGORY_VALUE}
+                                                    onValueChange={(value) => {
+                                                        setIsAddingCustomCategory(false)
+                                                        setCustomCategoryName("")
+                                                        setCategoryId(value === NO_CATEGORY_VALUE ? "" : value)
+                                                    }}
+                                                >
+                                                    <SelectTrigger id="product-category" className="w-full">
+                                                        <SelectValue placeholder="Choose category (optional)" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value={NO_CATEGORY_VALUE}>No category</SelectItem>
+                                                        {categories.map((category) => (
+                                                            <SelectItem key={category._id} value={category._id}>
+                                                                {category.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    className="h-8 px-3"
+                                                    onClick={() => {
                                                         setIsAddingCustomCategory(true)
                                                         setCategoryId("")
-                                                        return
-                                                    }
-
-                                                    setIsAddingCustomCategory(false)
-                                                    setCustomCategoryName("")
-                                                    setCategoryId(value === NO_CATEGORY_VALUE ? "" : value)
-                                                }}
-                                            >
-                                                <SelectTrigger id="product-category">
-                                                    <SelectValue placeholder="Choose category (optional)" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value={NO_CATEGORY_VALUE}>No category</SelectItem>
-                                                    {categories.map((category) => (
-                                                        <SelectItem key={category._id} value={category._id}>
-                                                            {category.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                    {COMMON_CATEGORY_OPTIONS.map((categoryName) => (
-                                                        <SelectItem key={categoryName} value={`common:${categoryName}`}>
-                                                            {categoryName}
-                                                        </SelectItem>
-                                                    ))}
-                                                    <SelectSeparator />
-                                                    <SelectItem value={ADD_CATEGORY_VALUE} className="font-medium text-primary">
-                                                        + Add New Category
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                                    }}
+                                                >
+                                                    Add category
+                                                </Button>
+                                            </div>
                                         )}
                                     </Field>
 
@@ -1603,7 +1673,7 @@ export function ProductsPage() {
                                             type="text"
                                             inputMode="numeric"
                                             autoComplete="off"
-                                            placeholder="Initial stock"
+                                            placeholder="Enter initial stock"
                                             value={quantityInitial}
                                             onChange={(event) => setQuantityInitial(toIntegerInput(event.target.value))}
                                         />
@@ -1619,7 +1689,7 @@ export function ProductsPage() {
                                             type="text"
                                             inputMode="decimal"
                                             autoComplete="off"
-                                            placeholder="Unit price in source currency"
+                                            placeholder="Enter unit price"
                                             value={unitPriceForeign}
                                             onChange={(event) => setUnitPriceForeign(toDecimalInput(event.target.value))}
                                         />
@@ -1654,7 +1724,7 @@ export function ProductsPage() {
                                             type="text"
                                             inputMode="decimal"
                                             autoComplete="off"
-                                            placeholder="Exchange rate to RWF"
+                                            placeholder={sourceCurrency === "RWF" ? "Auto-set to 1 for RWF" : "Enter exchange rate to RWF"}
                                             value={exchangeRate}
                                             disabled={sourceCurrency === "RWF"}
                                             onChange={(event) => setExchangeRate(toDecimalInput(event.target.value))}
@@ -1663,7 +1733,7 @@ export function ProductsPage() {
 
                                     {errors.general ? <FieldError className="text-destructive text-xs">{errors.general}</FieldError> : null}
 
-                                    <Button type="submit" loading={isSubmitting} loadingText="Adding product">
+                                    <Button type="submit" disabled={!canSubmitAddProduct || isSubmitting} loading={isSubmitting} loadingText="Adding product">
                                         Add Product
                                     </Button>
                                 </form>
@@ -1798,13 +1868,20 @@ export function ProductsPage() {
                                                     setSelectedProductIds(new Set())
                                                 }
                                             }} checked={selectedProductIds.size === products.length && products.length > 0} title="Select all" /></TableHead>
-                                            {visibleColumns.image ? <TableHead>Image</TableHead> : null}
-                                            {visibleColumns.name ? <TableHead>Name</TableHead> : null}
-                                            {visibleColumns.batch ? <TableHead>Batch</TableHead> : null}
-                                            {visibleColumns.onHand ? <TableHead>On Hand</TableHead> : null}
-                                            {visibleColumns.buyingPrice ? <TableHead>Buying Price (RWF)</TableHead> : null}
-                                            {visibleColumns.landedPrice ? <TableHead>Landed Price (RWF)</TableHead> : null}
-                                            {visibleColumns.totalLandedCost ? <TableHead>Total Landed Cost (RWF)</TableHead> : null}
+                                            {orderedVisibleColumns.map((columnKey) => (
+                                                <TableHead
+                                                    key={columnKey}
+                                                    draggable
+                                                    onDragStart={() => setDraggedColumn(columnKey)}
+                                                    onDragEnd={() => setDraggedColumn(null)}
+                                                    onDragOver={(event) => event.preventDefault()}
+                                                    onDrop={() => handleColumnDrop(columnKey)}
+                                                    className="cursor-move select-none"
+                                                    title="Drag to reorder columns"
+                                                >
+                                                    {columnLabels[columnKey]}
+                                                </TableHead>
+                                            ))}
                                             <TableHead>Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -1825,67 +1902,11 @@ export function ProductsPage() {
                                                         setSelectedProductIds(newSelected)
                                                     }} />
                                                 </TableCell>
-                                                {visibleColumns.image ? (
-                                                    <TableCell className="p-0">
-                                                        <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                            {product.images?.[0] ? (
-                                                                <img
-                                                                    src={product.images[0]}
-                                                                    alt={product.name}
-                                                                    className="h-10 w-10 rounded-md object-cover"
-                                                                />
-                                                            ) : (
-                                                                <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground">
-                                                                    {product.name.replace(/\s+/g, "").slice(0, 2).toUpperCase()}
-                                                                </div>
-                                                            )}
-                                                        </Link>
-                                                    </TableCell>
-                                                ) : null}
-                                                {visibleColumns.name ? (
-                                                    <TableCell className="p-0 truncate max-w-xs">
-                                                        <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                            {product.name}
-                                                        </Link>
-                                                    </TableCell>
-                                                ) : null}
-                                                {visibleColumns.batch ? (
-                                                    <TableCell className="p-0">
-                                                        <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                            {product.batchId?.batchName ?? "Unassigned"}
-                                                        </Link>
-                                                    </TableCell>
-                                                ) : null}
-                                                {visibleColumns.onHand ? (
-                                                    <TableCell className="p-0">
-                                                        <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                            <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
-                                                                {product.quantityRemaining}
-                                                            </Badge>
-                                                        </Link>
-                                                    </TableCell>
-                                                ) : null}
-                                                {visibleColumns.buyingPrice ? (
-                                                    <TableCell className="p-0">
-                                                        <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                            {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                        </Link>
-                                                    </TableCell>
-                                                ) : null}
-                                                {visibleColumns.landedPrice ? (
-                                                    <TableCell className="p-0">
-                                                        <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                            {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                        </Link>
-                                                    </TableCell>
-                                                ) : null}
-                                                {visibleColumns.totalLandedCost ? (
-                                                    <TableCell className="p-0">
-                                                        <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                                                            {(product.landedCost * product.quantityRemaining).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                        </Link>
-                                                    </TableCell>
-                                                ) : null}
+                                                {orderedVisibleColumns.map((columnKey) => (
+                                                    <React.Fragment key={`${product._id}-${columnKey}`}>
+                                                        {renderProductColumnCell(product, columnKey)}
+                                                    </React.Fragment>
+                                                ))}
                                                 <TableCell onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</TableCell>
                                             </TableRow>
                                         ))}

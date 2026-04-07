@@ -9,7 +9,7 @@ import { ProductModel } from "@/models/Product"
 import "@/models/Category"
 import "@/models/Batch"
 
-const SUPPORTED_SOURCE_CURRENCIES = ["RWF", "USD", "KSH", "UGX", "AED", "EUR", "GBP"]
+const SUPPORTED_SOURCE_CURRENCIES = ["USD", "RWF", "CNY", "AED"]
 
 export async function GET(request: NextRequest) {
   await connectToDatabase()
@@ -36,12 +36,16 @@ export async function POST(request: NextRequest) {
 
   const name = String(formData.get("name") ?? "").trim()
   const categoryId = String(formData.get("categoryId") ?? "").trim()
-  const quantityInitial = Number(formData.get("quantityInitial") ?? 0)
-  const unitPriceForeign = Number(formData.get("unitPriceForeign") ?? 0)
+  const rawQuantityInitial = String(formData.get("quantityInitial") ?? "").trim()
+  const rawUnitPriceForeign = String(formData.get("unitPriceForeign") ?? "").trim()
   const sourceCurrency = String(formData.get("sourceCurrency") ?? "").trim().toUpperCase()
-  const exchangeRate = Number(formData.get("exchangeRate") ?? 1)
+  const rawExchangeRate = String(formData.get("exchangeRate") ?? "").trim()
   const externalLink = String(formData.get("externalLink") ?? "").trim()
   const images = formData.getAll("images").filter((entry) => entry instanceof File) as File[]
+
+  const quantityInitial = Number(rawQuantityInitial)
+  const unitPriceForeign = Number(rawUnitPriceForeign)
+  const exchangeRate = Number(rawExchangeRate)
 
   const errors: FieldErrors = {}
 
@@ -49,17 +53,23 @@ export async function POST(request: NextRequest) {
   if (categoryId && !Types.ObjectId.isValid(categoryId)) {
     errors.categoryId = "Invalid category"
   }
-  if (!Number.isFinite(quantityInitial) || quantityInitial < 0) {
+  if (!rawQuantityInitial) {
+    errors.quantityInitial = "Initial quantity is required"
+  } else if (!Number.isFinite(quantityInitial) || quantityInitial < 0) {
     errors.quantityInitial = "Initial quantity must be 0 or higher"
   }
-  if (!Number.isFinite(unitPriceForeign) || unitPriceForeign < 0) {
+  if (!rawUnitPriceForeign) {
+    errors.unitPriceForeign = "Unit price is required"
+  } else if (!Number.isFinite(unitPriceForeign) || unitPriceForeign < 0) {
     errors.unitPriceForeign = "Unit price must be 0 or higher"
   }
   if (!sourceCurrency) errors.sourceCurrency = "Source currency is required"
   if (sourceCurrency && !SUPPORTED_SOURCE_CURRENCIES.includes(sourceCurrency)) {
     errors.sourceCurrency = "Select a supported source currency"
   }
-  if (!Number.isFinite(exchangeRate) || exchangeRate <= 0) {
+  if (sourceCurrency !== "RWF" && !rawExchangeRate) {
+    errors.exchangeRate = "Exchange rate is required"
+  } else if (sourceCurrency !== "RWF" && (!Number.isFinite(exchangeRate) || exchangeRate <= 0)) {
     errors.exchangeRate = "Exchange rate must be greater than 0"
   }
   if (externalLink) {
@@ -69,10 +79,6 @@ export async function POST(request: NextRequest) {
       errors.externalLink = "Enter a valid URL"
     }
   }
-  if (images.length > 4) {
-    errors.images = "You can upload a maximum of 4 images"
-  }
-
   if (Object.keys(errors).length > 0) {
     return errorResponse(errors, 400)
   }
