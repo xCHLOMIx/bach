@@ -2807,7 +2807,7 @@ export function ProductsPage() {
                                 }}
                                 disabled={isBulkDeleting || isBulkDeleteInfoLoading}
                                 loading={isBulkDeleting || isBulkDeleteInfoLoading}
-                                loadingText={isBulkDeleteInfoLoading ? "Loading warnings" : "Deleting products"}
+                                loadingText={isBulkDeleteInfoLoading ? "Checking warnings" : "Deleting products"}
                             >
                                 Delete Selected
                             </Button>
@@ -2891,7 +2891,7 @@ export function ProductsPage() {
                                 onClick={confirmDeleteProduct}
                                 disabled={isDeleting || isDeleteInfoLoading}
                                 loading={isDeleting || isDeleteInfoLoading}
-                                loadingText={isDeleteInfoLoading ? "Loading warnings" : "Deleting product"}
+                                loadingText={isDeleteInfoLoading ? "Checking warnings" : "Deleting product"}
                             >
                                 Delete Permanently
                             </Button>

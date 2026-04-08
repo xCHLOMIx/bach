@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { CardHeader, CardTitle } from "@/components/ui/card"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
+import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import {
     Select,
     SelectContent,
@@ -23,9 +24,10 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
 import { calculateBatchProductLandedCosts, convertInternationalExpenseToRwf } from "@/lib/costs"
 import { cn } from "@/lib/utils"
-import { ChevronLeft, CopyIcon, PackageOpen } from "lucide-react"
+import { ChevronLeft, CopyIcon, PackageOpen, SearchIcon } from "lucide-react"
 
 const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "EUR"] as const
 
@@ -121,6 +123,8 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     const [errors, setErrors] = React.useState<Record<string, string>>({})
     const [isSubmitting, setIsSubmitting] = React.useState(false)
     const [isEditing, setIsEditing] = React.useState(false)
+    const [productSearch, setProductSearch] = React.useState("")
+    const productSearchInputRef = React.useRef<HTMLInputElement | null>(null)
 
     const stripCommas = (value: string) => value.replace(/,/g, "")
 
@@ -294,6 +298,28 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         const selectedIdSet = new Set(selectedProductIds)
         return products.filter((product) => selectedIdSet.has(product._id))
     }, [products, selectedProductIds])
+
+    const filteredProducts = React.useMemo(() => {
+        const searchLower = productSearch.toLowerCase().trim()
+        if (!searchLower) {
+            return products
+        }
+
+        return products.filter((product) => product.name.toLowerCase().includes(searchLower))
+    }, [products, productSearch])
+
+    React.useEffect(() => {
+        const handleSearchShortcut = (event: KeyboardEvent) => {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") {
+                event.preventDefault()
+                productSearchInputRef.current?.focus()
+                productSearchInputRef.current?.select()
+            }
+        }
+
+        window.addEventListener("keydown", handleSearchShortcut)
+        return () => window.removeEventListener("keydown", handleSearchShortcut)
+    }, [])
 
     const copyTrackingNumber = React.useCallback(async () => {
         if (!form.trackingId.trim()) {
@@ -519,92 +545,82 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         }
 
         return (
-            <div className="overflow-hidden rounded-md border">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-16">Pick</TableHead>
-                            <TableHead>Product</TableHead>
-                            <TableHead>Assigned</TableHead>
-                            <TableHead className="text-right">Quantity</TableHead>
-                            <TableHead className="text-right">Base Unit (RWF)</TableHead>
-                            <TableHead className="text-right">Total (RWF)</TableHead>
-                            <TableHead className="text-right">Weight %</TableHead>
-                            <TableHead className="text-right">After Distribution (RWF)</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {products.map((product) => {
-                            const isSelected = selectedProductIds.includes(product._id)
-                            const assignedBatchId = product.batchId?._id
-                            const assignedBatchName = assignedBatchId ? batchIdToName.get(assignedBatchId) : null
-                            const preview = allocationPreviewByProductId.get(product._id)
-                            const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
-                            const productTotal = baseUnitPrice * product.quantityInitial
+            <div className="space-y-3">
+                <div className="relative w-full sm:w-64">
+                    <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                        ref={productSearchInputRef}
+                        value={productSearch}
+                        onChange={(event) => setProductSearch(event.target.value)}
+                        placeholder="Search products"
+                        className="pr-18 pl-9"
+                    />
+                    <KbdGroup className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex">
+                        <Kbd>Ctrl</Kbd>
+                        <Kbd>F</Kbd>
+                    </KbdGroup>
+                </div>
 
-                            return (
-                                <TableRow
-                                    key={product._id}
-                                    className={cn(
-                                        "cursor-pointer",
-                                        isSelected
-                                            ? "bg-primary/20 ring-1 ring-inset ring-primary/40"
-                                            : "hover:bg-muted/40"
-                                    )}
-                                    onClick={() => {
-                                        if (!isEditing) {
-                                            return
-                                        }
-                                        setSelectedProductIds((current) =>
-                                            current.includes(product._id)
-                                                ? current.filter((id) => id !== product._id)
-                                                : [...current, product._id]
-                                        )
-                                    }}
-                                >
-                                    <TableCell onClick={(event) => event.stopPropagation()}>
-                                        <Checkbox
-                                            checked={isSelected}
-                                            disabled={!isEditing}
-                                            onCheckedChange={() => {
-                                                if (!isEditing) {
-                                                    return
-                                                }
-                                                setSelectedProductIds((current) =>
-                                                    current.includes(product._id)
-                                                        ? current.filter((id) => id !== product._id)
-                                                        : [...current, product._id]
-                                                )
-                                            }}
-                                            aria-label={`Select ${product.name}`}
-                                        />
-                                    </TableCell>
-                                    <TableCell className="truncate max-w-xs font-medium">{product.name}</TableCell>
-                                    <TableCell>{assignedBatchName ?? "Unassigned"}</TableCell>
-                                    <TableCell className="text-right">{product.quantityInitial.toLocaleString()}</TableCell>
-                                    <TableCell className="text-right">{baseUnitPrice.toLocaleString()}</TableCell>
-                                    <TableCell className="text-right">{productTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                                    <TableCell className="text-right">
-                                        {isSelected
-                                            ? `${(preview?.weightPercentage ?? 0).toFixed(2)}%`
-                                            : "-"}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {isSelected
-                                            ? (preview?.landedCost ?? baseUnitPrice).toLocaleString(undefined, { maximumFractionDigits: 2 })
-                                            : "-"}
-                                    </TableCell>
-                                </TableRow>
-                            )
-                        })}
-                    </TableBody>
-                </Table>
+                <div className="overflow-hidden rounded-md border">
+                    {filteredProducts.length === 0 ? (
+                        <div className="p-3 text-sm text-muted-foreground">
+                            No products found matching your search.
+                        </div>
+                    ) : filteredProducts.map((product, index) => {
+                        const isSelected = selectedProductIds.includes(product._id)
+                        const assignedBatchId = product.batchId?._id
+                        const assignedBatchName = assignedBatchId ? batchIdToName.get(assignedBatchId) : null
+
+                        return (
+                            <button
+                                key={product._id}
+                                type="button"
+                                onClick={() => {
+                                    if (!isEditing) {
+                                        return
+                                    }
+                                    setSelectedProductIds((current) =>
+                                        current.includes(product._id)
+                                            ? current.filter((id) => id !== product._id)
+                                            : [...current, product._id]
+                                    )
+                                }}
+                                className={cn(
+                                    "flex w-full items-center gap-2 border-b px-3 py-2 text-left text-sm last:border-b-0",
+                                    index === 0 && "rounded-t-md",
+                                    index === filteredProducts.length - 1 && "rounded-b-md",
+                                    isSelected
+                                        ? "bg-primary/20 text-foreground"
+                                        : "hover:bg-muted/40"
+                                )}
+                            >
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate font-medium" title={product.name}>{product.name}</p>
+                                    <p className="text-xs text-muted-foreground">Assigned: {assignedBatchName ?? "Unassigned"}</p>
+                                </div>
+                                <Checkbox
+                                    checked={isSelected}
+                                    disabled={!isEditing}
+                                    aria-label={`Select ${product.name}`}
+                                />
+                            </button>
+                        )
+                    })}
+                </div>
             </div>
         )
     }
 
     const renderBatchProductsTable = () => {
         if (selectedProducts.length === 0) {
+            if (isEditing) {
+                return (
+                    <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                        Add products from the list above to build this batch.
+                    </div>
+                )
+            }
+
             return (
                 <Empty className="rounded-md border border-dashed p-6">
                     <EmptyHeader>
@@ -667,10 +683,42 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         )
     }
 
+    const renderProductsTableSkeleton = () => (
+        <div className="overflow-hidden rounded-md border">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Product</TableHead>
+                        <TableHead className="text-right">Quantity</TableHead>
+                        <TableHead className="text-right">Base Unit (RWF)</TableHead>
+                        <TableHead className="text-right">Total (RWF)</TableHead>
+                        <TableHead className="text-right">Weight %</TableHead>
+                        <TableHead className="text-right">After Distribution (RWF)</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {[0, 1, 2, 3].map((index) => (
+                        <TableRow key={`batch-details-loading-${index}`}>
+                            <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-12" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-14" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
+    )
+
     if (isLoading) {
         return (
             <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
-                <p className="text-sm text-muted-foreground">Loading batch...</p>
+                <CardHeader className="px-0">
+                    <CardTitle className="text-2xl font-bold">Batch</CardTitle>
+                </CardHeader>
+                {renderProductsTableSkeleton()}
             </div>
         )
     }
@@ -1140,8 +1188,23 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             )}
 
             <div className="space-y-2">
-                <p className="text-sm font-medium">Products</p>
-                {isEditing ? renderProductSelector() : renderBatchProductsTable()}
+                {isEditing ? (
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium">Select Products</p>
+                            {renderProductSelector()}
+                        </div>
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium">Selected Products</p>
+                            {renderBatchProductsTable()}
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        <p className="text-sm font-medium">Products</p>
+                        {renderBatchProductsTable()}
+                    </>
+                )}
             </div>
 
             {errors.general ? <p className="text-sm text-destructive">{errors.general}</p> : null}

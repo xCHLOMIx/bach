@@ -456,7 +456,7 @@ export function CategoriesPage() {
                                 onClick={openBulkDeleteCategoriesConfirm}
                                 disabled={isBulkDeleting || isBulkDeleteInfoLoading}
                                 loading={isBulkDeleting || isBulkDeleteInfoLoading}
-                                loadingText={isBulkDeleteInfoLoading ? "Loading warnings" : "Deleting categories"}
+                                loadingText={isBulkDeleteInfoLoading ? "Checking warnings" : "Deleting categories"}
                             >
                                 <Trash2Icon className="h-4 w-4" />
                                 {isBulkDeleting ? "Deleting..." : "Delete Selected"}
@@ -729,7 +729,7 @@ export function CategoriesPage() {
                                     onClick={removeSelectedCategories}
                                     disabled={isBulkDeleting || isBulkDeleteInfoLoading}
                                     loading={isBulkDeleting || isBulkDeleteInfoLoading}
-                                    loadingText={isBulkDeleteInfoLoading ? "Loading warnings" : "Deleting categories"}
+                                    loadingText={isBulkDeleteInfoLoading ? "Checking warnings" : "Deleting categories"}
                                 >
                                     Delete Selected
                                 </Button>
@@ -795,7 +795,7 @@ export function CategoriesPage() {
                                     onClick={confirmDeleteCategory}
                                     disabled={isDeleting || isDeleteInfoLoading}
                                     loading={isDeleting || isDeleteInfoLoading}
-                                    loadingText={isDeleteInfoLoading ? "Loading warnings" : "Deleting category"}
+                                    loadingText={isDeleteInfoLoading ? "Checking warnings" : "Deleting category"}
                                 >
                                     Delete Category
                                 </Button>

@@ -144,7 +144,7 @@ export function SalesPage() {
         } catch (error) {
             setProducts([])
             if ((error as Error).name === "AbortError") {
-                setProductsLoadError("Loading products took too long. Please retry.")
+                setProductsLoadError("Product fetch took too long. Please retry.")
             } else {
                 setProductsLoadError("Could not load products right now.")
             }
@@ -447,9 +447,14 @@ export function SalesPage() {
 
                                     <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
                                         {isLoadingProducts ? (
-                                            <p className="text-sm text-muted-foreground text-center py-4">
-                                                Loading products...
-                                            </p>
+                                            <div className="space-y-2 py-2">
+                                                {[0, 1, 2, 3].map((index) => (
+                                                    <div key={`sales-product-loading-${index}`} className="rounded-md border p-3">
+                                                        <Skeleton className="h-4 w-36" />
+                                                        <Skeleton className="mt-2 h-3 w-20" />
+                                                    </div>
+                                                ))}
+                                            </div>
                                         ) : productsLoadError ? (
                                             <div className="space-y-3 py-4 text-center">
                                                 <p className="text-sm text-destructive">

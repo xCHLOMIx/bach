@@ -33,14 +33,6 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from "@/components/ui/sheet"
-import {
     Table,
     TableBody,
     TableCell,
@@ -810,7 +802,7 @@ export function BatchesPage() {
                                     : "hover:bg-muted/40"
                             )}
                         >
-                            <span className="truncate">{product.name}</span>
+                            <span className="min-w-0 flex-1 truncate" title={product.name}>{product.name}</span>
                             {isSelected ? <CheckIcon className="ml-auto h-4 w-4" /> : null}
                         </button>
                     )
@@ -826,367 +818,9 @@ export function BatchesPage() {
                     <CardTitle className="text-2xl font-bold">Batches</CardTitle>
                     <CardDescription>Create, edit, and manage products in each batch.</CardDescription>
                 </div>
-                <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
-                    <SheetTrigger asChild>
-                        <Button className="h-10 px-6" size={"lg"}>
-                            Add Batch
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent
-                        className="p-0"
-                        overlayClassName="bg-black/20 supports-backdrop-filter:backdrop-blur-md"
-                    >
-                        <div className="flex h-full flex-col">
-                            <SheetHeader className="border-b">
-                                <SheetTitle>Add Batch</SheetTitle>
-                                <SheetDescription>Enter batch details and select products.</SheetDescription>
-                            </SheetHeader>
-                            <form className="grid flex-1 gap-3 overflow-y-auto p-4" onSubmit={submitAddBatch}>
-                                <div className="grid gap-1.5">
-                                    <label htmlFor="add-batch-name" className="text-sm font-medium">Batch name</label>
-                                    <Input
-                                        id="add-batch-name"
-                                        placeholder="Batch name"
-                                        value={addForm.batchName}
-                                        onChange={(event) =>
-                                            setAddForm((current) => ({ ...current, batchName: event.target.value }))
-                                        }
-                                    />
-                                    {renderFieldError(addErrors, "batchName")}
-                                </div>
-                                <div className="grid gap-1.5">
-                                    <label htmlFor="add-tracking-id" className="text-sm font-medium">Tracking number</label>
-                                    <Input
-                                        id="add-tracking-id"
-                                        placeholder="Optional tracking number"
-                                        value={addForm.trackingId}
-                                        onChange={(event) =>
-                                            setAddForm((current) => ({ ...current, trackingId: event.target.value }))
-                                        }
-                                    />
-                                </div>
-                                <div className="space-y-3 rounded-lg border p-3">
-                                    <p className="text-sm font-semibold">International Expenses</p>
-                                    <div className="grid gap-3 lg:grid-cols-3">
-                                        <div className="grid gap-1.5">
-                                            <label htmlFor="add-intl-shipping" className="text-sm font-medium">Intl shipping</label>
-                                            <Input
-                                                id="add-intl-shipping"
-                                                placeholder="Intl shipping"
-                                                type="text"
-                                                inputMode="decimal"
-                                                value={addForm.intlShipping}
-                                                onChange={(event) =>
-                                                    setAddForm((current) => ({ ...current, intlShipping: toDecimalInput(event.target.value) }))
-                                                }
-                                            />
-                                            {renderFieldError(addErrors, "intlShipping")}
-                                        </div>
-                                        <div className="grid gap-1.5">
-                                            <label className="text-sm font-medium">Currency</label>
-                                            <Select
-                                                value={addForm.intlShippingCurrency}
-                                                onValueChange={(value) =>
-                                                    setAddForm((current) => ({ ...current, intlShippingCurrency: value }))
-                                                }
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Currency" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {CURRENCY_OPTIONS.map((currency) => (
-                                                        <SelectItem key={`intl-${currency}`} value={currency}>{currency}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="grid gap-1.5">
-                                            <label className="text-sm font-medium">Exchange rate</label>
-                                            <Input
-                                                placeholder={addForm.intlShippingCurrency === "RWF" ? "Not needed for RWF" : "Rate to RWF"}
-                                                type="text"
-                                                inputMode="decimal"
-                                                disabled={addForm.intlShippingCurrency === "RWF"}
-                                                value={addForm.intlShippingExchangeRate}
-                                                onChange={(event) =>
-                                                    setAddForm((current) => ({ ...current, intlShippingExchangeRate: toDecimalInput(event.target.value) }))
-                                                }
-                                            />
-                                            {renderFieldError(addErrors, "intlShippingExchangeRate")}
-                                        </div>
-                                    </div>
-
-                                    <div className="grid gap-3 lg:grid-cols-3">
-                                        <div className="grid gap-1.5">
-                                            <label htmlFor="add-warehouse-usa" className="text-sm font-medium">Warehouse USA</label>
-                                            <Input
-                                                id="add-warehouse-usa"
-                                                placeholder="Warehouse USA"
-                                                type="text"
-                                                inputMode="decimal"
-                                                value={addForm.warehouseUSA}
-                                                onChange={(event) =>
-                                                    setAddForm((current) => ({ ...current, warehouseUSA: toDecimalInput(event.target.value) }))
-                                                }
-                                            />
-                                            {renderFieldError(addErrors, "warehouseUSA")}
-                                        </div>
-                                        <div className="grid gap-1.5">
-                                            <label className="text-sm font-medium">Currency</label>
-                                            <Select
-                                                value={addForm.warehouseUSACurrency}
-                                                onValueChange={(value) =>
-                                                    setAddForm((current) => ({ ...current, warehouseUSACurrency: value }))
-                                                }
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Currency" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {CURRENCY_OPTIONS.map((currency) => (
-                                                        <SelectItem key={`warehouse-${currency}`} value={currency}>{currency}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="grid gap-1.5">
-                                            <label className="text-sm font-medium">Exchange rate</label>
-                                            <Input
-                                                placeholder={addForm.warehouseUSACurrency === "RWF" ? "Not needed for RWF" : "Rate to RWF"}
-                                                type="text"
-                                                inputMode="decimal"
-                                                disabled={addForm.warehouseUSACurrency === "RWF"}
-                                                value={addForm.warehouseUSAExchangeRate}
-                                                onChange={(event) =>
-                                                    setAddForm((current) => ({ ...current, warehouseUSAExchangeRate: toDecimalInput(event.target.value) }))
-                                                }
-                                            />
-                                            {renderFieldError(addErrors, "warehouseUSAExchangeRate")}
-                                        </div>
-                                    </div>
-
-                                    <div className="grid gap-3 lg:grid-cols-3">
-                                        <div className="grid gap-1.5">
-                                            <label htmlFor="add-amazon-prime" className="text-sm font-medium">Amazon Prime</label>
-                                            <Input
-                                                id="add-amazon-prime"
-                                                placeholder="Amazon Prime"
-                                                type="text"
-                                                inputMode="decimal"
-                                                value={addForm.amazonPrime}
-                                                onChange={(event) =>
-                                                    setAddForm((current) => ({ ...current, amazonPrime: toDecimalInput(event.target.value) }))
-                                                }
-                                            />
-                                            {renderFieldError(addErrors, "amazonPrime")}
-                                        </div>
-                                        <div className="grid gap-1.5">
-                                            <label className="text-sm font-medium">Currency</label>
-                                            <Select
-                                                value={addForm.amazonPrimeCurrency}
-                                                onValueChange={(value) =>
-                                                    setAddForm((current) => ({ ...current, amazonPrimeCurrency: value }))
-                                                }
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Currency" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {CURRENCY_OPTIONS.map((currency) => (
-                                                        <SelectItem key={`prime-${currency}`} value={currency}>{currency}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="grid gap-1.5">
-                                            <label className="text-sm font-medium">Exchange rate</label>
-                                            <Input
-                                                placeholder={addForm.amazonPrimeCurrency === "RWF" ? "Not needed for RWF" : "Rate to RWF"}
-                                                type="text"
-                                                inputMode="decimal"
-                                                disabled={addForm.amazonPrimeCurrency === "RWF"}
-                                                value={addForm.amazonPrimeExchangeRate}
-                                                onChange={(event) =>
-                                                    setAddForm((current) => ({ ...current, amazonPrimeExchangeRate: toDecimalInput(event.target.value) }))
-                                                }
-                                            />
-                                            {renderFieldError(addErrors, "amazonPrimeExchangeRate")}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-3 rounded-lg border p-3">
-                                    <p className="text-sm font-semibold">Local Expenses (RWF)</p>
-                                    <div className="space-y-2">
-                                        <p className="text-xs font-medium text-muted-foreground">Pickup method</p>
-                                        <div className="inline-flex rounded-md border bg-muted p-1">
-                                            <button
-                                                type="button"
-                                                className={cn(
-                                                    "rounded px-3 py-1.5 text-sm",
-                                                    addForm.pickupMethod === "easy" ? "bg-background shadow-sm" : "text-muted-foreground"
-                                                )}
-                                                onClick={() => handleAddPickupMethodChange("easy")}
-                                            >
-                                                Easy
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className={cn(
-                                                    "rounded px-3 py-1.5 text-sm",
-                                                    addForm.pickupMethod === "advanced" ? "bg-background shadow-sm" : "text-muted-foreground"
-                                                )}
-                                                onClick={() => handleAddPickupMethodChange("advanced")}
-                                            >
-                                                Advanced
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {addForm.pickupMethod === "easy" ? (
-                                        <div className="grid gap-3 sm:grid-cols-2">
-                                            <div className="grid gap-1.5">
-                                                <label htmlFor="add-collection-fee" className="text-sm font-medium">Collection Fee (RWF)</label>
-                                                <Input
-                                                    id="add-collection-fee"
-                                                    placeholder="Collection Fee"
-                                                    type="text"
-                                                    inputMode="decimal"
-                                                    value={addForm.collectionFee}
-                                                    onChange={(event) =>
-                                                        setAddForm((current) => ({ ...current, collectionFee: toDecimalInput(event.target.value) }))
-                                                    }
-                                                />
-                                                {renderFieldError(addErrors, "collectionFee")}
-                                            </div>
-                                            <div className="grid gap-1.5">
-                                                <label htmlFor="add-local-transport-easy" className="text-sm font-medium">Transport (RWF)</label>
-                                                <Input
-                                                    id="add-local-transport-easy"
-                                                    placeholder="Transport"
-                                                    type="text"
-                                                    inputMode="decimal"
-                                                    value={addForm.localTransport}
-                                                    onChange={(event) =>
-                                                        setAddForm((current) => ({ ...current, localTransport: toDecimalInput(event.target.value) }))
-                                                    }
-                                                />
-                                                {renderFieldError(addErrors, "localTransport")}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="grid gap-3 sm:grid-cols-2">
-                                            <div className="grid gap-1.5">
-                                                <label htmlFor="add-customs-duties" className="text-sm font-medium">Custom Duties (Tax)</label>
-                                                <Input
-                                                    id="add-customs-duties"
-                                                    placeholder="Custom Duties"
-                                                    type="text"
-                                                    inputMode="decimal"
-                                                    value={addForm.customsDuties}
-                                                    onChange={(event) =>
-                                                        setAddForm((current) => ({ ...current, customsDuties: toDecimalInput(event.target.value) }))
-                                                    }
-                                                />
-                                                {renderFieldError(addErrors, "customsDuties")}
-                                            </div>
-                                            <div className="grid gap-1.5">
-                                                <label htmlFor="add-arrival-notif" className="text-sm font-medium">Arrival Not.</label>
-                                                <Input
-                                                    id="add-arrival-notif"
-                                                    placeholder="Arrival Not."
-                                                    type="text"
-                                                    inputMode="decimal"
-                                                    value={addForm.arrivalNotif}
-                                                    onChange={(event) =>
-                                                        setAddForm((current) => ({ ...current, arrivalNotif: toDecimalInput(event.target.value) }))
-                                                    }
-                                                />
-                                                {renderFieldError(addErrors, "arrivalNotif")}
-                                            </div>
-                                            <div className="grid gap-1.5">
-                                                <label htmlFor="add-warehouse-storage" className="text-sm font-medium">Warehouse</label>
-                                                <Input
-                                                    id="add-warehouse-storage"
-                                                    placeholder="Warehouse"
-                                                    type="text"
-                                                    inputMode="decimal"
-                                                    value={addForm.warehouseStorage}
-                                                    onChange={(event) =>
-                                                        setAddForm((current) => ({ ...current, warehouseStorage: toDecimalInput(event.target.value) }))
-                                                    }
-                                                />
-                                                {renderFieldError(addErrors, "warehouseStorage")}
-                                            </div>
-                                            <div className="grid gap-1.5">
-                                                <label htmlFor="add-declaration" className="text-sm font-medium">Declaration</label>
-                                                <Input
-                                                    id="add-declaration"
-                                                    placeholder="Declaration"
-                                                    type="text"
-                                                    inputMode="decimal"
-                                                    value={addForm.declaration}
-                                                    onChange={(event) =>
-                                                        setAddForm((current) => ({ ...current, declaration: toDecimalInput(event.target.value) }))
-                                                    }
-                                                />
-                                                {renderFieldError(addErrors, "declaration")}
-                                            </div>
-                                            <div className="grid gap-1.5">
-                                                <label htmlFor="add-local-transport-advanced" className="text-sm font-medium">Local Transport</label>
-                                                <Input
-                                                    id="add-local-transport-advanced"
-                                                    placeholder="Local Transport"
-                                                    type="text"
-                                                    inputMode="decimal"
-                                                    value={addForm.localTransport}
-                                                    onChange={(event) =>
-                                                        setAddForm((current) => ({ ...current, localTransport: toDecimalInput(event.target.value) }))
-                                                    }
-                                                />
-                                                {renderFieldError(addErrors, "localTransport")}
-                                            </div>
-                                            <div className="grid gap-1.5">
-                                                <label htmlFor="add-miscellaneous" className="text-sm font-medium">Miscellaneous</label>
-                                                <Input
-                                                    id="add-miscellaneous"
-                                                    placeholder="Miscellaneous"
-                                                    type="text"
-                                                    inputMode="decimal"
-                                                    value={addForm.miscellaneous}
-                                                    onChange={(event) =>
-                                                        setAddForm((current) => ({ ...current, miscellaneous: toDecimalInput(event.target.value) }))
-                                                    }
-                                                />
-                                                {renderFieldError(addErrors, "miscellaneous")}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="space-y-2">
-                                    <p className="text-sm font-medium">Select Products</p>
-                                    {renderProductSelector(addSelectedProductIds, setAddSelectedProductIds)}
-                                </div>
-
-                                {addErrors.general ? <p className="text-sm text-destructive">{addErrors.general}</p> : null}
-
-                                <Button
-                                    type="submit"
-                                    disabled={isAddSubmitting || !canCreateBatch}
-                                    className="disabled:opacity-50"
-                                >
-                                    {isAddSubmitting ? "Saving..." : "Create Batch"}
-                                </Button>
-                                {!canCreateBatch ? (
-                                    <p className="text-xs text-muted-foreground">
-                                        Add at least one expense amount.
-                                    </p>
-                                ) : null}
-                            </form>
-                        </div>
-                    </SheetContent>
-                </Sheet>
+                <Button className="h-10 px-6" size={"lg"} onClick={() => router.push("/app/batches/create")}>
+                    Add Batch
+                </Button>
             </CardHeader>
 
             <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -1241,7 +875,7 @@ export function BatchesPage() {
                                 onClick={openBulkDeleteBatchesConfirm}
                                 disabled={isBulkDeleting || isBulkDeleteInfoLoading}
                                 loading={isBulkDeleting || isBulkDeleteInfoLoading}
-                                loadingText={isBulkDeleteInfoLoading ? "Loading warnings" : "Deleting batches"}
+                                loadingText={isBulkDeleteInfoLoading ? "Checking warnings" : "Deleting batches"}
                             >
                                 <Trash2Icon className="h-4 w-4" />
                                 {isBulkDeleting ? "Deleting..." : "Delete Selected"}
@@ -1536,7 +1170,7 @@ export function BatchesPage() {
                                                 title={`Select ${batch.batchName}`}
                                             />
                                         </TableCell>
-                                        <TableCell className="font-medium hover:underline max-w-xs">
+                                        <TableCell className="font-medium max-w-xs">
                                             <span className="block w-11/12 overflow-hidden text-ellipsis whitespace-nowrap" title={batch.batchName}>
                                                 {batch.batchName}
                                             </span>
@@ -1654,7 +1288,7 @@ export function BatchesPage() {
                                     onClick={removeSelectedBatches}
                                     disabled={isBulkDeleting || isBulkDeleteInfoLoading}
                                     loading={isBulkDeleting || isBulkDeleteInfoLoading}
-                                    loadingText={isBulkDeleteInfoLoading ? "Loading warnings" : "Deleting batches"}
+                                    loadingText={isBulkDeleteInfoLoading ? "Checking warnings" : "Deleting batches"}
                                 >
                                     Delete Selected
                                 </Button>
@@ -1723,7 +1357,7 @@ export function BatchesPage() {
                                     onClick={confirmDeleteBatch}
                                     disabled={isDeleting || isDeleteInfoLoading}
                                     loading={isDeleting || isDeleteInfoLoading}
-                                    loadingText={isDeleteInfoLoading ? "Loading warnings" : "Deleting batch"}
+                                    loadingText={isDeleteInfoLoading ? "Checking warnings" : "Deleting batch"}
                                 >
                                     Delete Batch
                                 </Button>

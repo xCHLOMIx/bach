@@ -48,7 +48,7 @@ function Button({
   size = "default",
   asChild = false,
   loading = false,
-  loadingText = "Loading",
+  loadingText = "Working",
   disabled,
   children,
   ...props
