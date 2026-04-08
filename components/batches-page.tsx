@@ -1483,7 +1483,8 @@ export function BatchesPage() {
                                 {sortedBatches.map((batch) => (
                                     <TableRow
                                         key={batch._id}
-                                        className={selectedBatchIds.has(batch._id) ? "bg-primary/20 text-foreground" : "hover:bg-muted/40"}
+                                        className={selectedBatchIds.has(batch._id) ? "bg-primary/20 text-foreground cursor-pointer" : "hover:bg-muted/40 cursor-pointer"}
+                                        onClick={() => router.push(`/app/batches/${batch._id}`)}
                                     >
                                         <TableCell onClick={(event) => event.stopPropagation()}>
                                             <input
@@ -1502,7 +1503,7 @@ export function BatchesPage() {
                                                 title={`Select ${batch.batchName}`}
                                             />
                                         </TableCell>
-                                        <TableCell className="font-medium cursor-pointer hover:underline" onClick={() => router.push(`/app/batches/${batch._id}`)}>{batch.batchName}</TableCell>
+                                        <TableCell className="font-medium hover:underline">{batch.batchName}</TableCell>
                                         <TableCell className="text-muted-foreground">
                                             <div className="flex items-center gap-2">
                                                 <span className="truncate">{batch.trackingId || "-"}</span>
