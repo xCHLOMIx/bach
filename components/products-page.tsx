@@ -84,6 +84,7 @@ type Product = {
 type ProductTableColumnKey =
     | "image"
     | "name"
+    | "addedAt"
     | "batch"
     | "onHand"
     | "buyingPrice"
@@ -96,6 +97,7 @@ type ProductSortDirection = "asc" | "desc"
 const DEFAULT_PRODUCT_COLUMN_ORDER: ProductTableColumnKey[] = [
     "image",
     "name",
+    "addedAt",
     "batch",
     "onHand",
     "buyingPrice",
@@ -149,6 +151,7 @@ export function ProductsPage() {
     const [visibleColumns, setVisibleColumns] = React.useState<Record<ProductTableColumnKey, boolean>>({
         image: true,
         name: true,
+        addedAt: true,
         batch: true,
         onHand: true,
         buyingPrice: true,
@@ -1022,6 +1025,10 @@ export function ProductsPage() {
                 return product.name
             }
 
+            if (column === "addedAt") {
+                return new Date(product.createdAt).getTime()
+            }
+
             if (column === "batch") {
                 return product.batchId?.batchName ?? ""
             }
@@ -1088,6 +1095,7 @@ export function ProductsPage() {
     const columnLabels: Record<ProductTableColumnKey, string> = {
         image: "Image",
         name: "Name",
+        addedAt: "Added",
         batch: "Batch",
         onHand: "On Hand",
         buyingPrice: "Buying Price (RWF)",
@@ -1128,7 +1136,7 @@ export function ProductsPage() {
                 return currentColumn
             }
 
-            setSortDirection("asc")
+            setSortDirection(columnKey === "addedAt" ? "desc" : "asc")
             return columnKey
         })
     }, [])
@@ -1159,6 +1167,16 @@ export function ProductsPage() {
                 <TableCell className="p-0 truncate max-w-xs">
                     <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
                         {product.name}
+                    </Link>
+                </TableCell>
+            )
+        }
+
+        if (columnKey === "addedAt") {
+            return (
+                <TableCell className="p-0">
+                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                        {new Date(product.createdAt).toLocaleString()}
                     </Link>
                 </TableCell>
             )
@@ -2094,6 +2112,7 @@ export function ProductsPage() {
                                         <DropdownMenuSeparator />
                                         <DropdownMenuCheckboxItem checked={visibleColumns.image} onCheckedChange={(value) => handleColumnVisibilityChange("image", Boolean(value))}>Image</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.name} onCheckedChange={(value) => handleColumnVisibilityChange("name", Boolean(value))}>Name</DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem checked={visibleColumns.addedAt} onCheckedChange={(value) => handleColumnVisibilityChange("addedAt", Boolean(value))}>Added</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.batch} onCheckedChange={(value) => handleColumnVisibilityChange("batch", Boolean(value))}>Batch</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.onHand} onCheckedChange={(value) => handleColumnVisibilityChange("onHand", Boolean(value))}>On Hand</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.buyingPrice} onCheckedChange={(value) => handleColumnVisibilityChange("buyingPrice", Boolean(value))}>Buying Price</DropdownMenuCheckboxItem>
@@ -2185,7 +2204,7 @@ export function ProductsPage() {
                                             sortedFilteredProducts.map((product) => (
                                                 <TableRow
                                                     key={product._id}
-                                                    className="p-0"
+                                                    className={selectedProductIds.has(product._id) ? "bg-primary/20 text-foreground" : "hover:bg-muted/40"}
                                                 >
                                                     <TableCell onClick={(e) => e.stopPropagation()} className="p-3">
                                                         <input type="checkbox" className="rounded" checked={selectedProductIds.has(product._id)} onChange={(e) => {
@@ -2214,7 +2233,7 @@ export function ProductsPage() {
                     </>
                 ) : (
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                        {filteredProducts.map((product) => (
+                        {sortedFilteredProducts.map((product) => (
                             <div
                                 key={product._id}
                                 className="cursor-pointer rounded-lg border bg-card p-4"

@@ -515,9 +515,9 @@ export function BatchesPage() {
                             className={cn(
                                 "flex w-full items-center gap-2 border-b px-3 py-2 text-left text-sm last:border-b-0",
                                 index === 0 && "rounded-t-md",
-                                index === products.length - 1 && "rounded-b-md",
+                                index === unassignedProducts.length - 1 && "rounded-b-md",
                                 isSelected
-                                    ? "bg-primary/20 text-foreground ring-1 ring-inset ring-primary/40"
+                                    ? "bg-primary/20 text-foreground"
                                     : "hover:bg-muted/40"
                             )}
                         >

@@ -27,7 +27,9 @@ export default async function RootLayout({
             <AppSidebar variant="inset" />
             <SidebarInset>
                 <SiteHeader />
-                {children}
+                <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+                    {children}
+                </div>
             </SidebarInset>
         </SidebarProvider>
     );
