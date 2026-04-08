@@ -41,41 +41,22 @@ export async function GET(request: NextRequest) {
 
   const batches = await BatchModel.find({ userId: user._id }).sort({ createdAt: -1 }).lean()
 
+  if (batches.length === 0) {
+    return successResponse({ batches: [] })
+  }
+
   const batchIds = batches.map((batch) => batch._id)
   const itemCounts = await ProductModel.aggregate<{ _id: string; count: number }>([
     { $match: { userId: user._id, batchId: { $in: batchIds } } },
     { $group: { _id: "$batchId", count: { $sum: 1 } } },
   ])
 
-  const groupedProducts = await ProductModel.aggregate<{
-    _id: string
-    products: Array<{ _id: string; name: string; quantityRemaining: number }>
-  }>([
-    { $match: { userId: user._id, batchId: { $in: batchIds } } },
-    {
-      $group: {
-        _id: "$batchId",
-        products: {
-          $push: {
-            _id: "$_id",
-            name: "$name",
-            quantityRemaining: "$quantityRemaining",
-          },
-        },
-      },
-    },
-  ])
-
   const countsMap = new Map(itemCounts.map((entry) => [String(entry._id), entry.count]))
-  const productsMap = new Map(
-    groupedProducts.map((entry) => [String(entry._id), entry.products])
-  )
 
   return successResponse({
     batches: batches.map((batch) => ({
       ...batch,
       productCount: countsMap.get(String(batch._id)) ?? 0,
-      products: productsMap.get(String(batch._id)) ?? [],
     })),
   })
 }

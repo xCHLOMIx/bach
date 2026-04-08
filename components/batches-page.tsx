@@ -81,11 +81,6 @@ type Batch = {
     miscellaneous: number
     createdAt: string
     productCount?: number
-    products?: Array<{
-        _id: string
-        name: string
-        quantityRemaining: number
-    }>
 }
 
 type Product = { _id: string; name: string; batchId?: { _id?: string } | null }
@@ -1092,7 +1087,6 @@ export function BatchesPage() {
                             <DropdownMenuCheckboxItem checked={visibleColumns.name} onCheckedChange={(value) => handleColumnVisibilityChange("name", Boolean(value))}>Name</DropdownMenuCheckboxItem>
                             <DropdownMenuCheckboxItem checked={visibleColumns.tracking} onCheckedChange={(value) => handleColumnVisibilityChange("tracking", Boolean(value))}>Tracking</DropdownMenuCheckboxItem>
                             <DropdownMenuCheckboxItem checked={visibleColumns.costs} onCheckedChange={(value) => handleColumnVisibilityChange("costs", Boolean(value))}>Total Costs</DropdownMenuCheckboxItem>
-                            <DropdownMenuCheckboxItem checked={visibleColumns.products} onCheckedChange={(value) => handleColumnVisibilityChange("products", Boolean(value))}>Products</DropdownMenuCheckboxItem>
                             <DropdownMenuCheckboxItem checked={visibleColumns.created} onCheckedChange={(value) => handleColumnVisibilityChange("created", Boolean(value))}>Created</DropdownMenuCheckboxItem>
                             <DropdownMenuCheckboxItem checked={visibleColumns.actions} onCheckedChange={(value) => handleColumnVisibilityChange("actions", Boolean(value))}>Actions</DropdownMenuCheckboxItem>
                         </DropdownMenuContent>
@@ -1211,7 +1205,6 @@ export function BatchesPage() {
                                             {sortColumn === "products" ? (sortDirection === "asc" ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />) : null}
                                         </button>
                                     </TableHead>
-                                    <TableHead>Product Names</TableHead>
                                     <TableHead>
                                         <button
                                             type="button"
@@ -1238,6 +1231,7 @@ export function BatchesPage() {
                                         <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                                         <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                                         <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-10" /></TableCell>
                                         <TableCell><Skeleton className="h-4 w-10" /></TableCell>
                                         <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                                         <TableCell><Skeleton className="h-4 w-24" /></TableCell>
@@ -1355,7 +1349,6 @@ export function BatchesPage() {
                                             {sortColumn === "products" ? (sortDirection === "asc" ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />) : null}
                                         </button>
                                     </TableHead>
-                                    <TableHead>Product Names</TableHead>
                                     <TableHead>
                                         <button
                                             type="button"
@@ -1422,11 +1415,6 @@ export function BatchesPage() {
                                         </TableCell>
                                         <TableCell>{getBatchTotalCosts(batch).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
                                         <TableCell>{batch.productCount ?? 0}</TableCell>
-                                        <TableCell className="truncate max-w-xs">
-                                            {batch.products?.length
-                                                ? batch.products.map((product) => product.name).join(", ")
-                                                : "-"}
-                                        </TableCell>
                                         <TableCell>{new Date(batch.createdAt).toLocaleDateString()}</TableCell>
                                         <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
                                             <Button
