@@ -7,6 +7,7 @@ import { getAuthorizedUser } from "@/lib/auth-guard"
 import { buildBatchCostInputsFromBatch, calculateBatchProductLandedCosts } from "@/lib/costs"
 import { BatchModel } from "@/models/Batch"
 import { ProductModel } from "@/models/Product"
+import { SaleModel } from "@/models/Sale"
 
 function hasAtLeastOneBatchExpense(numberFields: Record<string, number>) {
   return Object.values(numberFields).some((value) => value > 0)
@@ -196,5 +197,68 @@ export async function PATCH(
     return successResponse({ batch: hydratedBatch })
   } catch (error) {
     return errorResponse(mapBatchPersistenceError(error), 400)
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  await connectToDatabase()
+
+  const user = await getAuthorizedUser(request)
+  if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
+
+  const { id } = await context.params
+  if (!Types.ObjectId.isValid(id)) {
+    return errorResponse({ batchId: "Invalid batch id" }, 400)
+  }
+
+  try {
+    const batch = await BatchModel.findOne({ _id: id, userId: user._id })
+    if (!batch) {
+      return errorResponse({ batchId: "Batch not found" }, 404)
+    }
+
+    // Get all products in this batch
+    const productsInBatch = await ProductModel.find({ batchId: id, userId: user._id }).lean()
+    const productIds = productsInBatch.map((p) => p._id)
+
+    // Count total sales for products in this batch
+    const salesCount = await SaleModel.countDocuments({ productId: { $in: productIds }, userId: user._id })
+
+    // Prepare deletion data
+    const deletionData = {
+      batchName: batch.batchName,
+      productCount: productsInBatch.length,
+      hasActiveSales: salesCount > 0,
+      salesCount,
+    }
+
+    const { searchParams } = new URL(request.url)
+    const isConfirmed = searchParams.get("confirm") === "true"
+
+    if (!isConfirmed) {
+      // First call - return deletion info without deleting
+      return successResponse({
+        message: "Batch deletion check",
+        deletionInfo: deletionData,
+      })
+    }
+
+    // Delete the batch
+    await BatchModel.findByIdAndDelete(id)
+    
+    // Unassign products from the batch
+    if (productIds.length > 0) {
+      await ProductModel.updateMany({ _id: { $in: productIds } }, { batchId: null })
+    }
+
+    return successResponse({
+      message: "Batch deleted successfully",
+    })
+  } catch (error) {
+    console.error("Error deleting batch:", error)
+    return errorResponse({ message: "Failed to delete batch" }, 500)
   }
 }

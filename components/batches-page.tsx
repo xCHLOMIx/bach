@@ -10,6 +10,14 @@ import {
     CardTitle,
 } from "@/components/ui/card"
 import {
+    DropdownMenu,
+    DropdownMenuTrigger,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu"
+import {
     Empty,
     EmptyContent,
     EmptyDescription,
@@ -43,7 +51,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { convertInternationalExpenseToRwf } from "@/lib/costs"
 import { cn } from "@/lib/utils"
-import { CheckIcon, CopyIcon, PackageSearchIcon } from "lucide-react"
+import { Kbd, KbdGroup } from "@/components/ui/kbd"
+import { CheckIcon, CopyIcon, PackageSearchIcon, SearchIcon, ChevronUpIcon, ChevronDownIcon, Trash2Icon, Columns3Icon } from "lucide-react"
 
 const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "EUR"] as const
 type PickupMethod = "easy" | "advanced"
@@ -126,6 +135,16 @@ export function BatchesPage() {
     const [addErrors, setAddErrors] = React.useState<Record<string, string>>({})
     const [isAddSubmitting, setIsAddSubmitting] = React.useState(false)
 
+    const [batchSearch, setBatchSearch] = React.useState("")
+    const [selectedBatchIds, setSelectedBatchIds] = React.useState<Set<string>>(new Set())
+    const [isBulkDeleting, setIsBulkDeleting] = React.useState(false)
+    const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false)
+    const [deleteConfirmData, setDeleteConfirmData] = React.useState<{ batchId: string; batchName: string; productCount: number; hasActiveSales: boolean; salesCount: number } | null>(null)
+    const [isDeleting, setIsDeleting] = React.useState(false)
+    const [sortColumn, setSortColumn] = React.useState<"name" | "tracking" | "costs" | "products" | "created">("created")
+    const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("desc")
+    const [visibleColumns, setVisibleColumns] = React.useState({ name: true, tracking: true, costs: true, products: true, created: true, actions: true })
+
     const stripCommas = (value: string) => value.replace(/,/g, "")
 
     const formatDecimalWithCommas = (value: string) => {
@@ -199,17 +218,6 @@ export function BatchesPage() {
         return products.filter((product) => !product.batchId?._id)
     }, [products])
 
-    const copyTrackingId = React.useCallback(async (trackingId: string) => {
-        if (!trackingId.trim()) {
-            return
-        }
-
-        await navigator.clipboard.writeText(trackingId.trim())
-    }, [])
-
-    const hasSelectedProducts = addSelectedProductIds.length > 0
-    const canCreateBatch = hasAnyExpenseAmount(addForm) && hasSelectedProducts
-
     const getBatchTotalCosts = React.useCallback((batch: Batch) => {
         const intlShippingRwf = convertInternationalExpenseToRwf(
             Number(batch.intlShipping ?? 0),
@@ -243,6 +251,151 @@ export function BatchesPage() {
             Number(batch.miscellaneous ?? 0)
         )
     }, [])
+
+    const filteredBatches = React.useMemo(() => {
+        const searchLower = batchSearch.toLowerCase().trim()
+        return batches.filter((batch) =>
+            batch.batchName.toLowerCase().includes(searchLower) ||
+            (batch.trackingId || "").toLowerCase().includes(searchLower)
+        )
+    }, [batches, batchSearch])
+
+    const sortedBatches = React.useMemo(() => {
+        const sorted = [...filteredBatches]
+        const stringCollator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true })
+
+        sorted.sort((a, b) => {
+            let aVal: number | string = ""
+            let bVal: number | string = ""
+
+            if (sortColumn === "name") {
+                aVal = a.batchName
+                bVal = b.batchName
+            } else if (sortColumn === "tracking") {
+                aVal = a.trackingId || ""
+                bVal = b.trackingId || ""
+            } else if (sortColumn === "costs") {
+                aVal = getBatchTotalCosts(a)
+                bVal = getBatchTotalCosts(b)
+            } else if (sortColumn === "products") {
+                aVal = a.productCount ?? 0
+                bVal = b.productCount ?? 0
+            } else {
+                aVal = new Date(a.createdAt).getTime()
+                bVal = new Date(b.createdAt).getTime()
+            }
+
+            let result = 0
+            if (typeof aVal === "number" && typeof bVal === "number") {
+                result = aVal - bVal
+            } else {
+                result = stringCollator.compare(String(aVal), String(bVal))
+            }
+
+            return sortDirection === "asc" ? result : -result
+        })
+
+        return sorted
+    }, [filteredBatches, sortColumn, sortDirection, getBatchTotalCosts])
+
+    const isAllBatchesSelected = sortedBatches.length > 0 && selectedBatchIds.size === sortedBatches.length
+
+    const handleDeleteBatch = async (batch: Batch) => {
+        try {
+            const response = await fetch(`/api/batches/${batch._id}`, {
+                method: "DELETE",
+            })
+
+            const data = await response.json()
+            if (!response.ok) {
+                alert("Failed to get deletion info")
+                return
+            }
+
+            setDeleteConfirmData({
+                batchId: batch._id,
+                ...data.deletionInfo,
+            })
+            setShowDeleteConfirm(true)
+        } catch (error) {
+            alert("Failed to get deletion info")
+            console.error(error)
+        }
+    }
+
+    const confirmDeleteBatch = async () => {
+        if (!deleteConfirmData) return
+
+        setIsDeleting(true)
+        try {
+            const response = await fetch(`/api/batches/${deleteConfirmData.batchId}?confirm=true`, {
+                method: "DELETE",
+            })
+
+            if (!response.ok) {
+                alert("Failed to delete batch")
+                return
+            }
+
+            setShowDeleteConfirm(false)
+            setDeleteConfirmData(null)
+            setSelectedBatchIds((current) => {
+                const next = new Set(current)
+                next.delete(deleteConfirmData.batchId)
+                return next
+            })
+            await load()
+        } catch (error) {
+            alert("Failed to delete batch")
+            console.error(error)
+        } finally {
+            setIsDeleting(false)
+        }
+    }
+
+    const removeSelectedBatches = async () => {
+        if (selectedBatchIds.size === 0) return
+
+        setIsBulkDeleting(true)
+        try {
+            const failedBatchIds: string[] = []
+
+            for (const batchId of selectedBatchIds) {
+                const response = await fetch(`/api/batches/${batchId}?confirm=true`, {
+                    method: "DELETE",
+                })
+
+                if (!response.ok) {
+                    failedBatchIds.push(batchId)
+                }
+            }
+
+            if (failedBatchIds.length > 0) {
+                alert(`Failed to delete ${failedBatchIds.length} batches`)
+                return
+            }
+
+            setSelectedBatchIds(new Set())
+            await load()
+        } finally {
+            setIsBulkDeleting(false)
+        }
+    }
+
+    const handleColumnVisibilityChange = (columnKey: string, value: boolean) => {
+        setVisibleColumns((current) => ({ ...current, [columnKey]: value }))
+    }
+
+    const copyTrackingId = React.useCallback(async (trackingId: string) => {
+        if (!trackingId.trim()) {
+            return
+        }
+
+        await navigator.clipboard.writeText(trackingId.trim())
+    }, [])
+
+    const hasSelectedProducts = addSelectedProductIds.length > 0
+    const canCreateBatch = hasAnyExpenseAmount(addForm) && hasSelectedProducts
 
     const renderFieldError = (errors: Record<string, string>, field: string) => {
         if (!errors[field]) {
@@ -532,14 +685,16 @@ export function BatchesPage() {
 
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
-            <CardHeader className="flex flex-col gap-3 px-0 sm:flex-row sm:items-center sm:justify-between">
+            <CardHeader className="flex items-center justify-between gap-3 px-0">
                 <div className="min-w-0">
                     <CardTitle className="text-2xl font-bold">Batches</CardTitle>
                     <CardDescription>Create, edit, and manage products in each batch.</CardDescription>
                 </div>
                 <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
                     <SheetTrigger asChild>
-                        <Button className="h-10 px-6" size={"lg"}>Add Batch</Button>
+                        <Button className="h-10 px-6" size={"lg"}>
+                            Add Batch
+                        </Button>
                     </SheetTrigger>
                     <SheetContent
                         className="p-0"
@@ -898,18 +1053,183 @@ export function BatchesPage() {
                 </Sheet>
             </CardHeader>
 
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+                <div className="relative w-full sm:w-64">
+                    <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                        value={batchSearch || ""}
+                        onChange={(event) => setBatchSearch(event.target.value)}
+                        placeholder="Search batches..."
+                        className="pr-18 pl-9"
+                    />
+                    <KbdGroup className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex">
+                        <Kbd>Ctrl</Kbd>
+                        <Kbd>F</Kbd>
+                    </KbdGroup>
+                </div>
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                    <h3 className="text-sm text-muted-foreground">Total</h3>
+                    <p className="text-sm font-semibold">{batches.length}</p>
+                    {selectedBatchIds.size > 0 && (
+                        <>
+                            <span className="text-xs text-muted-foreground">|</span>
+                            <p className="text-sm font-medium text-primary">{selectedBatchIds.size} selected</p>
+                        </>
+                    )}
+                </div>
+                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end sm:ml-auto">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline">
+                                <Columns3Icon className="h-4 w-4" />
+                                Columns
+                                <ChevronDownIcon className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuCheckboxItem checked={visibleColumns.name} onCheckedChange={(value) => handleColumnVisibilityChange("name", Boolean(value))}>Name</DropdownMenuCheckboxItem>
+                            <DropdownMenuCheckboxItem checked={visibleColumns.tracking} onCheckedChange={(value) => handleColumnVisibilityChange("tracking", Boolean(value))}>Tracking</DropdownMenuCheckboxItem>
+                            <DropdownMenuCheckboxItem checked={visibleColumns.costs} onCheckedChange={(value) => handleColumnVisibilityChange("costs", Boolean(value))}>Total Costs</DropdownMenuCheckboxItem>
+                            <DropdownMenuCheckboxItem checked={visibleColumns.products} onCheckedChange={(value) => handleColumnVisibilityChange("products", Boolean(value))}>Products</DropdownMenuCheckboxItem>
+                            <DropdownMenuCheckboxItem checked={visibleColumns.created} onCheckedChange={(value) => handleColumnVisibilityChange("created", Boolean(value))}>Created</DropdownMenuCheckboxItem>
+                            <DropdownMenuCheckboxItem checked={visibleColumns.actions} onCheckedChange={(value) => handleColumnVisibilityChange("actions", Boolean(value))}>Actions</DropdownMenuCheckboxItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {selectedBatchIds.size > 0 ? (
+                        <>
+                            <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={removeSelectedBatches}
+                                disabled={isBulkDeleting}
+                            >
+                                <Trash2Icon className="h-4 w-4" />
+                                {isBulkDeleting ? "Deleting..." : "Delete Selected"}
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setSelectedBatchIds(new Set())}
+                                disabled={isBulkDeleting}
+                            >
+                                Clear Selection
+                            </Button>
+                        </>
+                    ) : null}
+                </div>
+            </div>
+
             {isLoading ? (
                 <div className="overflow-x-auto rounded-xl border">
-                    <div className="min-w-180">
+                    <div className="min-w-200">
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Tracking number</TableHead>
-                                    <TableHead>Total costs (RWF)</TableHead>
-                                    <TableHead>Products</TableHead>
+                                    <TableHead className="w-12">
+                                        <input
+                                            type="checkbox"
+                                            className="rounded"
+                                            checked={isAllBatchesSelected}
+                                            onChange={(event) => {
+                                                if (event.target.checked) {
+                                                    setSelectedBatchIds(new Set(sortedBatches.map((b) => b._id)))
+                                                    return
+                                                }
+                                                setSelectedBatchIds(new Set())
+                                            }}
+                                            title="Select all"
+                                        />
+                                    </TableHead>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (sortColumn === "name") {
+                                                    setSortDirection((current) => (current === "asc" ? "desc" : "asc"))
+                                                    return
+                                                }
+                                                setSortColumn("name")
+                                                setSortDirection("asc")
+                                            }}
+                                            className="flex items-center gap-1"
+                                        >
+                                            Name
+                                            {sortColumn === "name" ? (sortDirection === "asc" ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />) : null}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (sortColumn === "tracking") {
+                                                    setSortDirection((current) => (current === "asc" ? "desc" : "asc"))
+                                                    return
+                                                }
+                                                setSortColumn("tracking")
+                                                setSortDirection("asc")
+                                            }}
+                                            className="flex items-center gap-1"
+                                        >
+                                            Tracking number
+                                            {sortColumn === "tracking" ? (sortDirection === "asc" ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />) : null}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (sortColumn === "costs") {
+                                                    setSortDirection((current) => (current === "asc" ? "desc" : "asc"))
+                                                    return
+                                                }
+                                                setSortColumn("costs")
+                                                setSortDirection("asc")
+                                            }}
+                                            className="flex items-center gap-1"
+                                        >
+                                            Total costs (RWF)
+                                            {sortColumn === "costs" ? (sortDirection === "asc" ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />) : null}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (sortColumn === "products") {
+                                                    setSortDirection((current) => (current === "asc" ? "desc" : "asc"))
+                                                    return
+                                                }
+                                                setSortColumn("products")
+                                                setSortDirection("asc")
+                                            }}
+                                            className="flex items-center gap-1"
+                                        >
+                                            Products
+                                            {sortColumn === "products" ? (sortDirection === "asc" ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />) : null}
+                                        </button>
+                                    </TableHead>
                                     <TableHead>Product Names</TableHead>
-                                    <TableHead>Created</TableHead>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (sortColumn === "created") {
+                                                    setSortDirection((current) => (current === "asc" ? "desc" : "asc"))
+                                                    return
+                                                }
+                                                setSortColumn("created")
+                                                setSortDirection("asc")
+                                            }}
+                                            className="flex items-center gap-1"
+                                        >
+                                            Created
+                                            {sortColumn === "created" ? (sortDirection === "asc" ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />) : null}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -926,6 +1246,10 @@ export function BatchesPage() {
                             </TableBody>
                         </Table>
                     </div>
+                </div>
+            ) : filteredBatches.length === 0 && batchSearch ? (
+                <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+                    No batches found matching your search.
                 </div>
             ) : batches.length === 0 ? (
                 <Empty className="-translate-y-5">
@@ -944,26 +1268,138 @@ export function BatchesPage() {
                 </Empty>
             ) : (
                 <div className="overflow-x-auto rounded-xl border">
-                    <div className="min-w-180">
+                    <div className="min-w-200">
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Tracking number</TableHead>
-                                    <TableHead>Total costs (RWF)</TableHead>
-                                    <TableHead>Products</TableHead>
+                                    <TableHead className="w-12">
+                                        <input
+                                            type="checkbox"
+                                            className="rounded"
+                                            checked={isAllBatchesSelected}
+                                            onChange={(event) => {
+                                                if (event.target.checked) {
+                                                    setSelectedBatchIds(new Set(sortedBatches.map((b) => b._id)))
+                                                    return
+                                                }
+                                                setSelectedBatchIds(new Set())
+                                            }}
+                                            title="Select all"
+                                        />
+                                    </TableHead>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (sortColumn === "name") {
+                                                    setSortDirection((current) => (current === "asc" ? "desc" : "asc"))
+                                                    return
+                                                }
+                                                setSortColumn("name")
+                                                setSortDirection("asc")
+                                            }}
+                                            className="flex items-center gap-1"
+                                        >
+                                            Name
+                                            {sortColumn === "name" ? (sortDirection === "asc" ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />) : null}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (sortColumn === "tracking") {
+                                                    setSortDirection((current) => (current === "asc" ? "desc" : "asc"))
+                                                    return
+                                                }
+                                                setSortColumn("tracking")
+                                                setSortDirection("asc")
+                                            }}
+                                            className="flex items-center gap-1"
+                                        >
+                                            Tracking number
+                                            {sortColumn === "tracking" ? (sortDirection === "asc" ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />) : null}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (sortColumn === "costs") {
+                                                    setSortDirection((current) => (current === "asc" ? "desc" : "asc"))
+                                                    return
+                                                }
+                                                setSortColumn("costs")
+                                                setSortDirection("asc")
+                                            }}
+                                            className="flex items-center gap-1"
+                                        >
+                                            Total costs (RWF)
+                                            {sortColumn === "costs" ? (sortDirection === "asc" ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />) : null}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (sortColumn === "products") {
+                                                    setSortDirection((current) => (current === "asc" ? "desc" : "asc"))
+                                                    return
+                                                }
+                                                setSortColumn("products")
+                                                setSortDirection("asc")
+                                            }}
+                                            className="flex items-center gap-1"
+                                        >
+                                            Products
+                                            {sortColumn === "products" ? (sortDirection === "asc" ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />) : null}
+                                        </button>
+                                    </TableHead>
                                     <TableHead>Product Names</TableHead>
-                                    <TableHead>Created</TableHead>
+                                    <TableHead>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (sortColumn === "created") {
+                                                    setSortDirection((current) => (current === "asc" ? "desc" : "asc"))
+                                                    return
+                                                }
+                                                setSortColumn("created")
+                                                setSortDirection("asc")
+                                            }}
+                                            className="flex items-center gap-1"
+                                        >
+                                            Created
+                                            {sortColumn === "created" ? (sortDirection === "asc" ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />) : null}
+                                        </button>
+                                    </TableHead>
+                                    <TableHead>Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {batches.map((batch) => (
+                                {sortedBatches.map((batch) => (
                                     <TableRow
                                         key={batch._id}
-                                        className="cursor-pointer"
-                                        onClick={() => router.push(`/app/batches/${batch._id}`)}
+                                        className={selectedBatchIds.has(batch._id) ? "bg-primary/20 text-foreground" : "hover:bg-muted/40"}
                                     >
-                                        <TableCell className="font-medium">{batch.batchName}</TableCell>
+                                        <TableCell onClick={(event) => event.stopPropagation()}>
+                                            <input
+                                                type="checkbox"
+                                                className="rounded"
+                                                checked={selectedBatchIds.has(batch._id)}
+                                                onChange={(event) => {
+                                                    const nextSelected = new Set(selectedBatchIds)
+                                                    if (event.target.checked) {
+                                                        nextSelected.add(batch._id)
+                                                    } else {
+                                                        nextSelected.delete(batch._id)
+                                                    }
+                                                    setSelectedBatchIds(nextSelected)
+                                                }}
+                                                title={`Select ${batch.batchName}`}
+                                            />
+                                        </TableCell>
+                                        <TableCell className="font-medium cursor-pointer hover:underline" onClick={() => router.push(`/app/batches/${batch._id}`)}>{batch.batchName}</TableCell>
                                         <TableCell className="text-muted-foreground">
                                             <div className="flex items-center gap-2">
                                                 <span className="truncate">{batch.trackingId || "-"}</span>
@@ -992,6 +1428,16 @@ export function BatchesPage() {
                                                 : "-"}
                                         </TableCell>
                                         <TableCell>{new Date(batch.createdAt).toLocaleDateString()}</TableCell>
+                                        <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
+                                            <Button
+                                                size="sm"
+                                                variant="destructive"
+                                                onClick={() => handleDeleteBatch(batch)}
+                                            >
+                                                <Trash2Icon className="h-4 w-4" />
+                                                Delete
+                                            </Button>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -999,6 +1445,53 @@ export function BatchesPage() {
                     </div>
                 </div>
             )}
+
+            {showDeleteConfirm && deleteConfirmData ? (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-in fade-in duration-200"
+                    onClick={() => !isDeleting && setShowDeleteConfirm(false)}
+                >
+                    <div
+                        className="modal-pop-in bg-card rounded-lg shadow-lg w-full max-w-sm border border-border"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <h2 className="text-lg font-semibold text-foreground">Delete Batch?</h2>
+                                <p className="text-sm text-muted-foreground mt-1">This action cannot be undone.</p>
+                            </div>
+                            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 space-y-2 text-sm">
+                                <div>
+                                    <p className="font-medium text-destructive">Warning</p>
+                                    <ul className="list-disc list-inside text-destructive/80 mt-1">
+                                        <li>Batch: <span className="font-medium">{deleteConfirmData.batchName}</span></li>
+                                        <li>Contains <span className="font-medium">{deleteConfirmData.productCount}</span> product{deleteConfirmData.productCount !== 1 ? "s" : ""}</li>
+                                        {deleteConfirmData.hasActiveSales ? (
+                                            <li><span className="font-medium">{deleteConfirmData.salesCount}</span> sale{deleteConfirmData.salesCount !== 1 ? "s" : ""} recorded for products in this batch</li>
+                                        ) : null}
+                                    </ul>
+                                </div>
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowDeleteConfirm(false)}
+                                    disabled={isDeleting}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={confirmDeleteBatch}
+                                    disabled={isDeleting}
+                                >
+                                    {isDeleting ? "Deleting..." : "Delete Batch"}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     )
 }
