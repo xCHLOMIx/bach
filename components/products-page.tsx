@@ -2562,11 +2562,11 @@ export function ProductsPage() {
                                             <div className="p-3 rounded-lg bg-muted border border-border">
                                                 {saleProfitPerUnit > 0 ? (
                                                     <p className="text-sm font-medium text-primary">
-                                                        Profit: {saleProfitPerUnit.toLocaleString()} RWF per unit
+                                                        Profit: <span className="font-bold">{saleProfitPerUnit.toLocaleString()} RWF</span> per unit
                                                     </p>
                                                 ) : saleProfitPerUnit < 0 ? (
                                                     <p className="text-sm font-medium text-destructive">
-                                                        Loss: {Math.abs(saleProfitPerUnit).toLocaleString()} RWF per unit
+                                                        Loss: <span className="font-bold">{Math.abs(saleProfitPerUnit).toLocaleString()} RWF</span> per unit
                                                     </p>
                                                 ) : (
                                                     <p className="text-sm font-medium text-muted-foreground">
@@ -2697,7 +2697,7 @@ export function ProductsPage() {
                                                             Total value: <span className="font-semibold text-foreground">{totalSellingValue.toLocaleString()} RWF</span>
                                                         </p>
                                                         <p>
-                                                            {totalProfit >= 0 ? "Profit" : "Loss"}: <span className={totalProfit >= 0 ? "font-semibold text-primary" : "font-semibold text-destructive"}>{Math.abs(totalProfit).toLocaleString()} RWF</span>
+                                                            {totalProfit >= 0 ? "Profit" : "Loss"}: <span className={totalProfit >= 0 ? "font-bold text-primary" : "font-bold text-destructive"}>{Math.abs(totalProfit).toLocaleString()} RWF</span>
                                                         </p>
                                                     </div>
                                                 </div>
