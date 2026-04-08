@@ -56,6 +56,7 @@ import { CheckIcon, CopyIcon, PackageSearchIcon, SearchIcon, ChevronUpIcon, Chev
 
 const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "EUR"] as const
 const BATCHES_VISIBLE_COLUMNS_STORAGE_KEY = "batches:visible-columns"
+const BATCHES_TABLE_STATE_STORAGE_KEY = "batches:table-state"
 type PickupMethod = "easy" | "advanced"
 
 type Batch = {
@@ -471,8 +472,7 @@ export function BatchesPage() {
         await navigator.clipboard.writeText(trackingId.trim())
     }, [])
 
-    const hasSelectedProducts = addSelectedProductIds.length > 0
-    const canCreateBatch = hasAnyExpenseAmount(addForm) && hasSelectedProducts
+    const canCreateBatch = hasAnyExpenseAmount(addForm)
 
     const renderFieldError = (errors: Record<string, string>, field: string) => {
         if (!errors[field]) {
@@ -534,6 +534,44 @@ export function BatchesPage() {
         window.localStorage.setItem(BATCHES_VISIBLE_COLUMNS_STORAGE_KEY, JSON.stringify(visibleColumns))
     }, [visibleColumns])
 
+    React.useEffect(() => {
+        const savedTableStateRaw = window.localStorage.getItem(BATCHES_TABLE_STATE_STORAGE_KEY)
+        if (!savedTableStateRaw) {
+            return
+        }
+
+        try {
+            const parsed = JSON.parse(savedTableStateRaw) as {
+                batchSearch?: string
+                sortColumn?: "name" | "tracking" | "costs" | "products" | "created"
+                sortDirection?: "asc" | "desc"
+            }
+
+            if (typeof parsed.batchSearch === "string") {
+                setBatchSearch(parsed.batchSearch)
+            }
+            if (parsed.sortColumn && ["name", "tracking", "costs", "products", "created"].includes(parsed.sortColumn)) {
+                setSortColumn(parsed.sortColumn)
+            }
+            if (parsed.sortDirection === "asc" || parsed.sortDirection === "desc") {
+                setSortDirection(parsed.sortDirection)
+            }
+        } catch {
+            // Ignore invalid saved preferences.
+        }
+    }, [])
+
+    React.useEffect(() => {
+        window.localStorage.setItem(
+            BATCHES_TABLE_STATE_STORAGE_KEY,
+            JSON.stringify({
+                batchSearch,
+                sortColumn,
+                sortDirection,
+            })
+        )
+    }, [batchSearch, sortColumn, sortDirection])
+
     const handleAddPickupMethodChange = (method: PickupMethod) => {
         setAddForm((current) => {
             if (method === current.pickupMethod) {
@@ -570,11 +608,6 @@ export function BatchesPage() {
         try {
             if (!hasAnyExpenseAmount(addForm)) {
                 setAddErrors({ general: "Add at least one expense amount" })
-                return
-            }
-
-            if (addSelectedProductIds.length === 0) {
-                setAddErrors({ general: "Select at least one product" })
                 return
             }
 
@@ -716,7 +749,7 @@ export function BatchesPage() {
             }
 
             const createdBatchId = (data?.batch as { _id?: string } | undefined)?._id
-            if (createdBatchId) {
+            if (createdBatchId && addSelectedProductIds.length > 0) {
                 const syncResponse = await fetch(`/api/batches/${createdBatchId}/products`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
@@ -834,7 +867,7 @@ export function BatchesPage() {
                                 </div>
                                 <div className="space-y-3 rounded-lg border p-3">
                                     <p className="text-sm font-semibold">International Expenses</p>
-                                    <div className="grid gap-3 sm:grid-cols-3">
+                                    <div className="grid gap-3 lg:grid-cols-3">
                                         <div className="grid gap-1.5">
                                             <label htmlFor="add-intl-shipping" className="text-sm font-medium">Intl shipping</label>
                                             <Input
@@ -883,7 +916,7 @@ export function BatchesPage() {
                                         </div>
                                     </div>
 
-                                    <div className="grid gap-3 sm:grid-cols-3">
+                                    <div className="grid gap-3 lg:grid-cols-3">
                                         <div className="grid gap-1.5">
                                             <label htmlFor="add-warehouse-usa" className="text-sm font-medium">Warehouse USA</label>
                                             <Input
@@ -932,7 +965,7 @@ export function BatchesPage() {
                                         </div>
                                     </div>
 
-                                    <div className="grid gap-3 sm:grid-cols-3">
+                                    <div className="grid gap-3 lg:grid-cols-3">
                                         <div className="grid gap-1.5">
                                             <label htmlFor="add-amazon-prime" className="text-sm font-medium">Amazon Prime</label>
                                             <Input
@@ -1147,7 +1180,7 @@ export function BatchesPage() {
                                 </Button>
                                 {!canCreateBatch ? (
                                     <p className="text-xs text-muted-foreground">
-                                        Add at least one expense amount and select at least one product.
+                                        Add at least one expense amount.
                                     </p>
                                 ) : null}
                             </form>
@@ -1503,7 +1536,11 @@ export function BatchesPage() {
                                                 title={`Select ${batch.batchName}`}
                                             />
                                         </TableCell>
-                                        <TableCell className="font-medium hover:underline">{batch.batchName}</TableCell>
+                                        <TableCell className="font-medium hover:underline max-w-xs">
+                                            <span className="block w-11/12 overflow-hidden text-ellipsis whitespace-nowrap" title={batch.batchName}>
+                                                {batch.batchName}
+                                            </span>
+                                        </TableCell>
                                         <TableCell className="text-muted-foreground">
                                             <div className="flex items-center gap-2">
                                                 <span className="truncate">{batch.trackingId || "-"}</span>

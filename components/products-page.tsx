@@ -60,6 +60,7 @@ const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"]
 const NO_CATEGORY_VALUE = "__none__"
 const PRODUCTS_VIEW_MODE_STORAGE_KEY = "products:view-mode"
 const PRODUCTS_VISIBLE_COLUMNS_STORAGE_KEY = "products:visible-columns"
+const PRODUCTS_TABLE_STATE_STORAGE_KEY = "products:table-state"
 
 type Category = { _id: string; name: string }
 type Batch = { _id: string; batchName: string }
@@ -478,6 +479,54 @@ export function ProductsPage() {
     React.useEffect(() => {
         window.localStorage.setItem(PRODUCTS_VISIBLE_COLUMNS_STORAGE_KEY, JSON.stringify(visibleColumns))
     }, [visibleColumns])
+
+    React.useEffect(() => {
+        const savedTableStateRaw = window.localStorage.getItem(PRODUCTS_TABLE_STATE_STORAGE_KEY)
+        if (!savedTableStateRaw) {
+            return
+        }
+
+        try {
+            const parsed = JSON.parse(savedTableStateRaw) as {
+                productSearch?: string
+                sortColumn?: ProductSortColumn
+                sortDirection?: ProductSortDirection
+            }
+
+            const sortableColumns: ProductSortColumn[] = [
+                "name",
+                "addedAt",
+                "batch",
+                "onHand",
+                "buyingPrice",
+                "landedPrice",
+                "totalLandedCost",
+            ]
+
+            if (typeof parsed.productSearch === "string") {
+                setProductSearch(parsed.productSearch)
+            }
+            if (parsed.sortColumn && sortableColumns.includes(parsed.sortColumn)) {
+                setSortColumn(parsed.sortColumn)
+            }
+            if (parsed.sortDirection === "asc" || parsed.sortDirection === "desc") {
+                setSortDirection(parsed.sortDirection)
+            }
+        } catch {
+            // Ignore invalid saved preferences.
+        }
+    }, [])
+
+    React.useEffect(() => {
+        window.localStorage.setItem(
+            PRODUCTS_TABLE_STATE_STORAGE_KEY,
+            JSON.stringify({
+                productSearch,
+                sortColumn,
+                sortDirection,
+            })
+        )
+    }, [productSearch, sortColumn, sortDirection])
 
     React.useEffect(() => {
         const previews = imageFiles.map((file) => URL.createObjectURL(file))
@@ -1199,7 +1248,7 @@ export function ProductsPage() {
         if (columnKey === "image") {
             return (
                 <TableCell className="p-0">
-                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                    <div className="block p-2">
                         {product.images?.[0] ? (
                             <img
                                 src={product.images[0]}
@@ -1211,17 +1260,19 @@ export function ProductsPage() {
                                 {product.name.replace(/\s+/g, "").slice(0, 2).toUpperCase()}
                             </div>
                         )}
-                    </Link>
+                    </div>
                 </TableCell>
             )
         }
 
         if (columnKey === "name") {
             return (
-                <TableCell className="p-0 truncate max-w-xs">
-                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                        {product.name}
-                    </Link>
+                <TableCell className="p-0 max-w-xs">
+                    <div className="block p-2">
+                        <span className="block w-11/12 overflow-hidden text-ellipsis whitespace-nowrap" title={product.name}>
+                            {product.name}
+                        </span>
+                    </div>
                 </TableCell>
             )
         }
@@ -1229,9 +1280,9 @@ export function ProductsPage() {
         if (columnKey === "addedAt") {
             return (
                 <TableCell className="p-0">
-                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                    <div className="block p-2">
                         {new Date(product.createdAt).toLocaleString()}
-                    </Link>
+                    </div>
                 </TableCell>
             )
         }
@@ -1239,9 +1290,14 @@ export function ProductsPage() {
         if (columnKey === "batch") {
             return (
                 <TableCell className="p-0">
-                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
-                        {product.batchId?.batchName ?? "Unassigned"}
-                    </Link>
+                    <div className="block p-2">
+                        <span
+                            className="block w-11/12 overflow-hidden text-ellipsis whitespace-nowrap"
+                            title={product.batchId?.batchName ?? "Unassigned"}
+                        >
+                            {product.batchId?.batchName ?? "Unassigned"}
+                        </span>
+                    </div>
                 </TableCell>
             )
         }
@@ -1249,11 +1305,11 @@ export function ProductsPage() {
         if (columnKey === "onHand") {
             return (
                 <TableCell className="p-0">
-                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                    <div className="block p-2">
                         <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
                             {product.quantityRemaining}
                         </Badge>
-                    </Link>
+                    </div>
                 </TableCell>
             )
         }
@@ -1261,9 +1317,9 @@ export function ProductsPage() {
         if (columnKey === "buyingPrice") {
             return (
                 <TableCell className="p-0">
-                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                    <div className="block p-2">
                         {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </Link>
+                    </div>
                 </TableCell>
             )
         }
@@ -1271,18 +1327,18 @@ export function ProductsPage() {
         if (columnKey === "landedPrice") {
             return (
                 <TableCell className="p-0">
-                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                    <div className="block p-2">
                         {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </Link>
+                    </div>
                 </TableCell>
             )
         }
 
         return (
             <TableCell className="p-0">
-                <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50">
+                <div className="block p-2">
                     {(product.landedCost * product.quantityRemaining).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </Link>
+                </div>
             </TableCell>
         )
     }, [])
@@ -2305,7 +2361,8 @@ export function ProductsPage() {
                                             sortedFilteredProducts.map((product) => (
                                                 <TableRow
                                                     key={product._id}
-                                                    className={selectedProductIds.has(product._id) ? "bg-primary/20 text-foreground" : "hover:bg-muted/40"}
+                                                    className={selectedProductIds.has(product._id) ? "bg-primary/20 text-foreground cursor-pointer" : "hover:bg-muted/40 cursor-pointer"}
+                                                    onClick={() => router.push(`/app/products/${product._id}`)}
                                                 >
                                                     <TableCell onClick={(e) => e.stopPropagation()} className="p-3">
                                                         <input type="checkbox" className="rounded" checked={selectedProductIds.has(product._id)} onChange={(e) => {

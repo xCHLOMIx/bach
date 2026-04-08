@@ -30,6 +30,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Trash2Icon, SearchIcon, ChevronUpIcon, ChevronDownIcon, Columns3Icon } from "lucide-react"
 
 const CATEGORIES_VISIBLE_COLUMNS_STORAGE_KEY = "categories:visible-columns"
+const CATEGORIES_TABLE_STATE_STORAGE_KEY = "categories:table-state"
 
 type Category = {
     _id: string
@@ -105,6 +106,44 @@ export function CategoriesPage() {
     React.useEffect(() => {
         window.localStorage.setItem(CATEGORIES_VISIBLE_COLUMNS_STORAGE_KEY, JSON.stringify(visibleColumns))
     }, [visibleColumns])
+
+    React.useEffect(() => {
+        const savedTableStateRaw = window.localStorage.getItem(CATEGORIES_TABLE_STATE_STORAGE_KEY)
+        if (!savedTableStateRaw) {
+            return
+        }
+
+        try {
+            const parsed = JSON.parse(savedTableStateRaw) as {
+                categorySearch?: string
+                sortColumn?: "name" | "created"
+                sortDirection?: "asc" | "desc"
+            }
+
+            if (typeof parsed.categorySearch === "string") {
+                setCategorySearch(parsed.categorySearch)
+            }
+            if (parsed.sortColumn === "name" || parsed.sortColumn === "created") {
+                setSortColumn(parsed.sortColumn)
+            }
+            if (parsed.sortDirection === "asc" || parsed.sortDirection === "desc") {
+                setSortDirection(parsed.sortDirection)
+            }
+        } catch {
+            // Ignore invalid saved preferences.
+        }
+    }, [])
+
+    React.useEffect(() => {
+        window.localStorage.setItem(
+            CATEGORIES_TABLE_STATE_STORAGE_KEY,
+            JSON.stringify({
+                categorySearch,
+                sortColumn,
+                sortDirection,
+            })
+        )
+    }, [categorySearch, sortColumn, sortDirection])
 
     const createCategory = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -580,7 +619,9 @@ export function CategoriesPage() {
                                                             onChange={(event) => setEditingName(event.target.value)}
                                                         />
                                                     ) : (
-                                                        category.name
+                                                        <span className="block w-11/12 overflow-hidden text-ellipsis whitespace-nowrap" title={category.name}>
+                                                            {category.name}
+                                                        </span>
                                                     )}
                                                 </TableCell>
                                             )}

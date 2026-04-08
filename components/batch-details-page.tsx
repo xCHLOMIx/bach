@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { CardHeader, CardTitle } from "@/components/ui/card"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import {
     Select,
@@ -24,7 +25,7 @@ import {
 } from "@/components/ui/table"
 import { calculateBatchProductLandedCosts, convertInternationalExpenseToRwf } from "@/lib/costs"
 import { cn } from "@/lib/utils"
-import { ChevronLeft, CopyIcon } from "lucide-react"
+import { ChevronLeft, CopyIcon, PackageOpen } from "lucide-react"
 
 const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "EUR"] as const
 
@@ -199,7 +200,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         []
     )
 
-    const canSave = hasAnyExpenseAmount(form) && selectedProductIds.length > 0
+    const canSave = hasAnyExpenseAmount(form)
 
     const normalizedFormSignature = React.useMemo(() => {
         return JSON.stringify({
@@ -339,9 +340,10 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             setLoadError("")
 
             try {
-                const [batchesRes, productsRes] = await Promise.all([
+                const [batchesRes, productsRes, assignedProductsRes] = await Promise.all([
                     fetch("/api/batches"),
                     fetch("/api/products"),
+                    fetch(`/api/batches/${batchId}/products`),
                 ])
 
                 if (!batchesRes.ok) {
@@ -360,15 +362,27 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                 }
 
                 setForm(formatBatchForm(currentBatch))
-                const nextSelectedProductIds = (currentBatch.products ?? []).map((product) => product._id)
                 setInitialForm(formatBatchForm(currentBatch))
-                setSelectedProductIds(nextSelectedProductIds)
-                setInitialSelectedProductIds(nextSelectedProductIds)
 
+                let loadedProducts: Product[] = []
                 if (productsRes.ok) {
                     const productsData = await productsRes.json()
-                    setProducts(productsData.products ?? [])
+                    loadedProducts = (productsData.products ?? []) as Product[]
+                    setProducts(loadedProducts)
                 }
+
+                let nextSelectedProductIds: string[] = []
+                if (assignedProductsRes.ok) {
+                    const assignedProductsData = await assignedProductsRes.json()
+                    nextSelectedProductIds = ((assignedProductsData.products ?? []) as Product[]).map((product) => product._id)
+                } else if (loadedProducts.length > 0) {
+                    nextSelectedProductIds = loadedProducts
+                        .filter((product) => product.batchId?._id === batchId)
+                        .map((product) => product._id)
+                }
+
+                setSelectedProductIds(nextSelectedProductIds)
+                setInitialSelectedProductIds(nextSelectedProductIds)
             } finally {
                 setIsLoading(false)
             }
@@ -393,11 +407,6 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         try {
             if (!hasAnyExpenseAmount(form)) {
                 setErrors({ general: "Add at least one expense amount" })
-                return
-            }
-
-            if (selectedProductIds.length === 0) {
-                setErrors({ general: "Select at least one product" })
                 return
             }
 
@@ -597,9 +606,22 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     const renderBatchProductsTable = () => {
         if (selectedProducts.length === 0) {
             return (
-                <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                    No products in this batch yet.
-                </div>
+                <Empty className="rounded-md border border-dashed p-6">
+                    <EmptyHeader>
+                        <EmptyMedia variant="icon" className="bg-transparent">
+                            <PackageOpen className="size-6" />
+                        </EmptyMedia>
+                        <EmptyTitle>No products in this batch yet</EmptyTitle>
+                        <EmptyDescription>
+                            This batch is saved. Add products when you are ready to distribute costs.
+                        </EmptyDescription>
+                    </EmptyHeader>
+                    <EmptyContent>
+                        <Button type="button" onClick={() => setIsEditing(true)}>
+                            Add products
+                        </Button>
+                    </EmptyContent>
+                </Empty>
             )
         }
 
@@ -771,7 +793,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
 
             {isEditing && !canSave ? (
                 <p className="text-xs text-muted-foreground">
-                    Add at least one expense amount and select at least one product.
+                    Add at least one expense amount.
                 </p>
             ) : null}
 
@@ -801,7 +823,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                     <div className="space-y-3 rounded-lg border p-3">
                         <p className="text-sm font-semibold">International Expenses</p>
 
-                        <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="grid gap-3 lg:grid-cols-3">
                             <div className="grid gap-1.5">
                                 <label htmlFor="intl-shipping" className="text-sm font-medium">Intl shipping</label>
                                 <Input
@@ -850,7 +872,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             </div>
                         </div>
 
-                        <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="grid gap-3 lg:grid-cols-3">
                             <div className="grid gap-1.5">
                                 <label htmlFor="warehouse-usa" className="text-sm font-medium">Warehouse USA</label>
                                 <Input
@@ -899,7 +921,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             </div>
                         </div>
 
-                        <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="grid gap-3 lg:grid-cols-3">
                             <div className="grid gap-1.5">
                                 <label htmlFor="amazon-prime" className="text-sm font-medium">Amazon Prime</label>
                                 <Input
