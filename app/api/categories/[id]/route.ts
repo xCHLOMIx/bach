@@ -5,6 +5,7 @@ import { connectToDatabase } from "@/lib/db"
 import { errorResponse, successResponse } from "@/lib/api"
 import { getAuthorizedUser } from "@/lib/auth-guard"
 import { CategoryModel } from "@/models/Category"
+import { ProductModel } from "@/models/Product"
 
 export async function PATCH(
   request: NextRequest,
@@ -61,10 +62,33 @@ export async function DELETE(
     return errorResponse({ id: "Invalid category id" }, 400)
   }
 
-  const deleted = await CategoryModel.findByIdAndDelete(id).lean()
-  if (!deleted) {
+  const confirmDelete = request.nextUrl.searchParams.get("confirm") === "true"
+
+  const category = await CategoryModel.findOne({ _id: id, userId: user._id }).lean()
+  if (!category) {
     return errorResponse({ id: "Category not found" }, 404)
   }
+
+  const productCount = await ProductModel.countDocuments({
+    userId: user._id,
+    categoryId: id,
+  })
+
+  if (!confirmDelete) {
+    return successResponse({
+      deletionInfo: {
+        categoryName: category.name,
+        productCount,
+        hasLinkedProducts: productCount > 0,
+      },
+    })
+  }
+
+  await CategoryModel.deleteOne({ _id: id, userId: user._id })
+  await ProductModel.updateMany(
+    { userId: user._id, categoryId: id },
+    { $set: { categoryId: null } }
+  )
 
   return successResponse({ ok: true })
 }

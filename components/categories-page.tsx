@@ -29,6 +29,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Trash2Icon, SearchIcon, ChevronUpIcon, ChevronDownIcon, Columns3Icon } from "lucide-react"
 
+const CATEGORIES_VISIBLE_COLUMNS_STORAGE_KEY = "categories:visible-columns"
+
 type Category = {
     _id: string
     name: string
@@ -44,6 +46,22 @@ export function CategoriesPage() {
     const [editingName, setEditingName] = React.useState("")
     const [selectedCategoryIds, setSelectedCategoryIds] = React.useState<Set<string>>(new Set())
     const [isBulkDeleting, setIsBulkDeleting] = React.useState(false)
+    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = React.useState(false)
+    const [isBulkDeleteInfoLoading, setIsBulkDeleteInfoLoading] = React.useState(false)
+    const [bulkDeleteError, setBulkDeleteError] = React.useState("")
+    const [bulkDeleteWarningSummary, setBulkDeleteWarningSummary] = React.useState({
+        categoriesWithProducts: 0,
+        totalLinkedProducts: 0,
+    })
+    const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false)
+    const [deleteConfirmData, setDeleteConfirmData] = React.useState<{
+        categoryId: string
+        categoryName: string
+        productCount: number
+        hasLinkedProducts: boolean
+    } | null>(null)
+    const [isDeleteInfoLoading, setIsDeleteInfoLoading] = React.useState(false)
+    const [isDeleting, setIsDeleting] = React.useState(false)
     const [categorySearch, setCategorySearch] = React.useState("")
     const [sortColumn, setSortColumn] = React.useState<"name" | "created">("created")
     const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("desc")
@@ -64,6 +82,29 @@ export function CategoriesPage() {
     React.useEffect(() => {
         load()
     }, [load])
+
+    React.useEffect(() => {
+        const savedVisibleColumnsRaw = window.localStorage.getItem(CATEGORIES_VISIBLE_COLUMNS_STORAGE_KEY)
+        if (!savedVisibleColumnsRaw) {
+            return
+        }
+
+        try {
+            const parsed = JSON.parse(savedVisibleColumnsRaw) as Partial<typeof visibleColumns>
+            setVisibleColumns((current) => ({
+                ...current,
+                name: typeof parsed.name === "boolean" ? parsed.name : current.name,
+                created: typeof parsed.created === "boolean" ? parsed.created : current.created,
+                actions: typeof parsed.actions === "boolean" ? parsed.actions : current.actions,
+            }))
+        } catch {
+            // Ignore invalid saved preferences.
+        }
+    }, [])
+
+    React.useEffect(() => {
+        window.localStorage.setItem(CATEGORIES_VISIBLE_COLUMNS_STORAGE_KEY, JSON.stringify(visibleColumns))
+    }, [visibleColumns])
 
     const createCategory = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -103,17 +144,84 @@ export function CategoriesPage() {
         await load()
     }
 
-    const removeCategory = async (id: string) => {
-        const response = await fetch(`/api/categories/${id}`, {
-            method: "DELETE",
+    const handleDeleteCategory = async (category: Category) => {
+        setDeleteConfirmData({
+            categoryId: category._id,
+            categoryName: category.name,
+            productCount: 0,
+            hasLinkedProducts: false,
         })
+        setShowDeleteConfirm(true)
+        setIsDeleteInfoLoading(true)
 
-        if (!response.ok) return
-        await load()
+        try {
+            const response = await fetch(`/api/categories/${category._id}`, {
+                method: "DELETE",
+            })
+
+            const data = await response.json()
+            if (!response.ok) {
+                setErrors(data.errors ?? { general: "Failed to get deletion info" })
+                return
+            }
+
+            setDeleteConfirmData((current) => {
+                if (!current || current.categoryId !== category._id) {
+                    return current
+                }
+
+                return {
+                    ...current,
+                    productCount: data.deletionInfo?.productCount ?? 0,
+                    hasLinkedProducts: Boolean(data.deletionInfo?.hasLinkedProducts),
+                }
+            })
+        } catch {
+            setErrors({ general: "Failed to get deletion info" })
+        } finally {
+            setIsDeleteInfoLoading(false)
+        }
+    }
+
+    const confirmDeleteCategory = async () => {
+        if (!deleteConfirmData || isDeleteInfoLoading) {
+            return
+        }
+
+        setIsDeleting(true)
+        try {
+            const response = await fetch(`/api/categories/${deleteConfirmData.categoryId}?confirm=true`, {
+                method: "DELETE",
+            })
+
+            if (!response.ok) {
+                const data = await response.json()
+                setErrors(data.errors ?? { general: "Failed to delete category" })
+                return
+            }
+
+            setSelectedCategoryIds((current) => {
+                const next = new Set(current)
+                next.delete(deleteConfirmData.categoryId)
+                return next
+            })
+            setShowDeleteConfirm(false)
+            setDeleteConfirmData(null)
+            setIsDeleteInfoLoading(false)
+            await load()
+        } catch {
+            setErrors({ general: "Failed to delete category" })
+        } finally {
+            setIsDeleting(false)
+        }
     }
 
     const removeSelectedCategories = async () => {
         if (selectedCategoryIds.size === 0) {
+            return
+        }
+
+        if (isBulkDeleteInfoLoading) {
             return
         }
 
@@ -124,7 +232,7 @@ export function CategoriesPage() {
             const failedIds: string[] = []
 
             for (const categoryId of selectedCategoryIds) {
-                const response = await fetch(`/api/categories/${categoryId}`, {
+                const response = await fetch(`/api/categories/${categoryId}?confirm=true`, {
                     method: "DELETE",
                 })
 
@@ -139,11 +247,62 @@ export function CategoriesPage() {
             }
 
             setSelectedCategoryIds(new Set())
+            setShowBulkDeleteConfirm(false)
             await load()
         } finally {
             setIsBulkDeleting(false)
         }
     }
+
+    const openBulkDeleteCategoriesConfirm = React.useCallback(() => {
+        if (selectedCategoryIds.size === 0) {
+            return
+        }
+
+        const selectedCategories = categories.filter((category) => selectedCategoryIds.has(category._id))
+
+        setBulkDeleteError("")
+        setShowBulkDeleteConfirm(true)
+        setIsBulkDeleteInfoLoading(true)
+        setBulkDeleteWarningSummary({ categoriesWithProducts: 0, totalLinkedProducts: 0 })
+
+        void (async () => {
+            try {
+                const responses = await Promise.all(
+                    selectedCategories.map((category) =>
+                        fetch(`/api/categories/${category._id}`, {
+                            method: "DELETE",
+                        })
+                    )
+                )
+
+                let categoriesWithProducts = 0
+                let totalLinkedProducts = 0
+
+                for (const response of responses) {
+                    const data = await response.json().catch(() => null)
+                    if (!response.ok || !data?.deletionInfo) {
+                        continue
+                    }
+
+                    const productCount = Number(data.deletionInfo.productCount ?? 0)
+                    totalLinkedProducts += productCount
+                    if (productCount > 0) {
+                        categoriesWithProducts += 1
+                    }
+                }
+
+                setBulkDeleteWarningSummary({
+                    categoriesWithProducts,
+                    totalLinkedProducts,
+                })
+            } catch {
+                setBulkDeleteError("Failed to load bulk delete warnings")
+            } finally {
+                setIsBulkDeleteInfoLoading(false)
+            }
+        })()
+    }, [categories, selectedCategoryIds])
 
     const handleColumnVisibilityChange = (columnKey: string, value: boolean) => {
         setVisibleColumns((current) => ({ ...current, [columnKey]: value }))
@@ -255,8 +414,10 @@ export function CategoriesPage() {
                             <Button
                                 size="sm"
                                 variant="destructive"
-                                onClick={removeSelectedCategories}
-                                disabled={isBulkDeleting}
+                                onClick={openBulkDeleteCategoriesConfirm}
+                                disabled={isBulkDeleting || isBulkDeleteInfoLoading}
+                                loading={isBulkDeleting || isBulkDeleteInfoLoading}
+                                loadingText={isBulkDeleteInfoLoading ? "Loading warnings" : "Deleting categories"}
                             >
                                 <Trash2Icon className="h-4 w-4" />
                                 {isBulkDeleting ? "Deleting..." : "Delete Selected"}
@@ -284,6 +445,8 @@ export function CategoriesPage() {
                                         <input
                                             type="checkbox"
                                             className="rounded"
+                                            checked={false}
+                                            readOnly
                                             disabled
                                         />
                                     </TableHead>
@@ -413,7 +576,7 @@ export function CategoriesPage() {
                                                 <TableCell>
                                                     {editingId === category._id ? (
                                                         <Input
-                                                            value={editingName}
+                                                            value={editingName || ""}
                                                             onChange={(event) => setEditingName(event.target.value)}
                                                         />
                                                     ) : (
@@ -452,7 +615,7 @@ export function CategoriesPage() {
                                                                 next.delete(category._id)
                                                                 return next
                                                             })
-                                                            void removeCategory(category._id)
+                                                            void handleDeleteCategory(category)
                                                         }}
                                                     >
                                                         Delete
@@ -467,6 +630,139 @@ export function CategoriesPage() {
                     </div>
                 </div>
             )}
+
+            {showBulkDeleteConfirm ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-in fade-in duration-200">
+                    <div className="modal-pop-in bg-card rounded-lg shadow-lg w-full max-w-sm border border-border">
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <h2 className="text-lg font-semibold text-foreground">Delete Selected Categories?</h2>
+                                <p className="text-sm text-muted-foreground mt-1">This action cannot be undone.</p>
+                            </div>
+
+                            {isBulkDeleteInfoLoading ? (
+                                <div className="space-y-2">
+                                    <Skeleton className="h-3 w-3/4" />
+                                    <Skeleton className="h-3 w-2/3" />
+                                </div>
+                            ) : bulkDeleteWarningSummary.totalLinkedProducts > 0 ? (
+                                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
+                                    <p className="text-sm font-semibold mb-2 text-amber-900 dark:text-amber-200">Warning</p>
+                                    <ul className="list-disc list-inside space-y-1 text-sm text-amber-800 dark:text-amber-300">
+                                        <li>
+                                            <span className="font-medium">{bulkDeleteWarningSummary.categoriesWithProducts}</span>
+                                            {" "}
+                                            selected categor{bulkDeleteWarningSummary.categoriesWithProducts === 1 ? "y is" : "ies are"}
+                                            {" "}
+                                            used by products.
+                                        </li>
+                                        <li>
+                                            <span className="font-medium">{bulkDeleteWarningSummary.totalLinkedProducts}</span>
+                                            {" "}
+                                            product{bulkDeleteWarningSummary.totalLinkedProducts === 1 ? "" : "s"}
+                                            {" "}
+                                            have category cleared.
+                                        </li>
+                                    </ul>
+                                </div>
+                            ) : null}
+
+                            {bulkDeleteError ? <p className="text-xs text-destructive">{bulkDeleteError}</p> : null}
+
+                            <div className="flex gap-2 justify-end">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        if (isBulkDeleting) {
+                                            return
+                                        }
+                                        setShowBulkDeleteConfirm(false)
+                                        setIsBulkDeleteInfoLoading(false)
+                                    }}
+                                    disabled={isBulkDeleting}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={removeSelectedCategories}
+                                    disabled={isBulkDeleting || isBulkDeleteInfoLoading}
+                                    loading={isBulkDeleting || isBulkDeleteInfoLoading}
+                                    loadingText={isBulkDeleteInfoLoading ? "Loading warnings" : "Deleting categories"}
+                                >
+                                    Delete Selected
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {showDeleteConfirm && deleteConfirmData ? (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-in fade-in duration-200"
+                    onClick={() => {
+                        if (isDeleting) {
+                            return
+                        }
+
+                        setShowDeleteConfirm(false)
+                        setDeleteConfirmData(null)
+                        setIsDeleteInfoLoading(false)
+                    }}
+                >
+                    <div
+                        className="modal-pop-in bg-card rounded-lg shadow-lg w-full max-w-sm border border-border"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <h2 className="text-lg font-semibold text-foreground">Delete Category?</h2>
+                                <p className="text-sm text-muted-foreground mt-1">This action cannot be undone.</p>
+                            </div>
+
+                            {isDeleteInfoLoading ? (
+                                <div className="space-y-2">
+                                    <Skeleton className="h-3 w-3/4" />
+                                    <Skeleton className="h-3 w-2/3" />
+                                </div>
+                            ) : deleteConfirmData.hasLinkedProducts ? (
+                                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
+                                    <p className="text-sm font-semibold mb-2 text-amber-900 dark:text-amber-200">Warning</p>
+                                    <ul className="list-disc list-inside space-y-1 text-sm text-amber-800 dark:text-amber-300">
+                                        <li>Category: <span className="font-medium">{deleteConfirmData.categoryName}</span></li>
+                                        <li>Used by <span className="font-medium">{deleteConfirmData.productCount}</span> product{deleteConfirmData.productCount !== 1 ? "s" : ""}</li>
+                                        <li>Products will remain, but their category assignment will be cleared.</li>
+                                    </ul>
+                                </div>
+                            ) : null}
+
+                            <div className="flex gap-2 justify-end">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setShowDeleteConfirm(false)
+                                        setDeleteConfirmData(null)
+                                        setIsDeleteInfoLoading(false)
+                                    }}
+                                    disabled={isDeleting}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={confirmDeleteCategory}
+                                    disabled={isDeleting || isDeleteInfoLoading}
+                                    loading={isDeleting || isDeleteInfoLoading}
+                                    loadingText={isDeleteInfoLoading ? "Loading warnings" : "Deleting category"}
+                                >
+                                    Delete Category
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     )
 }

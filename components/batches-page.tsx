@@ -55,6 +55,7 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { CheckIcon, CopyIcon, PackageSearchIcon, SearchIcon, ChevronUpIcon, ChevronDownIcon, Trash2Icon, Columns3Icon } from "lucide-react"
 
 const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "EUR"] as const
+const BATCHES_VISIBLE_COLUMNS_STORAGE_KEY = "batches:visible-columns"
 type PickupMethod = "easy" | "advanced"
 
 type Batch = {
@@ -133,8 +134,17 @@ export function BatchesPage() {
     const [batchSearch, setBatchSearch] = React.useState("")
     const [selectedBatchIds, setSelectedBatchIds] = React.useState<Set<string>>(new Set())
     const [isBulkDeleting, setIsBulkDeleting] = React.useState(false)
+    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = React.useState(false)
+    const [isBulkDeleteInfoLoading, setIsBulkDeleteInfoLoading] = React.useState(false)
+    const [bulkDeleteError, setBulkDeleteError] = React.useState("")
+    const [bulkDeleteWarningSummary, setBulkDeleteWarningSummary] = React.useState({
+        totalProducts: 0,
+        batchesWithSales: 0,
+        totalSalesRecords: 0,
+    })
     const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false)
     const [deleteConfirmData, setDeleteConfirmData] = React.useState<{ batchId: string; batchName: string; productCount: number; hasActiveSales: boolean; salesCount: number } | null>(null)
+    const [isDeleteInfoLoading, setIsDeleteInfoLoading] = React.useState(false)
     const [isDeleting, setIsDeleting] = React.useState(false)
     const [sortColumn, setSortColumn] = React.useState<"name" | "tracking" | "costs" | "products" | "created">("created")
     const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("desc")
@@ -296,6 +306,16 @@ export function BatchesPage() {
     const isAllBatchesSelected = sortedBatches.length > 0 && selectedBatchIds.size === sortedBatches.length
 
     const handleDeleteBatch = async (batch: Batch) => {
+        setDeleteConfirmData({
+            batchId: batch._id,
+            batchName: batch.batchName,
+            productCount: 0,
+            hasActiveSales: false,
+            salesCount: 0,
+        })
+        setShowDeleteConfirm(true)
+        setIsDeleteInfoLoading(true)
+
         try {
             const response = await fetch(`/api/batches/${batch._id}`, {
                 method: "DELETE",
@@ -307,19 +327,26 @@ export function BatchesPage() {
                 return
             }
 
-            setDeleteConfirmData({
-                batchId: batch._id,
-                ...data.deletionInfo,
+            setDeleteConfirmData((current) => {
+                if (!current || current.batchId !== batch._id) {
+                    return current
+                }
+
+                return {
+                    batchId: batch._id,
+                    ...data.deletionInfo,
+                }
             })
-            setShowDeleteConfirm(true)
         } catch (error) {
             alert("Failed to get deletion info")
             console.error(error)
+        } finally {
+            setIsDeleteInfoLoading(false)
         }
     }
 
     const confirmDeleteBatch = async () => {
-        if (!deleteConfirmData) return
+        if (!deleteConfirmData || isDeleteInfoLoading) return
 
         setIsDeleting(true)
         try {
@@ -334,6 +361,7 @@ export function BatchesPage() {
 
             setShowDeleteConfirm(false)
             setDeleteConfirmData(null)
+            setIsDeleteInfoLoading(false)
             setSelectedBatchIds((current) => {
                 const next = new Set(current)
                 next.delete(deleteConfirmData.batchId)
@@ -349,7 +377,7 @@ export function BatchesPage() {
     }
 
     const removeSelectedBatches = async () => {
-        if (selectedBatchIds.size === 0) return
+        if (selectedBatchIds.size === 0 || isBulkDeleteInfoLoading) return
 
         setIsBulkDeleting(true)
         try {
@@ -371,11 +399,65 @@ export function BatchesPage() {
             }
 
             setSelectedBatchIds(new Set())
+            setShowBulkDeleteConfirm(false)
             await load()
         } finally {
             setIsBulkDeleting(false)
         }
     }
+
+    const openBulkDeleteBatchesConfirm = React.useCallback(() => {
+        if (selectedBatchIds.size === 0) {
+            return
+        }
+
+        const selectedBatches = sortedBatches.filter((batch) => selectedBatchIds.has(batch._id))
+
+        setBulkDeleteError("")
+        setShowBulkDeleteConfirm(true)
+        setIsBulkDeleteInfoLoading(true)
+        setBulkDeleteWarningSummary({ totalProducts: 0, batchesWithSales: 0, totalSalesRecords: 0 })
+
+        void (async () => {
+            try {
+                const responses = await Promise.all(
+                    selectedBatches.map((batch) =>
+                        fetch(`/api/batches/${batch._id}`, {
+                            method: "DELETE",
+                        })
+                    )
+                )
+
+                let totalProducts = 0
+                let batchesWithSales = 0
+                let totalSalesRecords = 0
+
+                for (const response of responses) {
+                    const data = await response.json().catch(() => null)
+                    if (!response.ok || !data?.deletionInfo) {
+                        continue
+                    }
+
+                    const info = data.deletionInfo
+                    totalProducts += Number(info.productCount ?? 0)
+                    totalSalesRecords += Number(info.salesCount ?? 0)
+                    if (info.hasActiveSales) {
+                        batchesWithSales += 1
+                    }
+                }
+
+                setBulkDeleteWarningSummary({
+                    totalProducts,
+                    batchesWithSales,
+                    totalSalesRecords,
+                })
+            } catch {
+                setBulkDeleteError("Failed to load bulk delete warnings")
+            } finally {
+                setIsBulkDeleteInfoLoading(false)
+            }
+        })()
+    }, [selectedBatchIds, sortedBatches])
 
     const handleColumnVisibilityChange = (columnKey: string, value: boolean) => {
         setVisibleColumns((current) => ({ ...current, [columnKey]: value }))
@@ -425,6 +507,32 @@ export function BatchesPage() {
     React.useEffect(() => {
         load()
     }, [load])
+
+    React.useEffect(() => {
+        const savedVisibleColumnsRaw = window.localStorage.getItem(BATCHES_VISIBLE_COLUMNS_STORAGE_KEY)
+        if (!savedVisibleColumnsRaw) {
+            return
+        }
+
+        try {
+            const parsed = JSON.parse(savedVisibleColumnsRaw) as Partial<typeof visibleColumns>
+            setVisibleColumns((current) => ({
+                ...current,
+                name: typeof parsed.name === "boolean" ? parsed.name : current.name,
+                tracking: typeof parsed.tracking === "boolean" ? parsed.tracking : current.tracking,
+                costs: typeof parsed.costs === "boolean" ? parsed.costs : current.costs,
+                products: typeof parsed.products === "boolean" ? parsed.products : current.products,
+                created: typeof parsed.created === "boolean" ? parsed.created : current.created,
+                actions: typeof parsed.actions === "boolean" ? parsed.actions : current.actions,
+            }))
+        } catch {
+            // Ignore invalid saved preferences.
+        }
+    }, [])
+
+    React.useEffect(() => {
+        window.localStorage.setItem(BATCHES_VISIBLE_COLUMNS_STORAGE_KEY, JSON.stringify(visibleColumns))
+    }, [visibleColumns])
 
     const handleAddPickupMethodChange = (method: PickupMethod) => {
         setAddForm((current) => {
@@ -1097,8 +1205,10 @@ export function BatchesPage() {
                             <Button
                                 size="sm"
                                 variant="destructive"
-                                onClick={removeSelectedBatches}
-                                disabled={isBulkDeleting}
+                                onClick={openBulkDeleteBatchesConfirm}
+                                disabled={isBulkDeleting || isBulkDeleteInfoLoading}
+                                loading={isBulkDeleting || isBulkDeleteInfoLoading}
+                                loadingText={isBulkDeleteInfoLoading ? "Loading warnings" : "Deleting batches"}
                             >
                                 <Trash2Icon className="h-4 w-4" />
                                 {isBulkDeleting ? "Deleting..." : "Delete Selected"}
@@ -1434,10 +1544,100 @@ export function BatchesPage() {
                 </div>
             )}
 
+            {showBulkDeleteConfirm ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-in fade-in duration-200">
+                    <div className="modal-pop-in bg-card rounded-lg shadow-lg w-full max-w-sm border border-border">
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <h2 className="text-lg font-semibold text-foreground">Delete Selected Batches?</h2>
+                                <p className="text-sm text-muted-foreground mt-1">This action cannot be undone.</p>
+                            </div>
+
+                            {isBulkDeleteInfoLoading ? (
+                                <div className="space-y-2">
+                                    <Skeleton className="h-3 w-3/4" />
+                                    <Skeleton className="h-3 w-2/3" />
+                                    <Skeleton className="h-3 w-1/2" />
+                                </div>
+                            ) : (bulkDeleteWarningSummary.totalProducts > 0 || bulkDeleteWarningSummary.batchesWithSales > 0) ? (
+                                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
+                                    <p className="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-200">Warning</p>
+                                    <ul className="list-disc list-inside mt-1 text-sm text-amber-800 dark:text-amber-300 space-y-1">
+                                        {bulkDeleteWarningSummary.totalProducts > 0 ? (
+                                            <li>
+                                                <span className="font-medium">{bulkDeleteWarningSummary.totalProducts}</span>
+                                                {" "}
+                                                product{bulkDeleteWarningSummary.totalProducts === 1 ? "" : "s"}
+                                                {" "}
+                                                {bulkDeleteWarningSummary.totalProducts === 1 ? "is" : "are"}
+                                                {" "}
+                                                linked to the selected batch{selectedBatchIds.size === 1 ? "" : "es"}.
+                                            </li>
+                                        ) : null}
+                                        {bulkDeleteWarningSummary.batchesWithSales > 0 ? (
+                                            <li>
+                                                <span className="font-medium">{bulkDeleteWarningSummary.batchesWithSales}</span>
+                                                {" "}
+                                                selected batch{bulkDeleteWarningSummary.batchesWithSales === 1 ? "" : "es"}
+                                                {" "}
+                                                {bulkDeleteWarningSummary.batchesWithSales === 1 ? "includes" : "include"}
+                                                {" "}
+                                                products with sales,
+                                                {" "}
+                                                with a total of
+                                                {" "}
+                                                <span className="font-medium">{bulkDeleteWarningSummary.totalSalesRecords}</span>
+                                                {" "}
+                                                sale record{bulkDeleteWarningSummary.totalSalesRecords === 1 ? "" : "s"}.
+                                            </li>
+                                        ) : null}
+                                    </ul>
+                                </div>
+                            ) : null}
+
+                            {bulkDeleteError ? <p className="text-xs text-destructive">{bulkDeleteError}</p> : null}
+
+                            <div className="flex gap-2 justify-end">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        if (isBulkDeleting) {
+                                            return
+                                        }
+                                        setShowBulkDeleteConfirm(false)
+                                        setIsBulkDeleteInfoLoading(false)
+                                    }}
+                                    disabled={isBulkDeleting}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={removeSelectedBatches}
+                                    disabled={isBulkDeleting || isBulkDeleteInfoLoading}
+                                    loading={isBulkDeleting || isBulkDeleteInfoLoading}
+                                    loadingText={isBulkDeleteInfoLoading ? "Loading warnings" : "Deleting batches"}
+                                >
+                                    Delete Selected
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
             {showDeleteConfirm && deleteConfirmData ? (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-in fade-in duration-200"
-                    onClick={() => !isDeleting && setShowDeleteConfirm(false)}
+                    onClick={() => {
+                        if (isDeleting) {
+                            return
+                        }
+
+                        setShowDeleteConfirm(false)
+                        setDeleteConfirmData(null)
+                        setIsDeleteInfoLoading(false)
+                    }}
                 >
                     <div
                         className="modal-pop-in bg-card rounded-lg shadow-lg w-full max-w-sm border border-border"
@@ -1448,22 +1648,34 @@ export function BatchesPage() {
                                 <h2 className="text-lg font-semibold text-foreground">Delete Batch?</h2>
                                 <p className="text-sm text-muted-foreground mt-1">This action cannot be undone.</p>
                             </div>
-                            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 space-y-2 text-sm">
-                                <div>
-                                    <p className="font-medium text-destructive">Warning</p>
-                                    <ul className="list-disc list-inside text-destructive/80 mt-1">
-                                        <li>Batch: <span className="font-medium">{deleteConfirmData.batchName}</span></li>
-                                        <li>Contains <span className="font-medium">{deleteConfirmData.productCount}</span> product{deleteConfirmData.productCount !== 1 ? "s" : ""}</li>
-                                        {deleteConfirmData.hasActiveSales ? (
-                                            <li><span className="font-medium">{deleteConfirmData.salesCount}</span> sale{deleteConfirmData.salesCount !== 1 ? "s" : ""} recorded for products in this batch</li>
-                                        ) : null}
-                                    </ul>
+                            {isDeleteInfoLoading ? (
+                                <div className="space-y-2">
+                                    <Skeleton className="h-3 w-3/4" />
+                                    <Skeleton className="h-3 w-2/3" />
+                                    <Skeleton className="h-3 w-1/2" />
                                 </div>
-                            </div>
+                            ) : (deleteConfirmData.productCount > 0 || deleteConfirmData.hasActiveSales) ? (
+                                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
+                                    <div>
+                                        <p className="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-200">Warning</p>
+                                        <ul className="list-disc list-inside mt-1 text-sm text-amber-800 dark:text-amber-300">
+                                            <li>Batch: <span className="font-medium">{deleteConfirmData.batchName}</span></li>
+                                            <li>Contains <span className="font-medium">{deleteConfirmData.productCount}</span> product{deleteConfirmData.productCount !== 1 ? "s" : ""}</li>
+                                            {deleteConfirmData.hasActiveSales ? (
+                                                <li><span className="font-medium">{deleteConfirmData.salesCount}</span> sale{deleteConfirmData.salesCount !== 1 ? "s" : ""} recorded for products in this batch</li>
+                                            ) : null}
+                                        </ul>
+                                    </div>
+                                </div>
+                            ) : null}
                             <div className="flex gap-2 justify-end">
                                 <Button
                                     variant="outline"
-                                    onClick={() => setShowDeleteConfirm(false)}
+                                    onClick={() => {
+                                        setShowDeleteConfirm(false)
+                                        setDeleteConfirmData(null)
+                                        setIsDeleteInfoLoading(false)
+                                    }}
                                     disabled={isDeleting}
                                 >
                                     Cancel
@@ -1471,9 +1683,11 @@ export function BatchesPage() {
                                 <Button
                                     variant="destructive"
                                     onClick={confirmDeleteBatch}
-                                    disabled={isDeleting}
+                                    disabled={isDeleting || isDeleteInfoLoading}
+                                    loading={isDeleting || isDeleteInfoLoading}
+                                    loadingText={isDeleteInfoLoading ? "Loading warnings" : "Deleting batch"}
                                 >
-                                    {isDeleting ? "Deleting..." : "Delete Batch"}
+                                    Delete Batch
                                 </Button>
                             </div>
                         </div>

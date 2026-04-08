@@ -59,6 +59,7 @@ import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Colu
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"]
 const NO_CATEGORY_VALUE = "__none__"
 const PRODUCTS_VIEW_MODE_STORAGE_KEY = "products:view-mode"
+const PRODUCTS_VISIBLE_COLUMNS_STORAGE_KEY = "products:visible-columns"
 
 type Category = { _id: string; name: string }
 type Batch = { _id: string; batchName: string }
@@ -218,8 +219,15 @@ export function ProductsPage() {
         isInBatch: boolean
         batchName: string | null
     } | null>(null)
+    const [isDeleteInfoLoading, setIsDeleteInfoLoading] = React.useState(false)
     const [isDeleting, setIsDeleting] = React.useState(false)
     const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = React.useState(false)
+    const [isBulkDeleteInfoLoading, setIsBulkDeleteInfoLoading] = React.useState(false)
+    const [bulkDeleteWarningSummary, setBulkDeleteWarningSummary] = React.useState({
+        productsWithSales: 0,
+        productsInBatches: 0,
+        totalSalesRecords: 0,
+    })
     const [isBulkDeleting, setIsBulkDeleting] = React.useState(false)
     const [bulkDeleteError, setBulkDeleteError] = React.useState("")
     const [previewImages, setPreviewImages] = React.useState<string[]>([])
@@ -440,8 +448,36 @@ export function ProductsPage() {
     }, [])
 
     React.useEffect(() => {
+        const savedVisibleColumnsRaw = window.localStorage.getItem(PRODUCTS_VISIBLE_COLUMNS_STORAGE_KEY)
+        if (!savedVisibleColumnsRaw) {
+            return
+        }
+
+        try {
+            const parsed = JSON.parse(savedVisibleColumnsRaw) as Partial<Record<ProductTableColumnKey, boolean>>
+            setVisibleColumns((current) => ({
+                ...current,
+                image: typeof parsed.image === "boolean" ? parsed.image : current.image,
+                name: typeof parsed.name === "boolean" ? parsed.name : current.name,
+                addedAt: typeof parsed.addedAt === "boolean" ? parsed.addedAt : current.addedAt,
+                batch: typeof parsed.batch === "boolean" ? parsed.batch : current.batch,
+                onHand: typeof parsed.onHand === "boolean" ? parsed.onHand : current.onHand,
+                buyingPrice: typeof parsed.buyingPrice === "boolean" ? parsed.buyingPrice : current.buyingPrice,
+                landedPrice: typeof parsed.landedPrice === "boolean" ? parsed.landedPrice : current.landedPrice,
+                totalLandedCost: typeof parsed.totalLandedCost === "boolean" ? parsed.totalLandedCost : current.totalLandedCost,
+            }))
+        } catch {
+            // Ignore invalid saved preferences.
+        }
+    }, [])
+
+    React.useEffect(() => {
         window.localStorage.setItem(PRODUCTS_VIEW_MODE_STORAGE_KEY, viewMode)
     }, [viewMode])
+
+    React.useEffect(() => {
+        window.localStorage.setItem(PRODUCTS_VISIBLE_COLUMNS_STORAGE_KEY, JSON.stringify(visibleColumns))
+    }, [visibleColumns])
 
     React.useEffect(() => {
         const previews = imageFiles.map((file) => URL.createObjectURL(file))
@@ -955,6 +991,17 @@ export function ProductsPage() {
     }
 
     const handleDeleteProduct = async (product: Product) => {
+        setDeleteConfirmData({
+            productId: product._id,
+            productName: product.name,
+            hasActiveSales: false,
+            salesCount: 0,
+            isInBatch: false,
+            batchName: null,
+        })
+        setShowDeleteConfirm(true)
+        setIsDeleteInfoLoading(true)
+
         try {
             const response = await fetch(`/api/products/${product._id}`, {
                 method: "DELETE",
@@ -966,23 +1013,29 @@ export function ProductsPage() {
                 return
             }
 
-            setDeleteConfirmData({
-                productId: product._id,
-                productName: product.name,
-                hasActiveSales: data.deletionInfo.hasActiveSales,
-                salesCount: data.deletionInfo.salesCount,
-                isInBatch: data.deletionInfo.isInBatch,
-                batchName: data.deletionInfo.batchName,
+            setDeleteConfirmData((current) => {
+                if (!current || current.productId !== product._id) {
+                    return current
+                }
+
+                return {
+                    ...current,
+                    hasActiveSales: data.deletionInfo.hasActiveSales,
+                    salesCount: data.deletionInfo.salesCount,
+                    isInBatch: data.deletionInfo.isInBatch,
+                    batchName: data.deletionInfo.batchName,
+                }
             })
-            setShowDeleteConfirm(true)
         } catch (error) {
             alert("Failed to get deletion info")
             console.error(error)
+        } finally {
+            setIsDeleteInfoLoading(false)
         }
     }
 
     const confirmDeleteProduct = async () => {
-        if (!deleteConfirmData) return
+        if (!deleteConfirmData || isDeleteInfoLoading) return
 
         setIsDeleting(true)
         try {
@@ -997,6 +1050,7 @@ export function ProductsPage() {
 
             setShowDeleteConfirm(false)
             setDeleteConfirmData(null)
+            setIsDeleteInfoLoading(false)
             await loadProducts()
         } catch (error) {
             alert("Failed to delete product")
@@ -1245,10 +1299,57 @@ export function ProductsPage() {
 
         setBulkDeleteError("")
         setShowBulkDeleteConfirm(true)
+        setIsBulkDeleteInfoLoading(true)
+        setBulkDeleteWarningSummary({
+            productsWithSales: 0,
+            productsInBatches: 0,
+            totalSalesRecords: 0,
+        })
+
+        void (async () => {
+            try {
+                const responses = await Promise.all(
+                    selectedProducts.map((product) =>
+                        fetch(`/api/products/${product._id}`, {
+                            method: "DELETE",
+                        })
+                    )
+                )
+
+                let productsWithSales = 0
+                let productsInBatches = 0
+                let totalSalesRecords = 0
+
+                for (const response of responses) {
+                    const data = await response.json().catch(() => null)
+                    if (!response.ok || !data?.deletionInfo) {
+                        continue
+                    }
+
+                    if (data.deletionInfo.hasActiveSales) {
+                        productsWithSales += 1
+                    }
+                    if (data.deletionInfo.isInBatch) {
+                        productsInBatches += 1
+                    }
+                    totalSalesRecords += Number(data.deletionInfo.salesCount ?? 0)
+                }
+
+                setBulkDeleteWarningSummary({
+                    productsWithSales,
+                    productsInBatches,
+                    totalSalesRecords,
+                })
+            } catch {
+                setBulkDeleteError("Failed to load bulk delete warnings")
+            } finally {
+                setIsBulkDeleteInfoLoading(false)
+            }
+        })()
     }, [handleDeleteProduct, selectedProducts])
 
     const confirmBulkDeleteProducts = React.useCallback(async () => {
-        if (selectedProducts.length === 0) {
+        if (selectedProducts.length === 0 || isBulkDeleteInfoLoading) {
             return
         }
 
@@ -1279,7 +1380,7 @@ export function ProductsPage() {
         } finally {
             setIsBulkDeleting(false)
         }
-    }, [loadProducts, selectedProducts])
+    }, [isBulkDeleteInfoLoading, loadProducts, selectedProducts])
 
     const renderProductActions = (product: Product) => (
         <div className="flex gap-2">
@@ -2578,6 +2679,45 @@ export function ProductsPage() {
                         </p>
                         <p className="mt-2 text-xs text-muted-foreground">This action cannot be undone.</p>
 
+                        {isBulkDeleteInfoLoading ? (
+                            <div className="mt-4 space-y-2">
+                                <Skeleton className="h-3 w-3/4" />
+                                <Skeleton className="h-3 w-2/3" />
+                            </div>
+                        ) : (bulkDeleteWarningSummary.productsWithSales > 0 || bulkDeleteWarningSummary.productsInBatches > 0) ? (
+                            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
+                                <p className="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-200">Warning</p>
+                                <ul className="list-disc pl-5 text-sm space-y-1 text-amber-800 dark:text-amber-300">
+                                    {bulkDeleteWarningSummary.productsWithSales > 0 ? (
+                                        <li>
+                                            <span className="font-semibold">{bulkDeleteWarningSummary.productsWithSales}</span>
+                                            {" "}
+                                            selected product{bulkDeleteWarningSummary.productsWithSales === 1 ? "" : "s"}
+                                            {" "}
+                                            {bulkDeleteWarningSummary.productsWithSales === 1 ? "has" : "have"}
+                                            {" "}
+                                            a total of
+                                            {" "}
+                                            <span className="font-semibold">{bulkDeleteWarningSummary.totalSalesRecords}</span>
+                                            {" "}
+                                            sale record{bulkDeleteWarningSummary.totalSalesRecords === 1 ? "" : "s"}.
+                                        </li>
+                                    ) : null}
+                                    {bulkDeleteWarningSummary.productsInBatches > 0 ? (
+                                        <li>
+                                            <span className="font-semibold">{bulkDeleteWarningSummary.productsInBatches}</span>
+                                            {" "}
+                                            selected product{bulkDeleteWarningSummary.productsInBatches === 1 ? "" : "s"}
+                                            {" "}
+                                            {bulkDeleteWarningSummary.productsInBatches === 1 ? "belongs" : "belong"}
+                                            {" "}
+                                            to batch{bulkDeleteWarningSummary.productsInBatches === 1 ? "" : "es"}.
+                                        </li>
+                                    ) : null}
+                                </ul>
+                            </div>
+                        ) : null}
+
                         {bulkDeleteError ? (
                             <FieldError className="mt-3 text-destructive text-xs">{bulkDeleteError}</FieldError>
                         ) : null}
@@ -2591,6 +2731,12 @@ export function ProductsPage() {
                                         return
                                     }
                                     setShowBulkDeleteConfirm(false)
+                                    setIsBulkDeleteInfoLoading(false)
+                                    setBulkDeleteWarningSummary({
+                                        productsWithSales: 0,
+                                        productsInBatches: 0,
+                                        totalSalesRecords: 0,
+                                    })
                                 }}
                                 disabled={isBulkDeleting}
                             >
@@ -2602,9 +2748,9 @@ export function ProductsPage() {
                                 onClick={() => {
                                     void confirmBulkDeleteProducts()
                                 }}
-                                disabled={isBulkDeleting}
-                                loading={isBulkDeleting}
-                                loadingText="Deleting products"
+                                disabled={isBulkDeleting || isBulkDeleteInfoLoading}
+                                loading={isBulkDeleting || isBulkDeleteInfoLoading}
+                                loadingText={isBulkDeleteInfoLoading ? "Loading warnings" : "Deleting products"}
                             >
                                 Delete Selected
                             </Button>
@@ -2640,19 +2786,30 @@ export function ProductsPage() {
                             You are about to permanently delete <span className="font-semibold text-foreground">&quot;{deleteConfirmData.productName}&quot;</span>.
                         </p>
 
-                        {(deleteConfirmData.hasActiveSales || deleteConfirmData.isInBatch) && (
-                            <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-950">
-                                <p className="text-sm font-semibold text-accent-foreground mb-2">Warning:</p>
-                                <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+                        {isDeleteInfoLoading ? (
+                            <div className="mt-4 space-y-2">
+                                <Skeleton className="h-3 w-3/4" />
+                                <Skeleton className="h-3 w-2/3" />
+                            </div>
+                        ) : (deleteConfirmData.hasActiveSales || deleteConfirmData.isInBatch) ? (
+                            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
+                                <p className="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-200">Warning</p>
+                                <ul className="list-disc pl-5 text-sm space-y-1 text-amber-800 dark:text-amber-300">
                                     {deleteConfirmData.hasActiveSales && (
-                                        <li>This product has <span className="font-semibold">{deleteConfirmData.salesCount}</span> sale(s) recorded.</li>
+                                        <li>
+                                            This product has
+                                            {" "}
+                                            <span className="font-semibold">{deleteConfirmData.salesCount}</span>
+                                            {" "}
+                                            sale{deleteConfirmData.salesCount === 1 ? "" : "s"} recorded.
+                                        </li>
                                     )}
                                     {deleteConfirmData.isInBatch && (
                                         <li>This product is assigned to batch <span className="font-semibold">{deleteConfirmData.batchName}</span>.</li>
                                     )}
                                 </ul>
                             </div>
-                        )}
+                        ) : null}
 
                         <p className="mt-4 text-xs text-muted-foreground">
                             This action cannot be undone.
@@ -2665,6 +2822,7 @@ export function ProductsPage() {
                                 onClick={() => {
                                     setShowDeleteConfirm(false)
                                     setDeleteConfirmData(null)
+                                    setIsDeleteInfoLoading(false)
                                 }}
                                 disabled={isDeleting}
                             >
@@ -2674,9 +2832,9 @@ export function ProductsPage() {
                                 type="button"
                                 variant="destructive"
                                 onClick={confirmDeleteProduct}
-                                disabled={isDeleting}
-                                loading={isDeleting}
-                                loadingText="Deleting product"
+                                disabled={isDeleting || isDeleteInfoLoading}
+                                loading={isDeleting || isDeleteInfoLoading}
+                                loadingText={isDeleteInfoLoading ? "Loading warnings" : "Deleting product"}
                             >
                                 Delete Permanently
                             </Button>
