@@ -40,6 +40,7 @@ import { toast } from "sonner"
 import { z } from "zod"
 
 import { useIsMobile } from "@/hooks/use-mobile"
+import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -195,6 +196,7 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
     header: () => <div className="w-full text-right">Target</div>,
     cell: ({ row }) => (
       <form
+        onKeyDown={preventImplicitSubmitOnEnter}
         onSubmit={(e) => {
           e.preventDefault()
           toast.promise(new Promise((resolve) => setTimeout(resolve, 1000)), {
@@ -220,6 +222,7 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
     header: () => <div className="w-full text-right">Limit</div>,
     cell: ({ row }) => (
       <form
+        onKeyDown={preventImplicitSubmitOnEnter}
         onSubmit={(e) => {
           e.preventDefault()
           toast.promise(new Promise((resolve) => setTimeout(resolve, 1000)), {
@@ -491,9 +494,9 @@ export function DataTable({
                           {header.isPlaceholder
                             ? null
                             : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
                         </TableHead>
                       )
                     })}
@@ -722,7 +725,7 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
               <Separator />
             </>
           )}
-          <form className="flex flex-col gap-4">
+          <form className="flex flex-col gap-4" onKeyDown={preventImplicitSubmitOnEnter}>
             <div className="flex flex-col gap-3">
               <Label htmlFor="header">Header</Label>
               <Input id="header" defaultValue={item.header} />

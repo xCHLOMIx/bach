@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 import { formatPhoneNumberInput, normalizePhoneNumber } from "@/lib/phone"
 
 interface User {
@@ -238,7 +239,7 @@ export default function AccountPage() {
                             )}
 
                             {isEditingProfile ? (
-                                <form onSubmit={handleProfileSubmit} className="space-y-4">
+                                <form onSubmit={handleProfileSubmit} onKeyDown={preventImplicitSubmitOnEnter} className="space-y-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="firstName">First Name</Label>
                                         <Input
@@ -342,7 +343,7 @@ export default function AccountPage() {
                                 </div>
                             )}
 
-                            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                            <form onSubmit={handlePasswordSubmit} onKeyDown={preventImplicitSubmitOnEnter} className="space-y-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="currentPassword">Current Password</Label>
                                     <Input

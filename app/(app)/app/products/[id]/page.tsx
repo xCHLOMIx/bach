@@ -35,6 +35,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
+import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"]
 
@@ -698,7 +699,7 @@ export default function ProductDetailsPage() {
             <SheetTitle className="truncate">Edit {product.name}</SheetTitle>
             <SheetDescription>Update product details and batch assignment.</SheetDescription>
           </SheetHeader>
-          <form className="grid gap-6 p-4" onSubmit={submitEditProduct}>
+          <form className="grid gap-6 p-4" onSubmit={submitEditProduct} onKeyDown={preventImplicitSubmitOnEnter}>
             {/* Images Section */}
             <div className="space-y-3 border-b pb-4">
               <h3 className="font-semibold text-sm">Images</h3>

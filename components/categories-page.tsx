@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Trash2Icon, SearchIcon, ChevronUpIcon, ChevronDownIcon, Columns3Icon } from "lucide-react"
+import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 
 const CATEGORIES_VISIBLE_COLUMNS_STORAGE_KEY = "categories:visible-columns"
 const CATEGORIES_TABLE_STATE_STORAGE_KEY = "categories:table-state"
@@ -393,7 +394,7 @@ export function CategoriesPage() {
                     <CardTitle className="text-2xl font-bold">Categories</CardTitle>
                     <CardDescription>Create, update, and delete categories.</CardDescription>
                 </div>
-                <form className="flex flex-col gap-2 sm:flex-row sm:items-center" onSubmit={createCategory}>
+                <form className="flex flex-col gap-2 sm:flex-row sm:items-center" onSubmit={createCategory} onKeyDown={preventImplicitSubmitOnEnter}>
                     <Input
                         placeholder="Category name"
                         className="h-10 min-w-0 w-40"

@@ -56,6 +56,7 @@ import {
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Columns3Icon, ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon, SearchIcon, ShoppingCartIcon, Trash2Icon, XIcon } from "lucide-react"
+import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"]
 const NO_CATEGORY_VALUE = "__none__"
@@ -1487,7 +1488,7 @@ export function ProductsPage() {
                             Update product details and batch assignment.
                         </SheetDescription>
                     </SheetHeader>
-                    <form className="grid gap-6 p-4" onSubmit={submitEditProduct}>
+                    <form className="grid gap-6 p-4" onSubmit={submitEditProduct} onKeyDown={preventImplicitSubmitOnEnter}>
                         {/* Images Section */}
                         <div className="space-y-3 border-b pb-4">
                             <h3 className="font-semibold text-sm">Images</h3>
@@ -1899,7 +1900,7 @@ export function ProductsPage() {
                                     <SheetTitle>Add Product</SheetTitle>
                                     <SheetDescription>Create a new product entry.</SheetDescription>
                                 </SheetHeader>
-                                <form className="flex-1 overflow-y-auto grid gap-6 p-4" onSubmit={submitProduct}>
+                                <form className="flex-1 overflow-y-auto grid gap-6 p-4" onSubmit={submitProduct} onKeyDown={preventImplicitSubmitOnEnter}>
                                     <Field>
                                         <div className="space-y-3 border-b pb-4">
                                             <h3 className="font-semibold text-sm">Images</h3>
@@ -2475,7 +2476,7 @@ export function ProductsPage() {
                         className="modal-pop-in bg-card rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto border border-border"
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <form className="p-6" onSubmit={submitSaleFromModal}>
+                        <form className="p-6" onSubmit={submitSaleFromModal} onKeyDown={preventImplicitSubmitOnEnter}>
                             <div className="mb-4 flex items-center justify-between">
                                 <h2 className="text-lg font-semibold text-foreground">
                                     {saleStep === "product" ? "Select Product" : "Record Sale"}
