@@ -3,6 +3,7 @@
 import * as React from "react"
 
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
     CardDescription,
     CardHeader,
@@ -481,13 +482,7 @@ export function CategoriesPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="w-12">
-                                        <input
-                                            type="checkbox"
-                                            className="rounded"
-                                            checked={false}
-                                            readOnly
-                                            disabled
-                                        />
+                                        <Checkbox checked={false} readOnly disabled />
                                     </TableHead>
                                     {visibleColumns.name && <TableHead>Name</TableHead>}
                                     {visibleColumns.created && <TableHead>Created</TableHead>}
@@ -525,12 +520,10 @@ export function CategoriesPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="w-12">
-                                        <input
-                                            type="checkbox"
-                                            className="rounded"
+                                        <Checkbox
                                             checked={isAllSelected}
-                                            onChange={(event) => {
-                                                if (event.target.checked) {
+                                            onCheckedChange={(value) => {
+                                                if (value) {
                                                     setSelectedCategoryIds(new Set(sortedCategories.map((category) => category._id)))
                                                     return
                                                 }
@@ -592,16 +585,14 @@ export function CategoriesPage() {
                                     sortedCategories.map((category) => (
                                         <TableRow
                                             key={category._id}
-                                            className={selectedCategoryIds.has(category._id) ? "bg-primary/20 text-foreground" : "hover:bg-muted/40"}
+                                            className={selectedCategoryIds.has(category._id) ? "bg-primary/20 text-foreground hover:bg-primary/20" : "hover:bg-muted/40"}
                                         >
                                             <TableCell onClick={(event) => event.stopPropagation()}>
-                                                <input
-                                                    type="checkbox"
-                                                    className="rounded"
+                                                <Checkbox
                                                     checked={selectedCategoryIds.has(category._id)}
-                                                    onChange={(event) => {
+                                                    onCheckedChange={(value) => {
                                                         const nextSelected = new Set(selectedCategoryIds)
-                                                        if (event.target.checked) {
+                                                        if (value) {
                                                             nextSelected.add(category._id)
                                                         } else {
                                                             nextSelected.delete(category._id)

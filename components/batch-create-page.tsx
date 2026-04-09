@@ -27,7 +27,8 @@ import { CheckIcon, ChevronLeft, SearchIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { calculateBatchProductLandedCosts, convertInternationalExpenseToRwf } from "@/lib/costs"
 
-const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "EUR"] as const
+const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "AED"] as const
+const PRODUCTS_PER_PAGE = 10
 
 type PickupMethod = "easy" | "advanced"
 
@@ -84,6 +85,7 @@ export function BatchCreatePage() {
     const [errors, setErrors] = React.useState<Record<string, string>>({})
 
     const [productSearch, setProductSearch] = React.useState("")
+    const [productPage, setProductPage] = React.useState(1)
     const productSearchInputRef = React.useRef<HTMLInputElement | null>(null)
 
     const stripCommas = (value: string) => value.replace(/,/g, "")
@@ -149,6 +151,13 @@ export function BatchCreatePage() {
 
         return unassignedProducts.filter((product) => product.name.toLowerCase().includes(searchLower))
     }, [unassignedProducts, productSearch])
+
+    const totalProductPages = Math.max(1, Math.ceil(filteredUnassignedProducts.length / PRODUCTS_PER_PAGE))
+
+    const paginatedUnassignedProducts = React.useMemo(() => {
+        const start = (productPage - 1) * PRODUCTS_PER_PAGE
+        return filteredUnassignedProducts.slice(start, start + PRODUCTS_PER_PAGE)
+    }, [filteredUnassignedProducts, productPage])
 
     const selectedProducts = React.useMemo(() => {
         const selectedIdSet = new Set(selectedProductIds)
@@ -245,6 +254,14 @@ export function BatchCreatePage() {
         window.addEventListener("keydown", handleSearchShortcut)
         return () => window.removeEventListener("keydown", handleSearchShortcut)
     }, [])
+
+    React.useEffect(() => {
+        setProductPage(1)
+    }, [productSearch])
+
+    React.useEffect(() => {
+        setProductPage((current) => Math.min(current, totalProductPages))
+    }, [totalProductPages])
 
     const renderFieldError = (field: string) => {
         if (!errors[field]) {
@@ -469,7 +486,7 @@ export function BatchCreatePage() {
                         <div className="p-3 text-sm text-muted-foreground">
                             No products found matching your search.
                         </div>
-                    ) : filteredUnassignedProducts.map((product, index) => {
+                    ) : paginatedUnassignedProducts.map((product, index) => {
                         const isSelected = selectedProductIds.includes(product._id)
 
                         return (
@@ -486,9 +503,9 @@ export function BatchCreatePage() {
                                 className={cn(
                                     "flex w-full items-center gap-2 border-b px-3 py-2 text-left text-sm last:border-b-0",
                                     index === 0 && "rounded-t-md",
-                                    index === filteredUnassignedProducts.length - 1 && "rounded-b-md",
+                                    index === paginatedUnassignedProducts.length - 1 && "rounded-b-md",
                                     isSelected
-                                        ? "bg-primary/20 text-foreground"
+                                        ? "bg-primary/20 text-foreground hover:bg-primary/20"
                                         : "hover:bg-muted/40"
                                 )}
                             >
@@ -498,6 +515,38 @@ export function BatchCreatePage() {
                         )
                     })}
                 </div>
+
+                {filteredUnassignedProducts.length > PRODUCTS_PER_PAGE ? (
+                    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <span>
+                            Showing {(productPage - 1) * PRODUCTS_PER_PAGE + 1}
+                            -
+                            {Math.min(productPage * PRODUCTS_PER_PAGE, filteredUnassignedProducts.length)}
+                            of {filteredUnassignedProducts.length}
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={productPage <= 1}
+                                onClick={() => setProductPage((current) => Math.max(1, current - 1))}
+                            >
+                                Previous
+                            </Button>
+                            <span>Page {productPage} of {totalProductPages}</span>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={productPage >= totalProductPages}
+                                onClick={() => setProductPage((current) => Math.min(totalProductPages, current + 1))}
+                            >
+                                Next
+                            </Button>
+                        </div>
+                    </div>
+                ) : null}
             </div>
         )
     }
@@ -596,9 +645,21 @@ export function BatchCreatePage() {
                     <CardTitle className="text-2xl font-bold">Create Batch</CardTitle>
                     <CardDescription>Enter batch details and select products.</CardDescription>
                 </div>
-                <Button type="submit" size={"lg"} className="h-10 px-6 disabled:opacity-50" disabled={isSubmitting || !canCreateBatch}>
-                    {isSubmitting ? "Saving..." : "Create Batch"}
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size={"lg"}
+                        className="h-10 px-6"
+                        onClick={() => router.push("/app/batches")}
+                        disabled={isSubmitting}
+                    >
+                        Cancel
+                    </Button>
+                    <Button type="submit" size={"lg"} className="h-10 px-6 disabled:opacity-50" disabled={isSubmitting || !canCreateBatch}>
+                        {isSubmitting ? "Saving..." : "Create Batch"}
+                    </Button>
+                </div>
             </CardHeader>
 
             {!canCreateBatch ? (
@@ -904,14 +965,6 @@ export function BatchCreatePage() {
 
             {errors.general ? <p className="text-sm text-destructive">{errors.general}</p> : null}
 
-            <div className="flex items-center gap-2">
-                <Button type="button" variant="outline" onClick={() => router.push("/app/batches")}>
-                    Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting || !canCreateBatch} className="disabled:opacity-50">
-                    {isSubmitting ? "Saving..." : "Create Batch"}
-                </Button>
-            </div>
         </form>
     )
 }

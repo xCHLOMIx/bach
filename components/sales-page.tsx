@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 import { PackageSearchIcon, XIcon } from "lucide-react"
@@ -485,16 +486,16 @@ export function SalesPage() {
                                                         onClick={() => toggleProductSelection(product._id)}
                                                         className={`w-full text-left p-3 rounded-lg border transition-colors ${isOutOfStock
                                                             ? "border-border opacity-70"
-                                                            : "border-border hover:bg-muted"
-                                                            } ${isSelected ? "bg-primary/10" : ""}`}
+                                                            : isSelected
+                                                                ? "border-primary/30 bg-primary/10"
+                                                                : "border-border hover:bg-muted"
+                                                            }`}
                                                     >
                                                         <div className="flex items-start gap-3">
-                                                            <input
-                                                                type="checkbox"
+                                                            <Checkbox
                                                                 checked={isSelected}
-                                                                onChange={() => toggleProductSelection(product._id)}
+                                                                onCheckedChange={() => toggleProductSelection(product._id)}
                                                                 onClick={(event) => event.stopPropagation()}
-                                                                className="mt-0.5 rounded"
                                                                 aria-label={`Select ${product.name}`}
                                                             />
                                                             <div className="min-w-0">

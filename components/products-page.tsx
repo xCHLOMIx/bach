@@ -36,6 +36,7 @@ import {
     EmptyHeader,
     EmptyTitle,
 } from "@/components/ui/empty"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
     Table,
     TableBody,
@@ -1248,7 +1249,7 @@ export function ProductsPage() {
         if (columnKey === "image") {
             return (
                 <TableCell className="p-0">
-                    <div className="block p-2">
+                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50" onClick={(event) => event.stopPropagation()}>
                         {product.images?.[0] ? (
                             <img
                                 src={product.images[0]}
@@ -1260,7 +1261,7 @@ export function ProductsPage() {
                                 {product.name.replace(/\s+/g, "").slice(0, 2).toUpperCase()}
                             </div>
                         )}
-                    </div>
+                    </Link>
                 </TableCell>
             )
         }
@@ -1268,11 +1269,11 @@ export function ProductsPage() {
         if (columnKey === "name") {
             return (
                 <TableCell className="p-0 max-w-xs">
-                    <div className="block p-2">
+                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50" onClick={(event) => event.stopPropagation()}>
                         <span className="block w-11/12 overflow-hidden text-ellipsis whitespace-nowrap" title={product.name}>
                             {product.name}
                         </span>
-                    </div>
+                    </Link>
                 </TableCell>
             )
         }
@@ -2313,13 +2314,19 @@ export function ProductsPage() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead className="w-12"><input type="checkbox" className="rounded" onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setSelectedProductIds(new Set(sortedFilteredProducts.map(p => p._id)))
-                                                } else {
-                                                    setSelectedProductIds(new Set())
-                                                }
-                                            }} checked={selectedProductIds.size === sortedFilteredProducts.length && sortedFilteredProducts.length > 0} title="Select all" /></TableHead>
+                                            <TableHead className="w-12">
+                                                <Checkbox
+                                                    checked={selectedProductIds.size === sortedFilteredProducts.length && sortedFilteredProducts.length > 0}
+                                                    onCheckedChange={(value) => {
+                                                        if (value) {
+                                                            setSelectedProductIds(new Set(sortedFilteredProducts.map((product) => product._id)))
+                                                        } else {
+                                                            setSelectedProductIds(new Set())
+                                                        }
+                                                    }}
+                                                    title="Select all"
+                                                />
+                                            </TableHead>
                                             {orderedVisibleColumns.map((columnKey) => (
                                                 <TableHead
                                                     key={columnKey}
@@ -2361,19 +2368,32 @@ export function ProductsPage() {
                                             sortedFilteredProducts.map((product) => (
                                                 <TableRow
                                                     key={product._id}
-                                                    className={selectedProductIds.has(product._id) ? "bg-primary/20 text-foreground cursor-pointer" : "hover:bg-muted/40 cursor-pointer"}
-                                                    onClick={() => router.push(`/app/products/${product._id}`)}
+                                                    className={selectedProductIds.has(product._id) ? "bg-primary/20 text-foreground hover:bg-primary/20 cursor-default" : "hover:bg-muted/40 cursor-default"}
+                                                    onClick={() => {
+                                                        setSelectedProductIds((current) => {
+                                                            const next = new Set(current)
+                                                            if (next.has(product._id)) {
+                                                                next.delete(product._id)
+                                                            } else {
+                                                                next.add(product._id)
+                                                            }
+                                                            return next
+                                                        })
+                                                    }}
                                                 >
                                                     <TableCell onClick={(e) => e.stopPropagation()} className="p-3">
-                                                        <input type="checkbox" className="rounded" checked={selectedProductIds.has(product._id)} onChange={(e) => {
-                                                            const newSelected = new Set(selectedProductIds)
-                                                            if (e.target.checked) {
-                                                                newSelected.add(product._id)
-                                                            } else {
-                                                                newSelected.delete(product._id)
-                                                            }
-                                                            setSelectedProductIds(newSelected)
-                                                        }} />
+                                                        <Checkbox
+                                                            checked={selectedProductIds.has(product._id)}
+                                                            onCheckedChange={(value) => {
+                                                                const newSelected = new Set(selectedProductIds)
+                                                                if (value) {
+                                                                    newSelected.add(product._id)
+                                                                } else {
+                                                                    newSelected.delete(product._id)
+                                                                }
+                                                                setSelectedProductIds(newSelected)
+                                                            }}
+                                                        />
                                                     </TableCell>
                                                     {orderedVisibleColumns.map((columnKey) => (
                                                         <React.Fragment key={`${product._id}-${columnKey}`}>

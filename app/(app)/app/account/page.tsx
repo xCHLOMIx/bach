@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { Loader2, User, Lock } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -376,12 +377,10 @@ export default function AccountPage() {
                                 </div>
 
                                 <div className="flex items-center gap-2">
-                                    <input
-                                        type="checkbox"
+                                    <Checkbox
                                         id="showPasswords"
                                         checked={showPasswords}
-                                        onChange={(e) => setShowPasswords(e.target.checked)}
-                                        className="rounded border border-border"
+                                        onCheckedChange={(checked) => setShowPasswords(Boolean(checked))}
                                     />
                                     <Label htmlFor="showPasswords" className="text-sm">
                                         Show passwords

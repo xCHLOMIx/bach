@@ -24,6 +24,7 @@ import {
     EmptyHeader,
     EmptyTitle,
 } from "@/components/ui/empty"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import {
     Select,
@@ -46,7 +47,7 @@ import { cn } from "@/lib/utils"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { CheckIcon, CopyIcon, PackageSearchIcon, SearchIcon, ChevronUpIcon, ChevronDownIcon, Trash2Icon, Columns3Icon } from "lucide-react"
 
-const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "EUR"] as const
+const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "AED"] as const
 const BATCHES_VISIBLE_COLUMNS_STORAGE_KEY = "batches:visible-columns"
 const BATCHES_TABLE_STATE_STORAGE_KEY = "batches:table-state"
 type PickupMethod = "easy" | "advanced"
@@ -900,12 +901,10 @@ export function BatchesPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="w-12">
-                                        <input
-                                            type="checkbox"
-                                            className="rounded"
+                                        <Checkbox
                                             checked={isAllBatchesSelected}
-                                            onChange={(event) => {
-                                                if (event.target.checked) {
+                                            onCheckedChange={(value) => {
+                                                if (value) {
                                                     setSelectedBatchIds(new Set(sortedBatches.map((b) => b._id)))
                                                     return
                                                 }
@@ -1150,17 +1149,15 @@ export function BatchesPage() {
                                 {sortedBatches.map((batch) => (
                                     <TableRow
                                         key={batch._id}
-                                        className={selectedBatchIds.has(batch._id) ? "bg-primary/20 text-foreground cursor-pointer" : "hover:bg-muted/40 cursor-pointer"}
+                                        className={selectedBatchIds.has(batch._id) ? "bg-primary/20 text-foreground hover:bg-primary/20 cursor-pointer" : "hover:bg-muted/40 cursor-pointer"}
                                         onClick={() => router.push(`/app/batches/${batch._id}`)}
                                     >
                                         <TableCell onClick={(event) => event.stopPropagation()}>
-                                            <input
-                                                type="checkbox"
-                                                className="rounded"
+                                            <Checkbox
                                                 checked={selectedBatchIds.has(batch._id)}
-                                                onChange={(event) => {
+                                                onCheckedChange={(value) => {
                                                     const nextSelected = new Set(selectedBatchIds)
-                                                    if (event.target.checked) {
+                                                    if (value) {
                                                         nextSelected.add(batch._id)
                                                     } else {
                                                         nextSelected.delete(batch._id)

@@ -97,6 +97,17 @@ export async function POST(request: NextRequest) {
     errors.pickupMethod = "Pickup method must be easy or advanced"
   }
 
+  if (batchName) {
+    const existingBatch = await BatchModel.findOne({
+      userId: user._id,
+      batchName: { $regex: `^${batchName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" },
+    })
+
+    if (existingBatch) {
+      errors.batchName = "Batch name already exists"
+    }
+  }
+
   const currencyFields = {
     intlShippingCurrency,
     amazonPrimeCurrency,

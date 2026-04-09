@@ -29,7 +29,8 @@ import { calculateBatchProductLandedCosts, convertInternationalExpenseToRwf } fr
 import { cn } from "@/lib/utils"
 import { ChevronLeft, CopyIcon, PackageOpen, SearchIcon } from "lucide-react"
 
-const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "EUR"] as const
+const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "AED"] as const
+const PRODUCTS_PER_PAGE = 10
 
 type Batch = {
     _id: string
@@ -124,6 +125,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     const [isSubmitting, setIsSubmitting] = React.useState(false)
     const [isEditing, setIsEditing] = React.useState(false)
     const [productSearch, setProductSearch] = React.useState("")
+    const [productPage, setProductPage] = React.useState(1)
     const productSearchInputRef = React.useRef<HTMLInputElement | null>(null)
 
     const stripCommas = (value: string) => value.replace(/,/g, "")
@@ -308,6 +310,13 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         return products.filter((product) => product.name.toLowerCase().includes(searchLower))
     }, [products, productSearch])
 
+    const totalProductPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE))
+
+    const paginatedProducts = React.useMemo(() => {
+        const start = (productPage - 1) * PRODUCTS_PER_PAGE
+        return filteredProducts.slice(start, start + PRODUCTS_PER_PAGE)
+    }, [filteredProducts, productPage])
+
     React.useEffect(() => {
         const handleSearchShortcut = (event: KeyboardEvent) => {
             if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") {
@@ -320,6 +329,14 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         window.addEventListener("keydown", handleSearchShortcut)
         return () => window.removeEventListener("keydown", handleSearchShortcut)
     }, [])
+
+    React.useEffect(() => {
+        setProductPage(1)
+    }, [productSearch])
+
+    React.useEffect(() => {
+        setProductPage((current) => Math.min(current, totalProductPages))
+    }, [totalProductPages])
 
     const copyTrackingNumber = React.useCallback(async () => {
         if (!form.trackingId.trim()) {
@@ -566,7 +583,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         <div className="p-3 text-sm text-muted-foreground">
                             No products found matching your search.
                         </div>
-                    ) : filteredProducts.map((product, index) => {
+                    ) : paginatedProducts.map((product, index) => {
                         const isSelected = selectedProductIds.includes(product._id)
                         const assignedBatchId = product.batchId?._id
                         const assignedBatchName = assignedBatchId ? batchIdToName.get(assignedBatchId) : null
@@ -588,9 +605,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                 className={cn(
                                     "flex w-full items-center gap-2 border-b px-3 py-2 text-left text-sm last:border-b-0",
                                     index === 0 && "rounded-t-md",
-                                    index === filteredProducts.length - 1 && "rounded-b-md",
+                                    index === paginatedProducts.length - 1 && "rounded-b-md",
                                     isSelected
-                                        ? "bg-primary/20 text-foreground"
+                                        ? "bg-primary/20 text-foreground hover:bg-primary/20"
                                         : "hover:bg-muted/40"
                                 )}
                             >
@@ -607,6 +624,38 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         )
                     })}
                 </div>
+
+                {filteredProducts.length > PRODUCTS_PER_PAGE ? (
+                    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <span>
+                            Showing {(productPage - 1) * PRODUCTS_PER_PAGE + 1}
+                            -
+                            {Math.min(productPage * PRODUCTS_PER_PAGE, filteredProducts.length)}
+                            of {filteredProducts.length}
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={productPage <= 1}
+                                onClick={() => setProductPage((current) => Math.max(1, current - 1))}
+                            >
+                                Previous
+                            </Button>
+                            <span>Page {productPage} of {totalProductPages}</span>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={productPage >= totalProductPages}
+                                onClick={() => setProductPage((current) => Math.min(totalProductPages, current + 1))}
+                            >
+                                Next
+                            </Button>
+                        </div>
+                    </div>
+                ) : null}
             </div>
         )
     }
