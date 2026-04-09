@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { calculateBatchProductLandedCosts, convertInternationalExpenseToRwf } from "@/lib/costs"
+import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 import { cn } from "@/lib/utils"
 import { ChevronLeft, CopyIcon, PackageOpen, SearchIcon } from "lucide-react"
 
@@ -127,27 +128,6 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     const [productSearch, setProductSearch] = React.useState("")
     const [productPage, setProductPage] = React.useState(1)
     const productSearchInputRef = React.useRef<HTMLInputElement | null>(null)
-
-    const preventImplicitSubmitOnEnter = React.useCallback((event: React.KeyboardEvent<HTMLFormElement>) => {
-        if (event.key !== "Enter") {
-            return
-        }
-
-        const target = event.target
-        if (!(target instanceof HTMLElement)) {
-            return
-        }
-
-        if (target.tagName === "TEXTAREA") {
-            return
-        }
-
-        if (target.getAttribute("role") === "combobox") {
-            return
-        }
-
-        event.preventDefault()
-    }, [])
 
     const stripCommas = (value: string) => value.replace(/,/g, "")
 

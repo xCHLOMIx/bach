@@ -26,6 +26,7 @@ import {
 import { CheckIcon, ChevronLeft, SearchIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { calculateBatchProductLandedCosts, convertInternationalExpenseToRwf } from "@/lib/costs"
+import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 
 const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "AED"] as const
 const PRODUCTS_PER_PAGE = 10
@@ -87,27 +88,6 @@ export function BatchCreatePage() {
     const [productSearch, setProductSearch] = React.useState("")
     const [productPage, setProductPage] = React.useState(1)
     const productSearchInputRef = React.useRef<HTMLInputElement | null>(null)
-
-    const preventImplicitSubmitOnEnter = React.useCallback((event: React.KeyboardEvent<HTMLFormElement>) => {
-        if (event.key !== "Enter") {
-            return
-        }
-
-        const target = event.target
-        if (!(target instanceof HTMLElement)) {
-            return
-        }
-
-        if (target.tagName === "TEXTAREA") {
-            return
-        }
-
-        if (target.getAttribute("role") === "combobox") {
-            return
-        }
-
-        event.preventDefault()
-    }, [])
 
     const stripCommas = (value: string) => value.replace(/,/g, "")
 
