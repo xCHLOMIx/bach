@@ -88,6 +88,27 @@ export function BatchCreatePage() {
     const [productPage, setProductPage] = React.useState(1)
     const productSearchInputRef = React.useRef<HTMLInputElement | null>(null)
 
+    const preventImplicitSubmitOnEnter = React.useCallback((event: React.KeyboardEvent<HTMLFormElement>) => {
+        if (event.key !== "Enter") {
+            return
+        }
+
+        const target = event.target
+        if (!(target instanceof HTMLElement)) {
+            return
+        }
+
+        if (target.tagName === "TEXTAREA") {
+            return
+        }
+
+        if (target.getAttribute("role") === "combobox") {
+            return
+        }
+
+        event.preventDefault()
+    }, [])
+
     const stripCommas = (value: string) => value.replace(/,/g, "")
 
     const formatDecimalWithCommas = (value: string) => {
@@ -632,7 +653,7 @@ export function BatchCreatePage() {
     )
 
     return (
-        <form className="flex flex-1 flex-col gap-4 p-4 lg:p-6" onSubmit={submit}>
+        <form className="flex flex-1 flex-col gap-4 p-4 lg:p-6" onSubmit={submit} onKeyDown={preventImplicitSubmitOnEnter}>
             <div className="mb-1 flex items-center gap-3">
                 <Button variant="outline" className="h-9 w-9 p-0" type="button" onClick={() => router.push("/app/batches")}>
                     <ChevronLeft className="h-4 w-4" />
