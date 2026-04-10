@@ -618,7 +618,7 @@ export function CategoriesPage() {
                                             key={category._id}
                                             className={cn(
                                                 selectedCategoryIds.has(category._id) ? "bg-primary/20 text-foreground hover:bg-primary/20" : "hover:bg-muted/40",
-                                                editingId === category._id ? "cursor-default [&>td]:cursor-default" : "cursor-pointer [&>td]:cursor-pointer"
+                                                "cursor-default [&>td]:cursor-default"
                                             )}
                                             onClick={() => {
                                                 if (editingId === category._id) {
@@ -636,6 +636,7 @@ export function CategoriesPage() {
                                             </TableCell>
                                             {visibleColumns.name && (
                                                 <TableCell
+                                                    className={editingId === category._id ? undefined : "cursor-pointer"}
                                                     onClick={editingId === category._id ? (event) => event.stopPropagation() : undefined}
                                                 >
                                                     {editingId === category._id ? (

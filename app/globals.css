@@ -145,3 +145,19 @@
     @apply font-sans;
   }
 }
+
+.toaster [data-sonner-toast].cn-toast[data-type="success"] {
+  background: color-mix(in oklab, var(--primary) 18%, white 82%);
+  color: #0f5132;
+  border-color: color-mix(in oklab, var(--primary) 55%, black 10%);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--primary) 40%, black 12%);
+}
+
+.toaster [data-sonner-toast].cn-toast[data-type="success"] [data-icon] {
+  color: color-mix(in oklab, var(--primary) 62%, black 20%);
+}
+
+.toaster [data-sonner-toast].cn-toast {
+  border-width: 1px;
+  font-family: var(--font-geist-sans), sans-serif;
+}

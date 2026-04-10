@@ -1164,7 +1164,7 @@ export function BatchesPage() {
                                 {sortedBatches.map((batch) => (
                                     <TableRow
                                         key={batch._id}
-                                        className={selectedBatchIds.has(batch._id) ? "bg-primary/20 text-foreground hover:bg-primary/20 cursor-pointer [&>td]:cursor-pointer" : "hover:bg-muted/40 cursor-pointer [&>td]:cursor-pointer"}
+                                        className={selectedBatchIds.has(batch._id) ? "bg-primary/20 text-foreground hover:bg-primary/20 cursor-default [&>td]:cursor-default" : "hover:bg-muted/40 cursor-default [&>td]:cursor-default"}
                                         onClick={() => toggleBatchSelection(batch._id)}
                                     >
                                         <TableCell onClick={(event) => event.stopPropagation()}>
@@ -1177,7 +1177,7 @@ export function BatchesPage() {
                                         <TableCell className="max-w-xs font-medium">
                                             <button
                                                 type="button"
-                                                className="block w-11/12 overflow-hidden text-ellipsis whitespace-nowrap text-left underline-offset-2 hover:underline"
+                                                className="block w-11/12 cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap text-left underline-offset-2 hover:underline"
                                                 title={batch.batchName}
                                                 onClick={(event) => {
                                                     event.stopPropagation()
