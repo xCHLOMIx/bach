@@ -467,6 +467,18 @@ export function BatchesPage() {
 
     const canCreateBatch = hasAnyExpenseAmount(addForm)
 
+    const toggleBatchSelection = React.useCallback((batchId: string) => {
+        setSelectedBatchIds((current) => {
+            const next = new Set(current)
+            if (next.has(batchId)) {
+                next.delete(batchId)
+            } else {
+                next.add(batchId)
+            }
+            return next
+        })
+    }, [])
+
     const renderFieldError = (errors: Record<string, string>, field: string) => {
         if (!errors[field]) {
             return null
@@ -1150,27 +1162,27 @@ export function BatchesPage() {
                                     <TableRow
                                         key={batch._id}
                                         className={selectedBatchIds.has(batch._id) ? "bg-primary/20 text-foreground hover:bg-primary/20 cursor-pointer" : "hover:bg-muted/40 cursor-pointer"}
-                                        onClick={() => router.push(`/app/batches/${batch._id}`)}
+                                        onClick={() => toggleBatchSelection(batch._id)}
                                     >
                                         <TableCell onClick={(event) => event.stopPropagation()}>
                                             <Checkbox
                                                 checked={selectedBatchIds.has(batch._id)}
-                                                onCheckedChange={(value) => {
-                                                    const nextSelected = new Set(selectedBatchIds)
-                                                    if (value) {
-                                                        nextSelected.add(batch._id)
-                                                    } else {
-                                                        nextSelected.delete(batch._id)
-                                                    }
-                                                    setSelectedBatchIds(nextSelected)
-                                                }}
+                                                onCheckedChange={() => toggleBatchSelection(batch._id)}
                                                 title={`Select ${batch.batchName}`}
                                             />
                                         </TableCell>
                                         <TableCell className="font-medium max-w-xs">
-                                            <span className="block w-11/12 overflow-hidden text-ellipsis whitespace-nowrap" title={batch.batchName}>
+                                            <button
+                                                type="button"
+                                                className="block w-11/12 overflow-hidden text-ellipsis whitespace-nowrap text-left underline-offset-2 hover:underline"
+                                                title={batch.batchName}
+                                                onClick={(event) => {
+                                                    event.stopPropagation()
+                                                    router.push(`/app/batches/${batch._id}`)
+                                                }}
+                                            >
                                                 {batch.batchName}
-                                            </span>
+                                            </button>
                                         </TableCell>
                                         <TableCell className="text-muted-foreground">
                                             <div className="flex items-center gap-2">

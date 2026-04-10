@@ -349,6 +349,18 @@ export function CategoriesPage() {
         setVisibleColumns((current) => ({ ...current, [columnKey]: value }))
     }
 
+    const toggleCategorySelection = React.useCallback((categoryId: string) => {
+        setSelectedCategoryIds((current) => {
+            const next = new Set(current)
+            if (next.has(categoryId)) {
+                next.delete(categoryId)
+            } else {
+                next.add(categoryId)
+            }
+            return next
+        })
+    }, [])
+
     const isAllSelected = categories.length > 0 && selectedCategoryIds.size === categories.length
 
     const filteredCategories = React.useMemo(() => {
@@ -587,24 +599,22 @@ export function CategoriesPage() {
                                         <TableRow
                                             key={category._id}
                                             className={selectedCategoryIds.has(category._id) ? "bg-primary/20 text-foreground hover:bg-primary/20" : "hover:bg-muted/40"}
+                                            onClick={() => {
+                                                if (editingId === category._id) {
+                                                    return
+                                                }
+                                                toggleCategorySelection(category._id)
+                                            }}
                                         >
                                             <TableCell onClick={(event) => event.stopPropagation()}>
                                                 <Checkbox
                                                     checked={selectedCategoryIds.has(category._id)}
-                                                    onCheckedChange={(value) => {
-                                                        const nextSelected = new Set(selectedCategoryIds)
-                                                        if (value) {
-                                                            nextSelected.add(category._id)
-                                                        } else {
-                                                            nextSelected.delete(category._id)
-                                                        }
-                                                        setSelectedCategoryIds(nextSelected)
-                                                    }}
+                                                    onCheckedChange={() => toggleCategorySelection(category._id)}
                                                     title={`Select ${category.name}`}
                                                 />
                                             </TableCell>
                                             {visibleColumns.name && (
-                                                <TableCell>
+                                                <TableCell onClick={editingId === category._id ? (event) => event.stopPropagation() : undefined}>
                                                     {editingId === category._id ? (
                                                         <Input
                                                             value={editingName || ""}
