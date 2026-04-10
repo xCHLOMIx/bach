@@ -641,7 +641,7 @@ export function BatchCreatePage() {
                             <TableHead className="text-right">Import Charges (RWF)</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
                             <TableHead className="text-right">Selling Price (RWF)</TableHead>
-                            <TableHead className="text-right">Total Landed Price (RWF)</TableHead>
+                            <TableHead className="text-right">Total Landed Costs (RWF)</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -705,7 +705,7 @@ export function BatchCreatePage() {
                         <TableHead className="text-right">Import Charges (RWF)</TableHead>
                         <TableHead className="text-right">Weight %</TableHead>
                         <TableHead className="text-right">Selling Price (RWF)</TableHead>
-                        <TableHead className="text-right">Total Landed Price (RWF)</TableHead>
+                        <TableHead className="text-right">Total Landed Costs (RWF)</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>

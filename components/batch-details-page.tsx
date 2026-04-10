@@ -782,7 +782,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableHead className="text-right">Import Charges (RWF)</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
                             <TableHead className="text-right">Selling Price (RWF)</TableHead>
-                            <TableHead className="text-right">Total Landed Price (RWF)</TableHead>
+                            <TableHead className="text-right">Total Landed Costs (RWF)</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -846,7 +846,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         <TableHead className="text-right">Import Charges (RWF)</TableHead>
                         <TableHead className="text-right">Weight %</TableHead>
                         <TableHead className="text-right">Selling Price (RWF)</TableHead>
-                        <TableHead className="text-right">Total Landed Price (RWF)</TableHead>
+                        <TableHead className="text-right">Total Landed Costs (RWF)</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1396,7 +1396,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         </p>
                     </div>
                     <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Total Landed Price</p>
+                        <p className="text-xs text-muted-foreground">Total Landed Costs</p>
                         <p className="mt-2 text-sm font-medium text-foreground">
                             {selectedProducts
                                 .reduce((sum, product) => {

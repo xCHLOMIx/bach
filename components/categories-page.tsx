@@ -601,7 +601,7 @@ export function CategoriesPage() {
                                             key={category._id}
                                             className={cn(
                                                 selectedCategoryIds.has(category._id) ? "bg-primary/20 text-foreground hover:bg-primary/20" : "hover:bg-muted/40",
-                                                editingId === category._id ? "cursor-default" : "cursor-pointer"
+                                                editingId === category._id ? "cursor-default [&>td]:cursor-default" : "cursor-pointer [&>td]:cursor-pointer"
                                             )}
                                             onClick={() => {
                                                 if (editingId === category._id) {
@@ -619,7 +619,6 @@ export function CategoriesPage() {
                                             </TableCell>
                                             {visibleColumns.name && (
                                                 <TableCell
-                                                    className={editingId === category._id ? undefined : "cursor-pointer"}
                                                     onClick={editingId === category._id ? (event) => event.stopPropagation() : undefined}
                                                 >
                                                     {editingId === category._id ? (
@@ -635,7 +634,7 @@ export function CategoriesPage() {
                                                 </TableCell>
                                             )}
                                             {visibleColumns.created && (
-                                                <TableCell className={editingId === category._id ? undefined : "cursor-pointer"}>{new Date(category.createdAt).toLocaleDateString()}</TableCell>
+                                                <TableCell>{new Date(category.createdAt).toLocaleDateString()}</TableCell>
                                             )}
                                             {visibleColumns.actions && (
                                                 <TableCell className="flex gap-2 justify-end">

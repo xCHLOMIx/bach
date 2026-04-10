@@ -1209,7 +1209,7 @@ export function ProductsPage() {
         batch: "Batch",
         onHand: "On Hand",
         buyingPrice: "Buying Price (RWF)",
-        landedPrice: "Landed Price (RWF)",
+        landedPrice: "Landed Costs (RWF)",
         totalLandedCost: "Total Landed Cost (RWF)",
     }
 
@@ -1931,7 +1931,7 @@ export function ProductsPage() {
                                         <TableHead>Batch</TableHead>
                                         <TableHead>On Hand</TableHead>
                                         <TableHead>Buying Price (RWF)</TableHead>
-                                        <TableHead>Landed Price (RWF)</TableHead>
+                                        <TableHead>Landed Costs (RWF)</TableHead>
                                         <TableHead>Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -2012,7 +2012,7 @@ export function ProductsPage() {
                                         <DropdownMenuCheckboxItem checked={visibleColumns.batch} onCheckedChange={(value) => handleColumnVisibilityChange("batch", Boolean(value))}>Batch</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.onHand} onCheckedChange={(value) => handleColumnVisibilityChange("onHand", Boolean(value))}>On Hand</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.buyingPrice} onCheckedChange={(value) => handleColumnVisibilityChange("buyingPrice", Boolean(value))}>Buying Price</DropdownMenuCheckboxItem>
-                                        <DropdownMenuCheckboxItem checked={visibleColumns.landedPrice} onCheckedChange={(value) => handleColumnVisibilityChange("landedPrice", Boolean(value))}>Landed Price</DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem checked={visibleColumns.landedPrice} onCheckedChange={(value) => handleColumnVisibilityChange("landedPrice", Boolean(value))}>Landed Costs</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.totalLandedCost} onCheckedChange={(value) => handleColumnVisibilityChange("totalLandedCost", Boolean(value))}>Total Landed Cost</DropdownMenuCheckboxItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -2199,7 +2199,7 @@ export function ProductsPage() {
                                             <Badge variant="secondary" className="text-white">Buying Price: RWF {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Badge>
                                         </div>
                                         <div className="mt-3 text-xs text-muted-foreground">
-                                            Landed Price (RWF): {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            Landed Costs (RWF): {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </div>
                                         <div className="mt-1 text-xs text-muted-foreground">
                                             Selling Price (RWF): {typeof intendedSellingPrice === "number"

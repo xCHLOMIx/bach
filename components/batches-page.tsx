@@ -1161,7 +1161,7 @@ export function BatchesPage() {
                                 {sortedBatches.map((batch) => (
                                     <TableRow
                                         key={batch._id}
-                                        className={selectedBatchIds.has(batch._id) ? "bg-primary/20 text-foreground hover:bg-primary/20 cursor-pointer" : "hover:bg-muted/40 cursor-pointer"}
+                                        className={selectedBatchIds.has(batch._id) ? "bg-primary/20 text-foreground hover:bg-primary/20 cursor-pointer [&>td]:cursor-pointer" : "hover:bg-muted/40 cursor-pointer [&>td]:cursor-pointer"}
                                         onClick={() => toggleBatchSelection(batch._id)}
                                     >
                                         <TableCell onClick={(event) => event.stopPropagation()}>
@@ -1171,7 +1171,7 @@ export function BatchesPage() {
                                                 title={`Select ${batch.batchName}`}
                                             />
                                         </TableCell>
-                                        <TableCell className="max-w-xs cursor-pointer font-medium">
+                                        <TableCell className="max-w-xs font-medium">
                                             <button
                                                 type="button"
                                                 className="block w-11/12 overflow-hidden text-ellipsis whitespace-nowrap text-left underline-offset-2 hover:underline"
@@ -1184,7 +1184,7 @@ export function BatchesPage() {
                                                 {batch.batchName}
                                             </button>
                                         </TableCell>
-                                        <TableCell className="cursor-pointer text-muted-foreground">
+                                        <TableCell className="text-muted-foreground">
                                             <div className="flex items-center gap-2">
                                                 <span className="truncate">{batch.trackingId || "-"}</span>
                                                 {batch.trackingId ? (
@@ -1204,9 +1204,9 @@ export function BatchesPage() {
                                                 ) : null}
                                             </div>
                                         </TableCell>
-                                        <TableCell className="cursor-pointer">{getBatchTotalCosts(batch).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                                        <TableCell className="cursor-pointer">{batch.productCount ?? 0}</TableCell>
-                                        <TableCell className="cursor-pointer">{new Date(batch.createdAt).toLocaleDateString()}</TableCell>
+                                        <TableCell>{getBatchTotalCosts(batch).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                        <TableCell>{batch.productCount ?? 0}</TableCell>
+                                        <TableCell>{new Date(batch.createdAt).toLocaleDateString()}</TableCell>
                                         <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
                                             <Button
                                                 size="sm"
