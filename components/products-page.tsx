@@ -1920,8 +1920,8 @@ export function ProductsPage() {
             </CardHeader>
             <CardContent>
                 {isLoading ? (
-                    <div className="overflow-x-auto rounded-xl border">
-                        <div className="min-w-245">
+                    <div className="overflow-hidden rounded-xl border">
+                        <div className="min-w-245 overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -2047,8 +2047,8 @@ export function ProductsPage() {
                                 ) : null}
                             </div>
                         </div>
-                        <div className="overflow-x-auto rounded-xl border">
-                            <div className="min-w-245">
+                        <div className="overflow-hidden rounded-xl border">
+                            <div className="min-w-245 overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>

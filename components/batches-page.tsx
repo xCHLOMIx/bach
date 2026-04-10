@@ -907,8 +907,8 @@ export function BatchesPage() {
             </div>
 
             {isLoading ? (
-                <div className="overflow-x-auto rounded-xl border">
-                    <div className="min-w-200">
+                <div className="overflow-hidden rounded-xl border">
+                    <div className="min-w-200 overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -1049,8 +1049,8 @@ export function BatchesPage() {
                     </EmptyContent>
                 </Empty>
             ) : (
-                <div className="overflow-x-auto rounded-xl border">
-                    <div className="min-w-200">
+                <div className="overflow-hidden rounded-xl border">
+                    <div className="min-w-200 overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>

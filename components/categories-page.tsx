@@ -490,8 +490,8 @@ export function CategoriesPage() {
             </div>
 
             {isLoading ? (
-                <div className="overflow-x-auto rounded-xl border">
-                    <div className="min-w-160">
+                <div className="overflow-hidden rounded-xl border">
+                    <div className="min-w-160 overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -528,8 +528,8 @@ export function CategoriesPage() {
                     No categories yet. Create your first category.
                 </div>
             ) : (
-                <div className="overflow-x-auto rounded-xl border">
-                    <div className="min-w-160">
+                <div className="overflow-hidden rounded-xl border">
+                    <div className="min-w-160 overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>

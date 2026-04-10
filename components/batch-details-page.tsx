@@ -771,8 +771,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         const totalLandedPrice = totals.finalTotal
 
         return (
-            <div className="overflow-x-auto rounded-md border">
-                <Table className="min-w-275">
+            <div className="overflow-hidden rounded-md border">
+                <div className="overflow-x-auto">
+                    <Table className="min-w-275">
                     <TableHeader>
                         <TableRow>
                             <TableHead>Product</TableHead>
@@ -834,14 +835,16 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableCell className="text-right">{totals.finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
                         </TableRow>
                     </TableBody>
-                </Table>
+                    </Table>
+                </div>
             </div>
         )
     }
 
     const renderProductsTableSkeleton = () => (
-        <div className="overflow-x-auto rounded-md border">
-            <Table className="min-w-275">
+        <div className="overflow-hidden rounded-md border">
+            <div className="overflow-x-auto">
+                <Table className="min-w-275">
                 <TableHeader>
                     <TableRow>
                         <TableHead>Product</TableHead>
@@ -870,7 +873,8 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         </TableRow>
                     ))}
                 </TableBody>
-            </Table>
+                </Table>
+            </div>
         </div>
     )
 
