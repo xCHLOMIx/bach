@@ -31,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Trash2Icon, SearchIcon, ChevronUpIcon, ChevronDownIcon, Columns3Icon } from "lucide-react"
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 const CATEGORIES_VISIBLE_COLUMNS_STORAGE_KEY = "categories:visible-columns"
 const CATEGORIES_TABLE_STATE_STORAGE_KEY = "categories:table-state"
@@ -164,6 +165,7 @@ export function CategoriesPage() {
             return
         }
 
+        toast.success("Category created")
         setNewName("")
         await load()
     }
@@ -181,6 +183,7 @@ export function CategoriesPage() {
             return
         }
 
+        toast.success("Category updated")
         setEditingId("")
         setEditingName("")
         await load()
@@ -242,6 +245,8 @@ export function CategoriesPage() {
                 return
             }
 
+            toast.success("Category deleted")
+
             setSelectedCategoryIds((current) => {
                 const next = new Set(current)
                 next.delete(deleteConfirmData.categoryId)
@@ -287,6 +292,8 @@ export function CategoriesPage() {
                 setErrors({ general: `Failed to delete ${failedIds.length} selected categories` })
                 return
             }
+
+            toast.success("Categories deleted")
 
             setSelectedCategoryIds(new Set())
             setShowBulkDeleteConfirm(false)

@@ -60,6 +60,7 @@ import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Colu
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 import { getAllIntendedSellingPrices, getIntendedSellingPrice, setIntendedSellingPrice } from "@/lib/intended-pricing"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"]
 const NO_CATEGORY_VALUE = "__none__"
@@ -669,6 +670,8 @@ export function ProductsPage() {
                 return
             }
 
+            toast.success("Product created")
+
             setProductName("")
             setCategoryId("")
             setIsAddingCustomCategory(false)
@@ -888,6 +891,8 @@ export function ProductsPage() {
                     return
                 }
 
+                toast.success("Sales recorded")
+
                 setShowSaleModal(false)
                 resetSaleDraft()
                 setSelectedProductIds(new Set())
@@ -922,6 +927,8 @@ export function ProductsPage() {
                 setSaleErrors(data.errors ?? { general: "Failed to save sale" })
                 return
             }
+
+            toast.success("Sale recorded")
 
             setShowSaleModal(false)
             resetSaleDraft()
@@ -1025,6 +1032,8 @@ export function ProductsPage() {
                 : null
             setIntendedSellingPrice(editProductId, intendedSellingPriceValue)
 
+            toast.success("Product updated")
+
             setEditProductId("")
             setEditProductName("")
             setEditCategoryId("")
@@ -1102,6 +1111,8 @@ export function ProductsPage() {
                 alert("Failed to delete product")
                 return
             }
+
+            toast.success("Product deleted")
 
             setShowDeleteConfirm(false)
             setDeleteConfirmData(null)

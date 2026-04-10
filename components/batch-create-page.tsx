@@ -22,6 +22,7 @@ import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 import { getAllIntendedSellingPrices } from "@/lib/intended-pricing"
 import { cn } from "@/lib/utils"
 import { CheckIcon, ChevronLeft, SearchIcon } from "lucide-react"
+import { toast } from "sonner"
 
 const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "AED"] as const
 const PRODUCTS_PER_PAGE = 10
@@ -472,6 +473,8 @@ export function BatchCreatePage() {
                     return
                 }
             }
+
+            toast.success("Batch created")
 
             router.push("/app/batches")
             router.refresh()

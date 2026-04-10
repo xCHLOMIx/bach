@@ -46,6 +46,7 @@ import { convertInternationalExpenseToRwf } from "@/lib/costs"
 import { cn } from "@/lib/utils"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { CheckIcon, CopyIcon, PackageSearchIcon, SearchIcon, ChevronUpIcon, ChevronDownIcon, Trash2Icon, Columns3Icon } from "lucide-react"
+import { toast } from "sonner"
 
 const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "AED"] as const
 const BATCHES_VISIBLE_COLUMNS_STORAGE_KEY = "batches:visible-columns"
@@ -352,6 +353,8 @@ export function BatchesPage() {
                 alert("Failed to delete batch")
                 return
             }
+
+            toast.success("Batch deleted")
 
             setShowDeleteConfirm(false)
             setDeleteConfirmData(null)

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/sheet"
 import { setIntendedSellingPrice } from "@/lib/intended-pricing"
 import { ImagePlusIcon, PlusIcon, XIcon } from "lucide-react"
+import { toast } from "sonner"
 
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"] as const
 const NO_CATEGORY_VALUE = "__none__"
@@ -260,6 +261,8 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                 if (intendedSellingPrice.trim() && Number.isFinite(parsedIntendedSellingPrice) && parsedIntendedSellingPrice >= 0) {
                     setIntendedSellingPrice(createdProductId, parsedIntendedSellingPrice)
                 }
+
+                toast.success("Product created")
             }
 
             resetForm()

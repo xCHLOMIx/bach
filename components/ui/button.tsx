@@ -48,7 +48,6 @@ function Button({
   size = "default",
   asChild = false,
   loading = false,
-  loadingText = "Working",
   disabled,
   children,
   ...props
@@ -71,10 +70,7 @@ function Button({
       {...props}
     >
       {loading ? (
-        <>
-          <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-          <span className="sr-only">{loadingText}</span>
-        </>
+        <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
       ) : (
         children
       )}

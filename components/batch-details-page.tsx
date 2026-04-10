@@ -23,6 +23,7 @@ import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 import { getAllIntendedSellingPrices } from "@/lib/intended-pricing"
 import { cn } from "@/lib/utils"
 import { CheckIcon, ChevronLeft, CopyIcon, PackageOpen, SearchIcon } from "lucide-react"
+import { toast } from "sonner"
 
 const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "AED"] as const
 const PRODUCTS_PER_PAGE = 10
@@ -529,6 +530,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             setInitialForm(form)
             setInitialSelectedProductIds([...selectedProductIds])
             setIsEditing(false)
+            toast.success("Batch updated")
             return
         } finally {
             setIsSubmitting(false)
