@@ -122,6 +122,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     const [productSearch, setProductSearch] = React.useState("")
     const [productPage, setProductPage] = React.useState(1)
     const productSearchInputRef = React.useRef<HTMLInputElement | null>(null)
+    const submitIntentRef = React.useRef(false)
 
     const stripCommas = (value: string) => value.replace(/,/g, "")
 
@@ -468,6 +469,12 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
 
     const submit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
+
+        if (!isEditing || !submitIntentRef.current) {
+            return
+        }
+
+        submitIntentRef.current = false
         setIsSubmitting(true)
         setErrors({})
 
@@ -996,6 +1003,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             size={"lg"}
                             className="h-10 px-6 disabled:opacity-50"
                             disabled={isSubmitting || !canSave || !hasChanges}
+                            onClick={() => {
+                                submitIntentRef.current = true
+                            }}
                         >
                             {isSubmitting ? "Saving..." : "Save"}
                         </Button>

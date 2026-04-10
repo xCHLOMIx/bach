@@ -82,6 +82,7 @@ export function BatchCreatePage() {
     const [productSearch, setProductSearch] = React.useState("")
     const [productPage, setProductPage] = React.useState(1)
     const productSearchInputRef = React.useRef<HTMLInputElement | null>(null)
+    const submitIntentRef = React.useRef(false)
 
     const stripCommas = (value: string) => value.replace(/,/g, "")
 
@@ -317,6 +318,12 @@ export function BatchCreatePage() {
 
     const submit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
+
+        if (!submitIntentRef.current) {
+            return
+        }
+
+        submitIntentRef.current = false
         setIsSubmitting(true)
         setErrors({})
 
@@ -1025,7 +1032,15 @@ export function BatchCreatePage() {
                 >
                     Cancel
                 </Button>
-                <Button type="submit" size={"lg"} className="h-10 px-6 disabled:opacity-50" disabled={isSubmitting || !canCreateBatch}>
+                <Button
+                    type="submit"
+                    size={"lg"}
+                    className="h-10 px-6 disabled:opacity-50"
+                    disabled={isSubmitting || !canCreateBatch}
+                    onClick={() => {
+                        submitIntentRef.current = true
+                    }}
+                >
                     {isSubmitting ? "Saving..." : "Create Batch"}
                 </Button>
             </div>
