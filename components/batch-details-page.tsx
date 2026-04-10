@@ -771,8 +771,8 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         const totalLandedPrice = totals.finalTotal
 
         return (
-            <div className="overflow-hidden rounded-md border">
-                <Table>
+            <div className="overflow-x-auto rounded-md border">
+                <Table className="min-w-275">
                     <TableHeader>
                         <TableRow>
                             <TableHead>Product</TableHead>
@@ -782,6 +782,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableHead className="text-right">Import Charges (RWF)</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
                             <TableHead className="text-right">Selling Price (RWF)</TableHead>
+                            <TableHead className="text-right">Landed Costs (RWF)</TableHead>
                             <TableHead className="text-right">Total Landed Costs (RWF)</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -813,6 +814,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                             : "-"}
                                     </TableCell>
                                     <TableCell className="text-right">
+                                        {finalUnit.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    </TableCell>
+                                    <TableCell className="text-right">
                                         {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                                     </TableCell>
                                 </TableRow>
@@ -826,6 +830,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableCell className="text-right">{totals.shippingShare.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
                             <TableCell className="text-right">{`${totals.weightPercentage.toFixed(2)}%`}</TableCell>
                             <TableCell className="text-right">-</TableCell>
+                            <TableCell className="text-right">-</TableCell>
                             <TableCell className="text-right">{totals.finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
                         </TableRow>
                     </TableBody>
@@ -835,8 +840,8 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     }
 
     const renderProductsTableSkeleton = () => (
-        <div className="overflow-hidden rounded-md border">
-            <Table>
+        <div className="overflow-x-auto rounded-md border">
+            <Table className="min-w-275">
                 <TableHeader>
                     <TableRow>
                         <TableHead>Product</TableHead>
@@ -846,6 +851,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         <TableHead className="text-right">Import Charges (RWF)</TableHead>
                         <TableHead className="text-right">Weight %</TableHead>
                         <TableHead className="text-right">Selling Price (RWF)</TableHead>
+                        <TableHead className="text-right">Landed Costs (RWF)</TableHead>
                         <TableHead className="text-right">Total Landed Costs (RWF)</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -858,6 +864,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-14" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
                         </TableRow>
