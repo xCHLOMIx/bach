@@ -774,6 +774,77 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             <div className="overflow-hidden rounded-md border">
                 <div className="overflow-x-auto">
                     <Table className="min-w-275">
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Product</TableHead>
+                                <TableHead className="text-right">Quantity</TableHead>
+                                <TableHead className="text-right">Vendor Price (RWF)</TableHead>
+                                <TableHead className="text-right">Vendor Total (RWF)</TableHead>
+                                <TableHead className="text-right">Import Charges (RWF)</TableHead>
+                                <TableHead className="text-right">Weight %</TableHead>
+                                <TableHead className="text-right">Selling Price (RWF)</TableHead>
+                                <TableHead className="text-right">Landed Costs (RWF)</TableHead>
+                                <TableHead className="text-right">Total Landed Costs (RWF)</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {selectedProducts.map((product) => {
+                                const preview = allocationPreviewByProductId.get(product._id)
+                                const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
+                                const productTotal = baseUnitPrice * product.quantityInitial
+                                const finalUnit = preview ? preview.landedCost : baseUnitPrice
+                                const finalTotal = finalUnit * product.quantityInitial
+                                const importCharges = Math.max(0, finalTotal - productTotal)
+                                const intendedSellingPrice = intendedSellingPricesByProductId[product._id]
+
+                                return (
+                                    <TableRow key={product._id}>
+                                        <TableCell className="truncate max-w-xs font-medium">{product.name}</TableCell>
+                                        <TableCell className="text-right">{product.quantityInitial.toLocaleString()}</TableCell>
+                                        <TableCell className="text-right">{baseUnitPrice.toLocaleString()}</TableCell>
+                                        <TableCell className="text-right">{productTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right">
+                                            {importCharges.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {preview ? `${preview.weightPercentage.toFixed(2)}%` : "-"}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {typeof intendedSellingPrice === "number"
+                                                ? intendedSellingPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                                                : "-"}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {finalUnit.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })}
+                            <TableRow className="bg-muted/30 font-semibold">
+                                <TableCell>Totals</TableCell>
+                                <TableCell className="text-right">{totals.quantity.toLocaleString()}</TableCell>
+                                <TableCell className="text-right">-</TableCell>
+                                <TableCell className="text-right">{totals.baseTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                <TableCell className="text-right">{totals.shippingShare.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                <TableCell className="text-right">{`${totals.weightPercentage.toFixed(2)}%`}</TableCell>
+                                <TableCell className="text-right">-</TableCell>
+                                <TableCell className="text-right">-</TableCell>
+                                <TableCell className="text-right">{totals.finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </div>
+            </div>
+        )
+    }
+
+    const renderProductsTableSkeleton = () => (
+        <div className="overflow-hidden rounded-md border">
+            <div className="overflow-x-auto">
+                <Table className="min-w-275">
                     <TableHeader>
                         <TableRow>
                             <TableHead>Product</TableHead>
@@ -788,91 +859,20 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {selectedProducts.map((product) => {
-                            const preview = allocationPreviewByProductId.get(product._id)
-                            const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
-                            const productTotal = baseUnitPrice * product.quantityInitial
-                            const finalUnit = preview ? preview.landedCost : baseUnitPrice
-                            const finalTotal = finalUnit * product.quantityInitial
-                            const importCharges = Math.max(0, finalTotal - productTotal)
-                            const intendedSellingPrice = intendedSellingPricesByProductId[product._id]
-
-                            return (
-                                <TableRow key={product._id}>
-                                    <TableCell className="truncate max-w-xs font-medium">{product.name}</TableCell>
-                                    <TableCell className="text-right">{product.quantityInitial.toLocaleString()}</TableCell>
-                                    <TableCell className="text-right">{baseUnitPrice.toLocaleString()}</TableCell>
-                                    <TableCell className="text-right">{productTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                                    <TableCell className="text-right">
-                                        {importCharges.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {preview ? `${preview.weightPercentage.toFixed(2)}%` : "-"}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {typeof intendedSellingPrice === "number"
-                                            ? intendedSellingPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })
-                                            : "-"}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {finalUnit.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                                    </TableCell>
-                                </TableRow>
-                            )
-                        })}
-                        <TableRow className="bg-muted/30 font-semibold">
-                            <TableCell>Totals</TableCell>
-                            <TableCell className="text-right">{totals.quantity.toLocaleString()}</TableCell>
-                            <TableCell className="text-right">-</TableCell>
-                            <TableCell className="text-right">{totals.baseTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                            <TableCell className="text-right">{totals.shippingShare.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                            <TableCell className="text-right">{`${totals.weightPercentage.toFixed(2)}%`}</TableCell>
-                            <TableCell className="text-right">-</TableCell>
-                            <TableCell className="text-right">-</TableCell>
-                            <TableCell className="text-right">{totals.finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                        </TableRow>
+                        {[0, 1, 2, 3].map((index) => (
+                            <TableRow key={`batch-details-loading-${index}`}>
+                                <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-12" /></TableCell>
+                                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
+                                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
+                                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-14" /></TableCell>
+                                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
+                                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
+                                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
+                                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
+                            </TableRow>
+                        ))}
                     </TableBody>
-                    </Table>
-                </div>
-            </div>
-        )
-    }
-
-    const renderProductsTableSkeleton = () => (
-        <div className="overflow-hidden rounded-md border">
-            <div className="overflow-x-auto">
-                <Table className="min-w-275">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Product</TableHead>
-                        <TableHead className="text-right">Quantity</TableHead>
-                        <TableHead className="text-right">Vendor Price (RWF)</TableHead>
-                        <TableHead className="text-right">Vendor Total (RWF)</TableHead>
-                        <TableHead className="text-right">Import Charges (RWF)</TableHead>
-                        <TableHead className="text-right">Weight %</TableHead>
-                        <TableHead className="text-right">Selling Price (RWF)</TableHead>
-                        <TableHead className="text-right">Landed Costs (RWF)</TableHead>
-                        <TableHead className="text-right">Total Landed Costs (RWF)</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {[0, 1, 2, 3].map((index) => (
-                        <TableRow key={`batch-details-loading-${index}`}>
-                            <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-12" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-14" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
                 </Table>
             </div>
         </div>
