@@ -339,6 +339,66 @@ export function ProductsPage() {
 
     const stripCommas = (value: string) => value.replace(/,/g, "")
 
+    const originalEditProduct = React.useMemo(
+        () => products.find((product) => product._id === editProductId),
+        [products, editProductId]
+    )
+
+    const hasEditProductChanges = React.useMemo(() => {
+        if (!editProductId || !originalEditProduct) {
+            return false
+        }
+
+        const parsedEditQuantity = Number(stripCommas(editQuantityInitial) || 0)
+        const parsedEditUnitPrice = Number(stripCommas(editUnitPriceForeign) || 0)
+        const parsedEditExchangeRate = Number(stripCommas(editExchangeRate || "1") || 1)
+        const parsedOriginalExchangeRate = Number(originalEditProduct.exchangeRate ?? 1)
+
+        const parsedEditSellingPrice = editIntendedSellingPrice.trim()
+            ? Number(stripCommas(editIntendedSellingPrice))
+            : null
+        const parsedOriginalSellingPrice = getIntendedSellingPrice(editProductId)
+        const sellingPriceChanged = parsedEditSellingPrice === null
+            ? typeof parsedOriginalSellingPrice === "number"
+            : parsedEditSellingPrice !== parsedOriginalSellingPrice
+
+        const existingImageSources = editImages
+            .filter((image) => image.type === "existing")
+            .map((image) => image.src)
+        const originalImageSources = originalEditProduct.images ?? []
+        const hasNewImages = editImages.some((image) => image.type === "new")
+        const existingImagesChanged =
+            existingImageSources.length !== originalImageSources.length ||
+            existingImageSources.some((src, index) => src !== originalImageSources[index])
+
+        return (
+            editProductName.trim() !== originalEditProduct.name.trim() ||
+            (editCategoryId || "") !== (originalEditProduct.categoryId?._id ?? "") ||
+            parsedEditQuantity !== Number(originalEditProduct.quantityInitial ?? 0) ||
+            parsedEditUnitPrice !== Number(originalEditProduct.unitPriceForeign ?? 0) ||
+            editExternalLink.trim() !== (originalEditProduct.externalLink ?? "").trim() ||
+            editSourceCurrency !== originalEditProduct.sourceCurrency ||
+            (editSourceCurrency === "RWF" ? 1 : parsedEditExchangeRate) !== parsedOriginalExchangeRate ||
+            (editBatchId || "") !== (originalEditProduct.batchId?._id ?? "") ||
+            sellingPriceChanged ||
+            hasNewImages ||
+            existingImagesChanged
+        )
+    }, [
+        editBatchId,
+        editCategoryId,
+        editExchangeRate,
+        editExternalLink,
+        editImages,
+        editIntendedSellingPrice,
+        editProductId,
+        editProductName,
+        editQuantityInitial,
+        editSourceCurrency,
+        editUnitPriceForeign,
+        originalEditProduct,
+    ])
+
     const formatDecimalWithCommas = (value: string) => {
         if (!value) {
             return ""
@@ -1870,7 +1930,7 @@ export function ProductsPage() {
                         {editErrors.general ? (
                             <p className="text-sm text-destructive">{editErrors.general}</p>
                         ) : null}
-                        <Button type="submit" disabled={!canSubmitEditProduct || isEditSubmitting} loading={isEditSubmitting} loadingText="Saving product">
+                        <Button type="submit" disabled={!canSubmitEditProduct || !hasEditProductChanges || isEditSubmitting} loading={isEditSubmitting} loadingText="Saving product">
                             Save Changes
                         </Button>
                     </form>

@@ -94,6 +94,18 @@ export default function AccountPage() {
         }))
     }
 
+    const hasProfileChanges = React.useMemo(() => {
+        if (!user) {
+            return false
+        }
+
+        return (
+            profileData.firstName.trim() !== user.firstName.trim() ||
+            profileData.lastName.trim() !== user.lastName.trim() ||
+            normalizePhoneNumber(profileData.phoneNumber) !== normalizePhoneNumber(user.phoneNumber)
+        )
+    }, [profileData, user])
+
     const handleProfileSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setProfileError("")
@@ -273,7 +285,7 @@ export default function AccountPage() {
                                     <div className="flex gap-2 pt-4">
                                         <Button
                                             type="submit"
-                                            disabled={isSubmittingProfile}
+                                            disabled={isSubmittingProfile || !hasProfileChanges}
                                             className="gap-2"
                                         >
                                             {isSubmittingProfile && (

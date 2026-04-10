@@ -411,6 +411,60 @@ export default function ProductDetailsPage() {
   }
 
   const currentImage = product?.images?.[currentImageIndex]
+
+  const hasEditProductChanges = useMemo(() => {
+    if (!product || !editProductId) {
+      return false
+    }
+
+    const parsedEditQuantity = Number(stripCommas(editQuantityInitial) || 0)
+    const parsedEditUnitPrice = Number(stripCommas(editUnitPriceForeign) || 0)
+    const parsedEditExchangeRate = Number(stripCommas(editExchangeRate || "1") || 1)
+    const parsedOriginalExchangeRate = Number(product.exchangeRate ?? 1)
+
+    const parsedEditSellingPrice = editIntendedSellingPrice.trim()
+      ? Number(stripCommas(editIntendedSellingPrice))
+      : null
+    const parsedOriginalSellingPrice = getIntendedSellingPrice(editProductId)
+    const sellingPriceChanged = parsedEditSellingPrice === null
+      ? typeof parsedOriginalSellingPrice === "number"
+      : parsedEditSellingPrice !== parsedOriginalSellingPrice
+
+    const hasDeletedImages = editDeletedImageIndices.size > 0
+    const hasNewImages = editNewImages.length > 0
+    const existingImagesReordered =
+      editProductImages.length !== (product.images?.length ?? 0) ||
+      editProductImages.some((image, index) => image !== (product.images?.[index] ?? ""))
+
+    return (
+      editProductName.trim() !== product.name.trim() ||
+      parsedEditQuantity !== Number(product.quantityInitial ?? 0) ||
+      parsedEditUnitPrice !== Number(product.unitPriceForeign ?? 0) ||
+      editExternalLink.trim() !== (product.externalLink ?? "").trim() ||
+      editSourceCurrency !== product.sourceCurrency ||
+      (editSourceCurrency === "RWF" ? 1 : parsedEditExchangeRate) !== parsedOriginalExchangeRate ||
+      (editBatchId || "") !== (product.batchId?._id ?? "") ||
+      sellingPriceChanged ||
+      hasDeletedImages ||
+      hasNewImages ||
+      existingImagesReordered
+    )
+  }, [
+    editBatchId,
+    editDeletedImageIndices,
+    editExchangeRate,
+    editExternalLink,
+    editIntendedSellingPrice,
+    editNewImages,
+    editProductId,
+    editProductImages,
+    editProductName,
+    editQuantityInitial,
+    editSourceCurrency,
+    editUnitPriceForeign,
+    product,
+  ])
+
   const soldCount = useMemo(() => {
     if (!product) {
       return 0
@@ -1050,7 +1104,7 @@ export default function ProductDetailsPage() {
             </div>
 
             {editErrors.general ? <p className="text-sm text-destructive">{editErrors.general}</p> : null}
-            <Button type="submit" disabled={isEditSubmitting}>
+            <Button type="submit" disabled={isEditSubmitting || !hasEditProductChanges}>
               {isEditSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Save Changes"}
             </Button>
           </form>

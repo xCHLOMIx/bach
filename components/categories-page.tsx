@@ -407,6 +407,16 @@ export function CategoriesPage() {
         return sorted
     }, [filteredCategories, sortColumn, sortDirection])
 
+    const isEditingCategoryUnchanged = React.useMemo(() => {
+        if (!editingId) {
+            return true
+        }
+
+        const originalName = categories.find((category) => category._id === editingId)?.name ?? ""
+        const trimmedEditingName = editingName.trim()
+        return !trimmedEditingName || trimmedEditingName === originalName.trim()
+    }, [categories, editingId, editingName])
+
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
             <CardHeader className="flex items-center justify-between gap-3 px-0">
@@ -646,7 +656,7 @@ export function CategoriesPage() {
                                             {visibleColumns.actions && (
                                                 <TableCell className="flex gap-2 justify-end">
                                                     {editingId === category._id ? (
-                                                        <Button size="sm" onClick={saveEdit}>
+                                                        <Button size="sm" onClick={saveEdit} disabled={isEditingCategoryUnchanged}>
                                                             Save
                                                         </Button>
                                                     ) : (
