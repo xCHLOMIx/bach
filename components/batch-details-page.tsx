@@ -768,7 +768,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableHead className="text-right">Base Unit (RWF)</TableHead>
                             <TableHead className="text-right">Base Total (RWF)</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
-                            <TableHead className="text-right">Shipping Cost Share (RWF)</TableHead>
+                            <TableHead className="text-right">Allocated Batch Costs (RWF)</TableHead>
                             <TableHead className="text-right">Total After Distribution Cost (RWF)</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -824,7 +824,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         <TableHead className="text-right">Base Unit (RWF)</TableHead>
                         <TableHead className="text-right">Base Total (RWF)</TableHead>
                         <TableHead className="text-right">Weight %</TableHead>
-                        <TableHead className="text-right">Shipping Cost Share (RWF)</TableHead>
+                        <TableHead className="text-right">Allocated Batch Costs (RWF)</TableHead>
                         <TableHead className="text-right">Total After Distribution Cost (RWF)</TableHead>
                     </TableRow>
                 </TableHeader>
