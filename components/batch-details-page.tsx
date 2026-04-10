@@ -790,9 +790,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                 <TableHead className="text-right">Import Charges (RWF)</TableHead>
                                 <TableHead className="text-right">Weight %</TableHead>
                                 <TableHead className="text-right">Selling Price (RWF)</TableHead>
-                                <TableHead className="text-right">Total Selling Price (RWF)</TableHead>
+                                <TableHead className="text-right">Selling Total (RWF)</TableHead>
                                 <TableHead className="text-right">Landed Costs (RWF)</TableHead>
-                                <TableHead className="text-right">Total Landed Costs (RWF)</TableHead>
+                                <TableHead className="text-right">Landed Total (RWF)</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -868,9 +868,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableHead className="text-right">Import Charges (RWF)</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
                             <TableHead className="text-right">Selling Price (RWF)</TableHead>
-                            <TableHead className="text-right">Total Selling Price (RWF)</TableHead>
+                            <TableHead className="text-right">Selling Total (RWF)</TableHead>
                             <TableHead className="text-right">Landed Costs (RWF)</TableHead>
-                            <TableHead className="text-right">Total Landed Costs (RWF)</TableHead>
+                            <TableHead className="text-right">Landed Total (RWF)</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1423,7 +1423,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         </p>
                     </div>
                     <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Total Landed Costs</p>
+                        <p className="text-xs text-muted-foreground">Landed Total</p>
                         <p className="mt-2 text-sm font-medium text-foreground">
                             {selectedProducts
                                 .reduce((sum, product) => {
@@ -1436,7 +1436,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         </p>
                     </div>
                     <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Total Selling Price</p>
+                        <p className="text-xs text-muted-foreground">Selling Total</p>
                         <p className="mt-2 text-sm font-medium text-foreground">
                             {selectedProducts
                                 .reduce((sum, product) => {
