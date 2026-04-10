@@ -9,13 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import {
     Table,
     TableBody,
     TableCell,
@@ -23,11 +16,11 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { CheckIcon, ChevronLeft, SearchIcon } from "lucide-react"
 import { AddProductSheet } from "@/components/add-product-sheet"
-import { cn } from "@/lib/utils"
 import { calculateBatchProductLandedCosts, convertInternationalExpenseToRwf } from "@/lib/costs"
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
+import { cn } from "@/lib/utils"
+import { CheckIcon, ChevronLeft, SearchIcon } from "lucide-react"
 
 const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "AED"] as const
 const PRODUCTS_PER_PAGE = 10
@@ -309,6 +302,19 @@ export function BatchCreatePage() {
         })
     }
 
+    const handleCurrencyChange = React.useCallback(
+        (field: "intlShippingCurrency" | "warehouseUSACurrency" | "amazonPrimeCurrency", value: string) => {
+            setForm((current) => {
+                if (current[field] === value) {
+                    return current
+                }
+
+                return { ...current, [field]: value }
+            })
+        },
+        []
+    )
+
     const submit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
         setIsSubmitting(true)
@@ -503,9 +509,10 @@ export function BatchCreatePage() {
                         const isSelected = selectedProductIds.includes(product._id)
 
                         return (
-                            <button
+                            <div
                                 key={product._id}
-                                type="button"
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => {
                                     setSelectedProductIds((current) =>
                                         current.includes(product._id)
@@ -513,8 +520,19 @@ export function BatchCreatePage() {
                                             : [...current, product._id]
                                     )
                                 }}
+                                onKeyDown={(event) => {
+                                    if (event.key !== "Enter" && event.key !== " ") {
+                                        return
+                                    }
+                                    event.preventDefault()
+                                    setSelectedProductIds((current) =>
+                                        current.includes(product._id)
+                                            ? current.filter((id) => id !== product._id)
+                                            : [...current, product._id]
+                                    )
+                                }}
                                 className={cn(
-                                    "flex w-full items-center gap-2 border-b px-3 py-2 text-left text-sm last:border-b-0",
+                                    "flex w-full cursor-pointer items-center gap-2 border-b px-3 py-2 text-left text-sm last:border-b-0",
                                     index === 0 && "rounded-t-md",
                                     index === paginatedUnassignedProducts.length - 1 && "rounded-b-md",
                                     isSelected
@@ -522,9 +540,18 @@ export function BatchCreatePage() {
                                         : "hover:bg-muted/40"
                                 )}
                             >
+                                <span
+                                    aria-hidden="true"
+                                    className={cn(
+                                        "flex size-4 shrink-0 items-center justify-center rounded-lg border border-input",
+                                        isSelected ? "border-primary bg-primary text-primary-foreground" : "bg-background"
+                                    )}
+                                >
+                                    {isSelected ? <CheckIcon className="size-3" /> : null}
+                                </span>
                                 <span className="min-w-0 flex-1 truncate" title={product.name}>{product.name}</span>
                                 {isSelected ? <CheckIcon className="ml-auto h-4 w-4" /> : null}
-                            </button>
+                            </div>
                         )
                     })}
                 </div>
@@ -573,6 +600,26 @@ export function BatchCreatePage() {
             )
         }
 
+        const totals = selectedProducts.reduce(
+            (acc, product) => {
+                const preview = allocationPreviewByProductId.get(product._id)
+                const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
+                const baseTotal = baseUnitPrice * product.quantityInitial
+                const finalUnit = preview ? preview.landedCost : baseUnitPrice
+                const finalTotal = finalUnit * product.quantityInitial
+                const shippingShare = Math.max(0, finalTotal - baseTotal)
+
+                return {
+                    quantity: acc.quantity + product.quantityInitial,
+                    baseTotal: acc.baseTotal + baseTotal,
+                    weightPercentage: acc.weightPercentage + (preview?.weightPercentage ?? 0),
+                    shippingShare: acc.shippingShare + shippingShare,
+                    finalTotal: acc.finalTotal + finalTotal,
+                }
+            },
+            { quantity: 0, baseTotal: 0, weightPercentage: 0, shippingShare: 0, finalTotal: 0 }
+        )
+
         return (
             <div className="overflow-hidden rounded-md border">
                 <Table>
@@ -581,9 +628,10 @@ export function BatchCreatePage() {
                             <TableHead>Product</TableHead>
                             <TableHead className="text-right">Quantity</TableHead>
                             <TableHead className="text-right">Base Unit (RWF)</TableHead>
-                            <TableHead className="text-right">Total (RWF)</TableHead>
+                            <TableHead className="text-right">Base Total (RWF)</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
-                            <TableHead className="text-right">After Distribution (RWF)</TableHead>
+                            <TableHead className="text-right">Shipping Cost Share (RWF)</TableHead>
+                            <TableHead className="text-right">Total After Distribution Cost (RWF)</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -591,6 +639,9 @@ export function BatchCreatePage() {
                             const preview = allocationPreviewByProductId.get(product._id)
                             const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
                             const productTotal = baseUnitPrice * product.quantityInitial
+                            const finalUnit = preview ? preview.landedCost : baseUnitPrice
+                            const finalTotal = finalUnit * product.quantityInitial
+                            const shippingShare = Math.max(0, finalTotal - productTotal)
 
                             return (
                                 <TableRow key={product._id}>
@@ -602,13 +653,23 @@ export function BatchCreatePage() {
                                         {preview ? `${preview.weightPercentage.toFixed(2)}%` : "-"}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {preview
-                                            ? preview.landedCost.toLocaleString(undefined, { maximumFractionDigits: 2 })
-                                            : baseUnitPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                        {shippingShare.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                                     </TableCell>
                                 </TableRow>
                             )
                         })}
+                        <TableRow className="bg-muted/30 font-semibold">
+                            <TableCell>Totals</TableCell>
+                            <TableCell className="text-right">{totals.quantity.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">-</TableCell>
+                            <TableCell className="text-right">{totals.baseTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-right">{`${totals.weightPercentage.toFixed(2)}%`}</TableCell>
+                            <TableCell className="text-right">{totals.shippingShare.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-right">{totals.finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                        </TableRow>
                     </TableBody>
                 </Table>
             </div>
@@ -623,9 +684,10 @@ export function BatchCreatePage() {
                         <TableHead>Product</TableHead>
                         <TableHead className="text-right">Quantity</TableHead>
                         <TableHead className="text-right">Base Unit (RWF)</TableHead>
-                        <TableHead className="text-right">Total (RWF)</TableHead>
+                        <TableHead className="text-right">Base Total (RWF)</TableHead>
                         <TableHead className="text-right">Weight %</TableHead>
-                        <TableHead className="text-right">After Distribution (RWF)</TableHead>
+                        <TableHead className="text-right">Shipping Cost Share (RWF)</TableHead>
+                        <TableHead className="text-right">Total After Distribution Cost (RWF)</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -636,6 +698,7 @@ export function BatchCreatePage() {
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-14" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
                         </TableRow>
                     ))}
@@ -657,21 +720,6 @@ export function BatchCreatePage() {
                 <div>
                     <CardTitle className="text-2xl font-bold">Create Batch</CardTitle>
                     <CardDescription>Enter batch details and select products.</CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size={"lg"}
-                        className="h-10 px-6"
-                        onClick={() => router.push("/app/batches")}
-                        disabled={isSubmitting}
-                    >
-                        Cancel
-                    </Button>
-                    <Button type="submit" size={"lg"} className="h-10 px-6 disabled:opacity-50" disabled={isSubmitting || !canCreateBatch}>
-                        {isSubmitting ? "Saving..." : "Create Batch"}
-                    </Button>
                 </div>
             </CardHeader>
 
@@ -718,19 +766,15 @@ export function BatchCreatePage() {
                     </div>
                     <div className="grid gap-1.5">
                         <label className="text-sm font-medium">Currency</label>
-                        <Select
+                        <select
                             value={form.intlShippingCurrency}
-                            onValueChange={(value) => setForm((current) => ({ ...current, intlShippingCurrency: value }))}
+                            onChange={(event) => handleCurrencyChange("intlShippingCurrency", event.target.value)}
+                            className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
                         >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Currency" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {CURRENCY_OPTIONS.map((currency) => (
-                                    <SelectItem key={`intl-${currency}`} value={currency}>{currency}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            {CURRENCY_OPTIONS.map((currency) => (
+                                <option key={`intl-${currency}`} value={currency}>{currency}</option>
+                            ))}
+                        </select>
                     </div>
                     <div className="grid gap-1.5">
                         <label className="text-sm font-medium">Exchange rate</label>
@@ -761,19 +805,15 @@ export function BatchCreatePage() {
                     </div>
                     <div className="grid gap-1.5">
                         <label className="text-sm font-medium">Currency</label>
-                        <Select
+                        <select
                             value={form.warehouseUSACurrency}
-                            onValueChange={(value) => setForm((current) => ({ ...current, warehouseUSACurrency: value }))}
+                            onChange={(event) => handleCurrencyChange("warehouseUSACurrency", event.target.value)}
+                            className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
                         >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Currency" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {CURRENCY_OPTIONS.map((currency) => (
-                                    <SelectItem key={`warehouse-${currency}`} value={currency}>{currency}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            {CURRENCY_OPTIONS.map((currency) => (
+                                <option key={`warehouse-${currency}`} value={currency}>{currency}</option>
+                            ))}
+                        </select>
                     </div>
                     <div className="grid gap-1.5">
                         <label className="text-sm font-medium">Exchange rate</label>
@@ -804,19 +844,15 @@ export function BatchCreatePage() {
                     </div>
                     <div className="grid gap-1.5">
                         <label className="text-sm font-medium">Currency</label>
-                        <Select
+                        <select
                             value={form.amazonPrimeCurrency}
-                            onValueChange={(value) => setForm((current) => ({ ...current, amazonPrimeCurrency: value }))}
+                            onChange={(event) => handleCurrencyChange("amazonPrimeCurrency", event.target.value)}
+                            className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
                         >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Currency" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {CURRENCY_OPTIONS.map((currency) => (
-                                    <SelectItem key={`prime-${currency}`} value={currency}>{currency}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            {CURRENCY_OPTIONS.map((currency) => (
+                                <option key={`prime-${currency}`} value={currency}>{currency}</option>
+                            ))}
+                        </select>
                     </div>
                     <div className="grid gap-1.5">
                         <label className="text-sm font-medium">Exchange rate</label>
@@ -977,6 +1013,22 @@ export function BatchCreatePage() {
             </div>
 
             {errors.general ? <p className="text-sm text-destructive">{errors.general}</p> : null}
+
+            <div className="flex items-center justify-end gap-2">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size={"lg"}
+                    className="h-10 px-6"
+                    onClick={() => router.push("/app/batches")}
+                    disabled={isSubmitting}
+                >
+                    Cancel
+                </Button>
+                <Button type="submit" size={"lg"} className="h-10 px-6 disabled:opacity-50" disabled={isSubmitting || !canCreateBatch}>
+                    {isSubmitting ? "Saving..." : "Create Batch"}
+                </Button>
+            </div>
 
         </form>
     )

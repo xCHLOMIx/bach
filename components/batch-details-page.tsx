@@ -4,18 +4,10 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { CardHeader, CardTitle } from "@/components/ui/card"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
 import {
     Table,
     TableBody,
@@ -29,7 +21,7 @@ import { AddProductSheet } from "@/components/add-product-sheet"
 import { calculateBatchProductLandedCosts, convertInternationalExpenseToRwf } from "@/lib/costs"
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 import { cn } from "@/lib/utils"
-import { ChevronLeft, CopyIcon, PackageOpen, SearchIcon } from "lucide-react"
+import { CheckIcon, ChevronLeft, CopyIcon, PackageOpen, SearchIcon } from "lucide-react"
 
 const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "AED"] as const
 const PRODUCTS_PER_PAGE = 10
@@ -113,6 +105,7 @@ const expenseFieldKeys = [
 
 export function BatchDetailsPage({ batchId }: { batchId: string }) {
     const router = useRouter()
+    const [hasMounted, setHasMounted] = React.useState(false)
     const [isLoading, setIsLoading] = React.useState(true)
     const [loadError, setLoadError] = React.useState("")
 
@@ -303,14 +296,21 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         return products.filter((product) => selectedIdSet.has(product._id))
     }, [products, selectedProductIds])
 
+    const availableProducts = React.useMemo(() => {
+        return products.filter((product) => {
+            const assignedBatchId = product.batchId?._id
+            return !assignedBatchId || assignedBatchId === batchId
+        })
+    }, [products, batchId])
+
     const filteredProducts = React.useMemo(() => {
         const searchLower = productSearch.toLowerCase().trim()
         if (!searchLower) {
-            return products
+            return availableProducts
         }
 
-        return products.filter((product) => product.name.toLowerCase().includes(searchLower))
-    }, [products, productSearch])
+        return availableProducts.filter((product) => product.name.toLowerCase().includes(searchLower))
+    }, [availableProducts, productSearch])
 
     const totalProductPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE))
 
@@ -318,6 +318,10 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         const start = (productPage - 1) * PRODUCTS_PER_PAGE
         return filteredProducts.slice(start, start + PRODUCTS_PER_PAGE)
     }, [filteredProducts, productPage])
+
+    React.useEffect(() => {
+        setHasMounted(true)
+    }, [])
 
     React.useEffect(() => {
         const handleSearchShortcut = (event: KeyboardEvent) => {
@@ -573,10 +577,10 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     }
 
     const renderProductSelector = () => {
-        if (products.length === 0) {
+        if (availableProducts.length === 0) {
             return (
                 <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                    No products available yet.
+                    No available products yet.
                 </div>
             )
         }
@@ -612,13 +616,29 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         const assignedBatchName = assignedBatchId ? batchIdToName.get(assignedBatchId) : null
 
                         return (
-                            <button
+                            <div
                                 key={product._id}
-                                type="button"
+                                role="button"
+                                tabIndex={isEditing ? 0 : -1}
+                                aria-disabled={!isEditing}
                                 onClick={() => {
                                     if (!isEditing) {
                                         return
                                     }
+                                    setSelectedProductIds((current) =>
+                                        current.includes(product._id)
+                                            ? current.filter((id) => id !== product._id)
+                                            : [...current, product._id]
+                                    )
+                                }}
+                                onKeyDown={(event) => {
+                                    if (!isEditing) {
+                                        return
+                                    }
+                                    if (event.key !== "Enter" && event.key !== " ") {
+                                        return
+                                    }
+                                    event.preventDefault()
                                     setSelectedProductIds((current) =>
                                         current.includes(product._id)
                                             ? current.filter((id) => id !== product._id)
@@ -631,19 +651,24 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                     index === paginatedProducts.length - 1 && "rounded-b-md",
                                     isSelected
                                         ? "bg-primary/20 text-foreground hover:bg-primary/20"
-                                        : "hover:bg-muted/40"
+                                        : "hover:bg-muted/40",
+                                    isEditing ? "cursor-pointer" : "cursor-default"
                                 )}
                             >
+                                <span
+                                    aria-hidden="true"
+                                    className={cn(
+                                        "flex size-4 shrink-0 items-center justify-center rounded-lg border border-input",
+                                        isSelected ? "border-primary bg-primary text-primary-foreground" : "bg-background"
+                                    )}
+                                >
+                                    {isSelected ? <CheckIcon className="size-3" /> : null}
+                                </span>
                                 <div className="min-w-0 flex-1">
                                     <p className="truncate font-medium" title={product.name}>{product.name}</p>
                                     <p className="text-xs text-muted-foreground">Assigned: {assignedBatchName ?? "Unassigned"}</p>
                                 </div>
-                                <Checkbox
-                                    checked={isSelected}
-                                    disabled={!isEditing}
-                                    aria-label={`Select ${product.name}`}
-                                />
-                            </button>
+                            </div>
                         )
                     })}
                 </div>
@@ -713,6 +738,26 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             )
         }
 
+        const totals = selectedProducts.reduce(
+            (acc, product) => {
+                const preview = allocationPreviewByProductId.get(product._id)
+                const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
+                const baseTotal = baseUnitPrice * product.quantityInitial
+                const finalUnit = preview ? preview.landedCost : baseUnitPrice
+                const finalTotal = finalUnit * product.quantityInitial
+                const shippingShare = Math.max(0, finalTotal - baseTotal)
+
+                return {
+                    quantity: acc.quantity + product.quantityInitial,
+                    baseTotal: acc.baseTotal + baseTotal,
+                    weightPercentage: acc.weightPercentage + (preview?.weightPercentage ?? 0),
+                    shippingShare: acc.shippingShare + shippingShare,
+                    finalTotal: acc.finalTotal + finalTotal,
+                }
+            },
+            { quantity: 0, baseTotal: 0, weightPercentage: 0, shippingShare: 0, finalTotal: 0 }
+        )
+
         return (
             <div className="overflow-hidden rounded-md border">
                 <Table>
@@ -721,9 +766,10 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableHead>Product</TableHead>
                             <TableHead className="text-right">Quantity</TableHead>
                             <TableHead className="text-right">Base Unit (RWF)</TableHead>
-                            <TableHead className="text-right">Total (RWF)</TableHead>
+                            <TableHead className="text-right">Base Total (RWF)</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
-                            <TableHead className="text-right">After Distribution (RWF)</TableHead>
+                            <TableHead className="text-right">Shipping Cost Share (RWF)</TableHead>
+                            <TableHead className="text-right">Total After Distribution Cost (RWF)</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -731,6 +777,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             const preview = allocationPreviewByProductId.get(product._id)
                             const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
                             const productTotal = baseUnitPrice * product.quantityInitial
+                            const finalUnit = preview ? preview.landedCost : baseUnitPrice
+                            const finalTotal = finalUnit * product.quantityInitial
+                            const shippingShare = Math.max(0, finalTotal - productTotal)
 
                             return (
                                 <TableRow key={product._id}>
@@ -742,13 +791,23 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                         {preview ? `${preview.weightPercentage.toFixed(2)}%` : "-"}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {preview
-                                            ? preview.landedCost.toLocaleString(undefined, { maximumFractionDigits: 2 })
-                                            : baseUnitPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                        {shippingShare.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                                     </TableCell>
                                 </TableRow>
                             )
                         })}
+                        <TableRow className="bg-muted/30 font-semibold">
+                            <TableCell>Totals</TableCell>
+                            <TableCell className="text-right">{totals.quantity.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">-</TableCell>
+                            <TableCell className="text-right">{totals.baseTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-right">{`${totals.weightPercentage.toFixed(2)}%`}</TableCell>
+                            <TableCell className="text-right">{totals.shippingShare.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-right">{totals.finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                        </TableRow>
                     </TableBody>
                 </Table>
             </div>
@@ -763,9 +822,10 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         <TableHead>Product</TableHead>
                         <TableHead className="text-right">Quantity</TableHead>
                         <TableHead className="text-right">Base Unit (RWF)</TableHead>
-                        <TableHead className="text-right">Total (RWF)</TableHead>
+                        <TableHead className="text-right">Base Total (RWF)</TableHead>
                         <TableHead className="text-right">Weight %</TableHead>
-                        <TableHead className="text-right">After Distribution (RWF)</TableHead>
+                        <TableHead className="text-right">Shipping Cost Share (RWF)</TableHead>
+                        <TableHead className="text-right">Total After Distribution Cost (RWF)</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -777,6 +837,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-14" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
@@ -784,13 +845,33 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         </div>
     )
 
-    if (isLoading) {
+    if (!hasMounted || isLoading) {
         return (
             <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
-                <CardHeader className="px-0">
-                    <CardTitle className="text-2xl font-bold">Batch</CardTitle>
+                <div className="mb-1 flex items-center gap-3">
+                    <Skeleton className="h-9 w-9 rounded-md" />
+                    <Skeleton className="h-4 w-28" />
+                </div>
+                <CardHeader className="flex items-center justify-between gap-3 px-0">
+                    <div className="space-y-2">
+                        <Skeleton className="h-8 w-44" />
+                        <Skeleton className="h-4 w-56" />
+                    </div>
+                    <Skeleton className="h-10 w-28 rounded-md" />
                 </CardHeader>
-                {renderProductsTableSkeleton()}
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    {[0, 1, 2].map((index) => (
+                        <div key={`batch-card-loading-${index}`} className="rounded-md border p-3">
+                            <Skeleton className="h-3 w-24" />
+                            <Skeleton className="mt-3 h-8 w-32" />
+                            <Skeleton className="mt-2 h-3 w-36" />
+                        </div>
+                    ))}
+                </div>
+                <div className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    {renderProductsTableSkeleton()}
+                </div>
             </div>
         )
     }
@@ -974,23 +1055,21 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             </div>
                             <div className="grid gap-1.5">
                                 <label className="text-sm font-medium">Currency</label>
-                                <Select
+                                <select
                                     value={form.intlShippingCurrency}
-                                    onValueChange={(value) =>
+                                    onChange={(event) =>
                                         setForm((current) => ({
                                             ...current,
-                                            intlShippingCurrency: value,
-                                            intlShippingExchangeRate: value === "RWF" ? "1" : current.intlShippingExchangeRate,
+                                            intlShippingCurrency: event.target.value,
+                                            intlShippingExchangeRate: event.target.value === "RWF" ? "1" : current.intlShippingExchangeRate,
                                         }))
                                     }
+                                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
                                 >
-                                    <SelectTrigger><SelectValue placeholder="Currency" /></SelectTrigger>
-                                    <SelectContent>
-                                        {CURRENCY_OPTIONS.map((currency) => (
-                                            <SelectItem key={`edit-intl-${currency}`} value={currency}>{currency}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    {CURRENCY_OPTIONS.map((currency) => (
+                                        <option key={`edit-intl-${currency}`} value={currency}>{currency}</option>
+                                    ))}
+                                </select>
                             </div>
                             <div className="grid gap-1.5">
                                 <label className="text-sm font-medium">Exchange rate</label>
@@ -1023,23 +1102,21 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             </div>
                             <div className="grid gap-1.5">
                                 <label className="text-sm font-medium">Currency</label>
-                                <Select
+                                <select
                                     value={form.warehouseUSACurrency}
-                                    onValueChange={(value) =>
+                                    onChange={(event) =>
                                         setForm((current) => ({
                                             ...current,
-                                            warehouseUSACurrency: value,
-                                            warehouseUSAExchangeRate: value === "RWF" ? "1" : current.warehouseUSAExchangeRate,
+                                            warehouseUSACurrency: event.target.value,
+                                            warehouseUSAExchangeRate: event.target.value === "RWF" ? "1" : current.warehouseUSAExchangeRate,
                                         }))
                                     }
+                                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
                                 >
-                                    <SelectTrigger><SelectValue placeholder="Currency" /></SelectTrigger>
-                                    <SelectContent>
-                                        {CURRENCY_OPTIONS.map((currency) => (
-                                            <SelectItem key={`edit-warehouse-${currency}`} value={currency}>{currency}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    {CURRENCY_OPTIONS.map((currency) => (
+                                        <option key={`edit-warehouse-${currency}`} value={currency}>{currency}</option>
+                                    ))}
+                                </select>
                             </div>
                             <div className="grid gap-1.5">
                                 <label className="text-sm font-medium">Exchange rate</label>
@@ -1072,23 +1149,21 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             </div>
                             <div className="grid gap-1.5">
                                 <label className="text-sm font-medium">Currency</label>
-                                <Select
+                                <select
                                     value={form.amazonPrimeCurrency}
-                                    onValueChange={(value) =>
+                                    onChange={(event) =>
                                         setForm((current) => ({
                                             ...current,
-                                            amazonPrimeCurrency: value,
-                                            amazonPrimeExchangeRate: value === "RWF" ? "1" : current.amazonPrimeExchangeRate,
+                                            amazonPrimeCurrency: event.target.value,
+                                            amazonPrimeExchangeRate: event.target.value === "RWF" ? "1" : current.amazonPrimeExchangeRate,
                                         }))
                                     }
+                                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
                                 >
-                                    <SelectTrigger><SelectValue placeholder="Currency" /></SelectTrigger>
-                                    <SelectContent>
-                                        {CURRENCY_OPTIONS.map((currency) => (
-                                            <SelectItem key={`edit-prime-${currency}`} value={currency}>{currency}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    {CURRENCY_OPTIONS.map((currency) => (
+                                        <option key={`edit-prime-${currency}`} value={currency}>{currency}</option>
+                                    ))}
+                                </select>
                             </div>
                             <div className="grid gap-1.5">
                                 <label className="text-sm font-medium">Exchange rate</label>
@@ -1246,12 +1321,16 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                     {detailItems.length > 0 ? detailItems.map((item) => (
                         <div key={item.label} className="rounded-md border p-3">
                             <p className="text-xs text-muted-foreground">{item.label}</p>
-                            <p className="text-sm font-medium">{item.value}</p>
                             {typeof item.estimateRwf === "number" && item.estimateRwf > 0 ? (
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                    Estimate (RWF): {item.estimateRwf.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                                </p>
-                            ) : null}
+                                <>
+                                    <p className="mt-2 text-sm font-medium text-foreground">
+                                        ≈{item.estimateRwf.toLocaleString(undefined, { maximumFractionDigits: 2 })} RWF
+                                    </p>
+                                    <p className="mt-1 text-xs font-semibold text-muted-foreground">{item.value}</p>
+                                </>
+                            ) : (
+                                <p className="text-sm font-medium">{item.value}</p>
+                            )}
                         </div>
                     )) : (
                         <div className="rounded-md border p-3 text-sm text-muted-foreground md:col-span-2">

@@ -3,7 +3,7 @@
 import * as React from "react"
 
 import { Button } from "@/components/ui/button"
-import { FieldError } from "@/components/ui/field"
+import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
     Select,
@@ -20,28 +20,118 @@ import {
     SheetTitle,
     SheetTrigger,
 } from "@/components/ui/sheet"
-import { PlusIcon } from "lucide-react"
+import { ImagePlusIcon, PlusIcon, XIcon } from "lucide-react"
 
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"] as const
+const NO_CATEGORY_VALUE = "__none__"
 
 type AddProductSheetProps = {
     onProductCreated?: () => Promise<void> | void
+    open?: boolean
+    onOpenChange?: (open: boolean) => void
+    triggerButton?: React.ReactNode
 }
 
-export function AddProductSheet({ onProductCreated }: AddProductSheetProps) {
-    const [isOpen, setIsOpen] = React.useState(false)
+type Category = {
+    _id: string
+    name: string
+}
+
+function moveItem<T>(items: T[], fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= items.length || toIndex >= items.length) {
+        return items
+    }
+
+    const next = [...items]
+    const [moved] = next.splice(fromIndex, 1)
+    next.splice(toIndex, 0, moved)
+    return next
+}
+
+export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerButton }: AddProductSheetProps) {
+    const [internalOpen, setInternalOpen] = React.useState(false)
     const [isSubmitting, setIsSubmitting] = React.useState(false)
     const [errors, setErrors] = React.useState<Record<string, string>>({})
+    const [categories, setCategories] = React.useState<Category[]>([])
+    const [hasLoadedCategories, setHasLoadedCategories] = React.useState(false)
 
     const [name, setName] = React.useState("")
+    const [categoryId, setCategoryId] = React.useState("")
+    const [isAddingCustomCategory, setIsAddingCustomCategory] = React.useState(false)
+    const [customCategoryName, setCustomCategoryName] = React.useState("")
     const [quantityInitial, setQuantityInitial] = React.useState("")
     const [unitPriceForeign, setUnitPriceForeign] = React.useState("")
     const [sourceCurrency, setSourceCurrency] = React.useState<(typeof SOURCE_CURRENCY_OPTIONS)[number]>("USD")
     const [exchangeRate, setExchangeRate] = React.useState("")
     const [externalLink, setExternalLink] = React.useState("")
+    const [imageFiles, setImageFiles] = React.useState<File[]>([])
+    const [draggedImageIndex, setDraggedImageIndex] = React.useState<number | null>(null)
+
+    const isControlledOpen = typeof open === "boolean"
+    const isOpen = isControlledOpen ? open : internalOpen
+
+    const setIsOpen = React.useCallback((nextOpen: boolean) => {
+        if (nextOpen === isOpen) {
+            return
+        }
+
+        if (!isControlledOpen) {
+            setInternalOpen(nextOpen)
+        }
+        onOpenChange?.(nextOpen)
+    }, [isControlledOpen, isOpen, onOpenChange])
 
     const toIntegerInput = (value: string) => value.replace(/\D/g, "")
     const stripCommas = (value: string) => value.replace(/,/g, "")
+    const toSelectedFiles = (event: React.ChangeEvent<HTMLInputElement>) => Array.from(event.target.files ?? [])
+
+    const imagePreviews = React.useMemo(() => {
+        const previews = imageFiles.map((file) => URL.createObjectURL(file))
+        return previews
+    }, [imageFiles])
+
+    React.useEffect(() => {
+        return () => {
+            imagePreviews.forEach((url) => URL.revokeObjectURL(url))
+        }
+    }, [imagePreviews])
+
+    React.useEffect(() => {
+        if (sourceCurrency === "RWF") {
+            setExchangeRate("")
+        }
+    }, [sourceCurrency])
+
+    React.useEffect(() => {
+        if (!isOpen || hasLoadedCategories) {
+            return
+        }
+
+        const loadCategories = async () => {
+            const response = await fetch("/api/categories")
+            if (!response.ok) {
+                return
+            }
+
+            const data = await response.json()
+            setCategories(data.categories ?? [])
+            setHasLoadedCategories(true)
+        }
+
+        void loadCategories()
+    }, [hasLoadedCategories, isOpen])
+
+    const reorderImageFiles = React.useCallback((toIndex: number) => {
+        setImageFiles((current) => {
+            if (draggedImageIndex === null) {
+                return current
+            }
+
+            return moveItem(current, draggedImageIndex, toIndex)
+        })
+
+        setDraggedImageIndex(null)
+    }, [draggedImageIndex])
 
     const formatDecimalWithCommas = (value: string) => {
         if (!value) {
@@ -74,13 +164,23 @@ export function AddProductSheet({ onProductCreated }: AddProductSheetProps) {
 
     const resetForm = () => {
         setName("")
+        setCategoryId("")
+        setIsAddingCustomCategory(false)
+        setCustomCategoryName("")
         setQuantityInitial("")
         setUnitPriceForeign("")
         setSourceCurrency("USD")
         setExchangeRate("")
         setExternalLink("")
+        setImageFiles([])
         setErrors({})
     }
+
+    const canSubmit =
+        Boolean(name.trim()) &&
+        Boolean(quantityInitial.trim()) &&
+        Boolean(unitPriceForeign.trim()) &&
+        (sourceCurrency === "RWF" || Boolean(exchangeRate.trim()))
 
     const submit = async () => {
         if (isSubmitting) {
@@ -91,13 +191,54 @@ export function AddProductSheet({ onProductCreated }: AddProductSheetProps) {
         setErrors({})
 
         try {
+            let resolvedCategoryId = categoryId
+
+            if (isAddingCustomCategory) {
+                const customName = customCategoryName.trim()
+                if (!customName) {
+                    setErrors({ categoryId: "Category name is required" })
+                    return
+                }
+
+                const existingCategory = categories.find(
+                    (category) => category.name.trim().toLowerCase() === customName.toLowerCase()
+                )
+
+                if (existingCategory?._id) {
+                    resolvedCategoryId = existingCategory._id
+                } else {
+                    const createCategoryResponse = await fetch("/api/categories", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: customName }),
+                    })
+
+                    const createCategoryData = await createCategoryResponse.json()
+                    if (!createCategoryResponse.ok) {
+                        setErrors(createCategoryData.errors ?? { categoryId: "Failed to create category" })
+                        return
+                    }
+
+                    resolvedCategoryId = createCategoryData.category?._id ?? ""
+                    if (createCategoryData.category?._id && createCategoryData.category?.name) {
+                        setCategories((current) => [createCategoryData.category, ...current])
+                    }
+                }
+            }
+
             const formData = new FormData()
             formData.append("name", name)
+            if (resolvedCategoryId) {
+                formData.append("categoryId", resolvedCategoryId)
+            }
             formData.append("quantityInitial", quantityInitial)
             formData.append("unitPriceForeign", stripCommas(unitPriceForeign))
             formData.append("sourceCurrency", sourceCurrency)
             formData.append("exchangeRate", stripCommas(exchangeRate))
             formData.append("externalLink", externalLink)
+            for (const file of imageFiles) {
+                formData.append("images", file)
+            }
 
             const response = await fetch("/api/products", {
                 method: "POST",
@@ -121,118 +262,307 @@ export function AddProductSheet({ onProductCreated }: AddProductSheetProps) {
     return (
         <Sheet
             open={isOpen}
-            onOpenChange={(open) => {
-                setIsOpen(open)
-                if (!open) {
+            onOpenChange={(nextOpen) => {
+                if (isOpen && !nextOpen) {
                     resetForm()
                 }
+                setIsOpen(nextOpen)
             }}
         >
             <SheetTrigger asChild>
-                <Button type="button" size="sm" variant="outline">
-                    <PlusIcon className="h-4 w-4" />
-                    Add Product
-                </Button>
+                {triggerButton ?? (
+                    <Button type="button" size="sm" variant="outline">
+                        <PlusIcon className="h-4 w-4" />
+                        Add Product
+                    </Button>
+                )}
             </SheetTrigger>
-            <SheetContent className="overflow-y-auto">
-                <SheetHeader>
-                    <SheetTitle>Add Product</SheetTitle>
-                    <SheetDescription>Create a product without leaving this page.</SheetDescription>
-                </SheetHeader>
+            {isOpen ? (
+                <SheetContent className="p-0">
+                    <SheetHeader>
+                        <SheetTitle>Add Product</SheetTitle>
+                        <SheetDescription>Create a new product entry.</SheetDescription>
+                    </SheetHeader>
 
-                <div className="grid gap-4 p-4">
-                    <div className="grid gap-1.5">
-                        <label htmlFor="quick-product-name" className="text-sm font-medium">Product name</label>
-                        <Input
-                            id="quick-product-name"
-                            placeholder="Product name"
-                            value={name}
-                            onChange={(event) => setName(event.target.value)}
-                        />
-                        {errors.name ? <FieldError className="text-destructive text-xs">{errors.name}</FieldError> : null}
+                    <div className="grid gap-6 overflow-y-auto p-4">
+                        <Field>
+                            <div className="space-y-3 border-b pb-4">
+                                <h3 className="text-sm font-semibold">Images</h3>
+
+                                <div className="relative flex h-64 w-full items-center justify-center overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 group">
+                                    {imagePreviews[0] ? (
+                                        <>
+                                            <img
+                                                src={imagePreviews[0]}
+                                                alt="Main product image"
+                                                className="h-full w-full object-cover"
+                                                draggable
+                                                onDragStart={() => setDraggedImageIndex(0)}
+                                                onDragEnd={() => setDraggedImageIndex(null)}
+                                                onDragOver={(event) => event.preventDefault()}
+                                                onDrop={() => reorderImageFiles(0)}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setImageFiles((current) => current.filter((_, index) => index !== 0))
+                                                }}
+                                                className="absolute right-2 top-2 rounded bg-red-500 p-2 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
+                                            >
+                                                <XIcon className="h-4 w-4" />
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <label className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2 px-3 text-center">
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70 transition-colors group-hover:border-primary/50">
+                                                <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+                                            </div>
+                                            <div className="text-sm font-medium text-foreground">Add main image</div>
+                                            <div className="text-xs text-muted-foreground">Click to upload</div>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                multiple
+                                                className="hidden"
+                                                onChange={(event) => {
+                                                    const selectedFiles = toSelectedFiles(event)
+                                                    if (selectedFiles.length > 0) {
+                                                        setImageFiles((current) => [...selectedFiles, ...current])
+                                                    }
+                                                    event.currentTarget.value = ""
+                                                }}
+                                            />
+                                        </label>
+                                    )}
+                                </div>
+
+                                {imageFiles.length > 0 ? (
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {imagePreviews.slice(1).map((preview, index) => {
+                                            const imageIndex = index + 1
+
+                                            return (
+                                                <div key={`new-${imageIndex}`} className="relative aspect-square overflow-hidden rounded-md border border-border bg-muted/30 group">
+                                                    <img
+                                                        src={preview}
+                                                        alt={`New image ${imageIndex + 1}`}
+                                                        className="h-full w-full object-cover"
+                                                        draggable
+                                                        onDragStart={() => setDraggedImageIndex(imageIndex)}
+                                                        onDragEnd={() => setDraggedImageIndex(null)}
+                                                        onDragOver={(event) => event.preventDefault()}
+                                                        onDrop={() => reorderImageFiles(imageIndex)}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setImageFiles((current) => current.filter((_, currentIndex) => currentIndex !== imageIndex))
+                                                        }}
+                                                        className="absolute right-1 top-1 rounded bg-red-500 p-1 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
+                                                    >
+                                                        <XIcon className="h-3 w-3" />
+                                                    </button>
+                                                </div>
+                                            )
+                                        })}
+
+                                        <label className="group relative flex aspect-square cursor-pointer items-center justify-center rounded-md border-2 border-dashed border-border bg-muted/30 transition-colors hover:bg-muted/50">
+                                            <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                multiple
+                                                className="hidden"
+                                                onChange={(event) => {
+                                                    const selectedFiles = toSelectedFiles(event)
+                                                    if (selectedFiles.length > 0) {
+                                                        setImageFiles((current) => [...current, ...selectedFiles])
+                                                    }
+                                                    event.currentTarget.value = ""
+                                                }}
+                                            />
+                                        </label>
+                                    </div>
+                                ) : null}
+                            </div>
+                        </Field>
+
+                        <Field>
+                            <div className="flex items-center justify-between">
+                                <FieldLabel htmlFor="quick-product-name">Product name</FieldLabel>
+                                <FieldError className="text-xs text-destructive">{errors.name}</FieldError>
+                            </div>
+                            <Input
+                                id="quick-product-name"
+                                placeholder="Product name"
+                                value={name}
+                                onChange={(event) => setName(event.target.value)}
+                            />
+                        </Field>
+
+                        <Field>
+                            <div className="flex items-center justify-between">
+                                <FieldLabel htmlFor="quick-product-link">External link (optional)</FieldLabel>
+                                <FieldError className="text-xs text-destructive">{errors.externalLink}</FieldError>
+                            </div>
+                            <Input
+                                id="quick-product-link"
+                                type="url"
+                                placeholder="https://example.com/product"
+                                value={externalLink}
+                                onChange={(event) => setExternalLink(event.target.value)}
+                            />
+                        </Field>
+
+                        <Field>
+                            <div className="flex items-center justify-between">
+                                <FieldLabel htmlFor="quick-product-category">Category (optional)</FieldLabel>
+                                <FieldError className="text-xs text-destructive">{errors.categoryId}</FieldError>
+                            </div>
+                            {isAddingCustomCategory ? (
+                                <div className="flex gap-2">
+                                    <Input
+                                        id="quick-product-category"
+                                        placeholder="Type new category name"
+                                        value={customCategoryName}
+                                        onChange={(event) => setCustomCategoryName(event.target.value)}
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => {
+                                            setIsAddingCustomCategory(false)
+                                            setCustomCategoryName("")
+                                            setCategoryId("")
+                                        }}
+                                    >
+                                        Cancel
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <Select
+                                        value={categoryId || NO_CATEGORY_VALUE}
+                                        onValueChange={(value) => {
+                                            setIsAddingCustomCategory(false)
+                                            setCustomCategoryName("")
+                                            setCategoryId(value === NO_CATEGORY_VALUE ? "" : value)
+                                        }}
+                                    >
+                                        <SelectTrigger id="quick-product-category" className="w-full">
+                                            <SelectValue placeholder="Choose category (optional)" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value={NO_CATEGORY_VALUE}>No category</SelectItem>
+                                            {categories.map((category) => (
+                                                <SelectItem key={category._id} value={category._id}>
+                                                    {category.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        className="h-8 px-3"
+                                        onClick={() => {
+                                            setIsAddingCustomCategory(true)
+                                            setCategoryId("")
+                                        }}
+                                    >
+                                        Add category
+                                    </Button>
+                                </div>
+                            )}
+                        </Field>
+
+                        <Field>
+                            <div className="flex items-center justify-between">
+                                <FieldLabel htmlFor="quick-product-quantity">Initial stock</FieldLabel>
+                                <FieldError className="text-xs text-destructive">{errors.quantityInitial}</FieldError>
+                            </div>
+                            <Input
+                                id="quick-product-quantity"
+                                type="text"
+                                inputMode="numeric"
+                                autoComplete="off"
+                                placeholder="Enter initial stock"
+                                value={quantityInitial}
+                                onChange={(event) => setQuantityInitial(toIntegerInput(event.target.value))}
+                            />
+                        </Field>
+
+                        <Field>
+                            <div className="flex items-center justify-between">
+                                <FieldLabel htmlFor="quick-product-unit-price">Unit price</FieldLabel>
+                                <FieldError className="text-xs text-destructive">{errors.unitPriceForeign}</FieldError>
+                            </div>
+                            <Input
+                                id="quick-product-unit-price"
+                                type="text"
+                                inputMode="decimal"
+                                autoComplete="off"
+                                placeholder="Enter unit price"
+                                value={unitPriceForeign}
+                                onChange={(event) => setUnitPriceForeign(toDecimalInput(event.target.value))}
+                            />
+                        </Field>
+
+                        <Field>
+                            <div className="flex items-center justify-between">
+                                <FieldLabel htmlFor="quick-product-currency">Source currency</FieldLabel>
+                                <FieldError className="text-xs text-destructive">{errors.sourceCurrency}</FieldError>
+                            </div>
+                            <Select value={sourceCurrency} onValueChange={(value) => setSourceCurrency(value as (typeof SOURCE_CURRENCY_OPTIONS)[number])}>
+                                <SelectTrigger id="quick-product-currency">
+                                    <SelectValue placeholder="Choose source currency" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {SOURCE_CURRENCY_OPTIONS.map((currency) => (
+                                        <SelectItem key={currency} value={currency}>
+                                            {currency}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </Field>
+
+                        <Field>
+                            <div className="flex items-center justify-between">
+                                <FieldLabel htmlFor="quick-product-exchange-rate">Exchange rate to RWF</FieldLabel>
+                                <FieldError className="text-xs text-destructive">{errors.exchangeRate}</FieldError>
+                            </div>
+                            <Input
+                                id="quick-product-exchange-rate"
+                                type="text"
+                                inputMode="decimal"
+                                autoComplete="off"
+                                placeholder={sourceCurrency === "RWF" ? "Auto-set to 1 for RWF" : "Enter exchange rate to RWF"}
+                                value={exchangeRate}
+                                disabled={sourceCurrency === "RWF"}
+                                onChange={(event) => setExchangeRate(toDecimalInput(event.target.value))}
+                            />
+                        </Field>
+
+                        {errors.general ? <FieldError className="text-xs text-destructive">{errors.general}</FieldError> : null}
+
+                        <div className="flex items-center justify-end gap-2">
+                            <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isSubmitting}>
+                                Cancel
+                            </Button>
+                            <Button
+                                type="button"
+                                disabled={!canSubmit || isSubmitting}
+                                onClick={() => void submit()}
+                                loading={isSubmitting}
+                                loadingText="Adding product"
+                            >
+                                Add Product
+                            </Button>
+                        </div>
                     </div>
-
-                    <div className="grid gap-1.5">
-                        <label htmlFor="quick-product-quantity" className="text-sm font-medium">Initial stock</label>
-                        <Input
-                            id="quick-product-quantity"
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="Enter initial stock"
-                            value={quantityInitial}
-                            onChange={(event) => setQuantityInitial(toIntegerInput(event.target.value))}
-                        />
-                        {errors.quantityInitial ? <FieldError className="text-destructive text-xs">{errors.quantityInitial}</FieldError> : null}
-                    </div>
-
-                    <div className="grid gap-1.5">
-                        <label htmlFor="quick-product-unit-price" className="text-sm font-medium">Unit price</label>
-                        <Input
-                            id="quick-product-unit-price"
-                            type="text"
-                            inputMode="decimal"
-                            placeholder="Enter unit price"
-                            value={unitPriceForeign}
-                            onChange={(event) => setUnitPriceForeign(toDecimalInput(event.target.value))}
-                        />
-                        {errors.unitPriceForeign ? <FieldError className="text-destructive text-xs">{errors.unitPriceForeign}</FieldError> : null}
-                    </div>
-
-                    <div className="grid gap-1.5">
-                        <label htmlFor="quick-product-currency" className="text-sm font-medium">Source currency</label>
-                        <Select value={sourceCurrency} onValueChange={(value) => setSourceCurrency(value as (typeof SOURCE_CURRENCY_OPTIONS)[number])}>
-                            <SelectTrigger id="quick-product-currency">
-                                <SelectValue placeholder="Choose source currency" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {SOURCE_CURRENCY_OPTIONS.map((currency) => (
-                                    <SelectItem key={currency} value={currency}>
-                                        {currency}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {errors.sourceCurrency ? <FieldError className="text-destructive text-xs">{errors.sourceCurrency}</FieldError> : null}
-                    </div>
-
-                    <div className="grid gap-1.5">
-                        <label htmlFor="quick-product-exchange-rate" className="text-sm font-medium">Exchange rate to RWF</label>
-                        <Input
-                            id="quick-product-exchange-rate"
-                            type="text"
-                            inputMode="decimal"
-                            placeholder={sourceCurrency === "RWF" ? "Auto-set to 1 for RWF" : "Enter exchange rate to RWF"}
-                            value={exchangeRate}
-                            disabled={sourceCurrency === "RWF"}
-                            onChange={(event) => setExchangeRate(toDecimalInput(event.target.value))}
-                        />
-                        {errors.exchangeRate ? <FieldError className="text-destructive text-xs">{errors.exchangeRate}</FieldError> : null}
-                    </div>
-
-                    <div className="grid gap-1.5">
-                        <label htmlFor="quick-product-link" className="text-sm font-medium">External link (optional)</label>
-                        <Input
-                            id="quick-product-link"
-                            type="url"
-                            placeholder="https://example.com/product"
-                            value={externalLink}
-                            onChange={(event) => setExternalLink(event.target.value)}
-                        />
-                        {errors.externalLink ? <FieldError className="text-destructive text-xs">{errors.externalLink}</FieldError> : null}
-                    </div>
-
-                    {errors.general ? <FieldError className="text-destructive text-xs">{errors.general}</FieldError> : null}
-
-                    <div className="flex items-center justify-end gap-2">
-                        <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isSubmitting}>
-                            Cancel
-                        </Button>
-                        <Button type="button" onClick={() => void submit()} loading={isSubmitting} loadingText="Adding product">
-                            Add Product
-                        </Button>
-                    </div>
-                </div>
-            </SheetContent>
+                </SheetContent>
+            ) : null}
         </Sheet>
     )
 }
