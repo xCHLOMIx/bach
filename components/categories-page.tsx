@@ -30,6 +30,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Trash2Icon, SearchIcon, ChevronUpIcon, ChevronDownIcon, Columns3Icon } from "lucide-react"
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
+import { cn } from "@/lib/utils"
 
 const CATEGORIES_VISIBLE_COLUMNS_STORAGE_KEY = "categories:visible-columns"
 const CATEGORIES_TABLE_STATE_STORAGE_KEY = "categories:table-state"
@@ -598,7 +599,10 @@ export function CategoriesPage() {
                                     sortedCategories.map((category) => (
                                         <TableRow
                                             key={category._id}
-                                            className={selectedCategoryIds.has(category._id) ? "bg-primary/20 text-foreground hover:bg-primary/20" : "hover:bg-muted/40"}
+                                            className={cn(
+                                                selectedCategoryIds.has(category._id) ? "bg-primary/20 text-foreground hover:bg-primary/20" : "hover:bg-muted/40",
+                                                editingId === category._id ? "cursor-default" : "cursor-pointer"
+                                            )}
                                             onClick={() => {
                                                 if (editingId === category._id) {
                                                     return
@@ -614,7 +618,10 @@ export function CategoriesPage() {
                                                 />
                                             </TableCell>
                                             {visibleColumns.name && (
-                                                <TableCell onClick={editingId === category._id ? (event) => event.stopPropagation() : undefined}>
+                                                <TableCell
+                                                    className={editingId === category._id ? undefined : "cursor-pointer"}
+                                                    onClick={editingId === category._id ? (event) => event.stopPropagation() : undefined}
+                                                >
                                                     {editingId === category._id ? (
                                                         <Input
                                                             value={editingName || ""}
@@ -628,7 +635,7 @@ export function CategoriesPage() {
                                                 </TableCell>
                                             )}
                                             {visibleColumns.created && (
-                                                <TableCell>{new Date(category.createdAt).toLocaleDateString()}</TableCell>
+                                                <TableCell className={editingId === category._id ? undefined : "cursor-pointer"}>{new Date(category.createdAt).toLocaleDateString()}</TableCell>
                                             )}
                                             {visibleColumns.actions && (
                                                 <TableCell className="flex gap-2 justify-end">
