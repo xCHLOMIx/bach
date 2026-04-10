@@ -20,6 +20,7 @@ import {
     SheetTitle,
     SheetTrigger,
 } from "@/components/ui/sheet"
+import { setIntendedSellingPrice } from "@/lib/intended-pricing"
 import { ImagePlusIcon, PlusIcon, XIcon } from "lucide-react"
 
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"] as const
@@ -61,6 +62,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
     const [customCategoryName, setCustomCategoryName] = React.useState("")
     const [quantityInitial, setQuantityInitial] = React.useState("")
     const [unitPriceForeign, setUnitPriceForeign] = React.useState("")
+    const [intendedSellingPrice, setIntendedSellingPriceInput] = React.useState("")
     const [sourceCurrency, setSourceCurrency] = React.useState<(typeof SOURCE_CURRENCY_OPTIONS)[number]>("USD")
     const [exchangeRate, setExchangeRate] = React.useState("")
     const [externalLink, setExternalLink] = React.useState("")
@@ -169,6 +171,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
         setCustomCategoryName("")
         setQuantityInitial("")
         setUnitPriceForeign("")
+        setIntendedSellingPriceInput("")
         setSourceCurrency("USD")
         setExchangeRate("")
         setExternalLink("")
@@ -249,6 +252,14 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
             if (!response.ok) {
                 setErrors(data.errors ?? { general: "Failed to create product" })
                 return
+            }
+
+            const createdProductId = (data?.product as { _id?: string } | undefined)?._id
+            if (createdProductId) {
+                const parsedIntendedSellingPrice = Number(stripCommas(intendedSellingPrice) || 0)
+                if (intendedSellingPrice.trim() && Number.isFinite(parsedIntendedSellingPrice) && parsedIntendedSellingPrice >= 0) {
+                    setIntendedSellingPrice(createdProductId, parsedIntendedSellingPrice)
+                }
             }
 
             resetForm()
@@ -505,6 +516,21 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                                 placeholder="Enter unit price"
                                 value={unitPriceForeign}
                                 onChange={(event) => setUnitPriceForeign(toDecimalInput(event.target.value))}
+                            />
+                        </Field>
+
+                        <Field>
+                            <div className="flex items-center justify-between">
+                                <FieldLabel htmlFor="quick-product-selling-price">Selling price (RWF, optional)</FieldLabel>
+                            </div>
+                            <Input
+                                id="quick-product-selling-price"
+                                type="text"
+                                inputMode="decimal"
+                                autoComplete="off"
+                                placeholder="Enter target selling price"
+                                value={intendedSellingPrice}
+                                onChange={(event) => setIntendedSellingPriceInput(toDecimalInput(event.target.value))}
                             />
                         </Field>
 

@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
+import { getIntendedSellingPrice, setIntendedSellingPrice } from "@/lib/intended-pricing"
 
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"]
 
@@ -113,6 +114,7 @@ export default function ProductDetailsPage() {
   const [editProductName, setEditProductName] = useState("")
   const [editQuantityInitial, setEditQuantityInitial] = useState("0")
   const [editUnitPriceForeign, setEditUnitPriceForeign] = useState("0")
+  const [editIntendedSellingPrice, setEditIntendedSellingPrice] = useState("")
   const [editExternalLink, setEditExternalLink] = useState("")
   const [editSourceCurrency, setEditSourceCurrency] = useState("USD")
   const [editExchangeRate, setEditExchangeRate] = useState("1")
@@ -293,6 +295,7 @@ export default function ProductDetailsPage() {
     setEditProductName(currentProduct.name)
     setEditQuantityInitial(String(currentProduct.quantityInitial))
     setEditUnitPriceForeign(formatDecimalWithCommas(String(currentProduct.unitPriceForeign)))
+    setEditIntendedSellingPrice(formatDecimalWithCommas(String(getIntendedSellingPrice(currentProduct._id) ?? "")))
     setEditExternalLink(currentProduct.externalLink ?? "")
     setEditSourceCurrency(currentProduct.sourceCurrency)
     setEditExchangeRate(formatDecimalWithCommas(String(currentProduct.exchangeRate ?? 1)))
@@ -342,6 +345,11 @@ export default function ProductDetailsPage() {
         setEditErrors(data.errors ?? { general: "Failed to update product" })
         return
       }
+
+      const intendedSellingPriceValue = editIntendedSellingPrice.trim()
+        ? Number(stripCommas(editIntendedSellingPrice))
+        : null
+      setIntendedSellingPrice(editProductId, intendedSellingPriceValue)
 
       setIsEditProductSheetOpen(false)
       await loadProduct()
@@ -410,6 +418,22 @@ export default function ProductDetailsPage() {
 
     return product.quantityInitial - product.quantityRemaining
   }, [product])
+
+  const intendedSellingPrice = useMemo(() => {
+    if (!product?._id) {
+      return undefined
+    }
+
+    return getIntendedSellingPrice(product._id)
+  }, [product?._id, isEditProductSheetOpen])
+
+  const intendedProfitPerUnit = useMemo(() => {
+    if (!product || typeof intendedSellingPrice !== "number") {
+      return undefined
+    }
+
+    return intendedSellingPrice - product.landedCost
+  }, [intendedSellingPrice, product])
 
   if (isLoading) {
     return (
@@ -588,6 +612,24 @@ export default function ProductDetailsPage() {
                   maximumFractionDigits: 2,
                 })} RWF`}
               // emphasis
+              />
+              <DetailTile
+                label="Selling Price"
+                value={typeof intendedSellingPrice === "number"
+                  ? `${formatNumber(intendedSellingPrice, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })} RWF`
+                  : "-"}
+              />
+              <DetailTile
+                label="Intended Profit / Unit"
+                value={typeof intendedProfitPerUnit === "number"
+                  ? `${formatNumber(intendedProfitPerUnit, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })} RWF`
+                  : "-"}
               />
               <DetailTile
                 label="Unit Price"
@@ -921,6 +963,22 @@ export default function ProductDetailsPage() {
                   placeholder="Unit price in source currency"
                   value={editUnitPriceForeign}
                   onChange={(event) => setEditUnitPriceForeign(toDecimalInput(event.target.value))}
+                />
+              </Field>
+
+              <Field>
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor="edit-intended-selling-price">Selling price (RWF, optional)</FieldLabel>
+                  <FieldError className="text-xs text-destructive">{editErrors.intendedSellingPrice}</FieldError>
+                </div>
+                <Input
+                  id="edit-intended-selling-price"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  placeholder="Enter intended selling price"
+                  value={editIntendedSellingPrice}
+                  onChange={(event) => setEditIntendedSellingPrice(toDecimalInput(event.target.value))}
                 />
               </Field>
 

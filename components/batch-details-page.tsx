@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { AddProductSheet } from "@/components/add-product-sheet"
 import { calculateBatchProductLandedCosts, convertInternationalExpenseToRwf } from "@/lib/costs"
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
+import { getAllIntendedSellingPrices } from "@/lib/intended-pricing"
 import { cn } from "@/lib/utils"
 import { CheckIcon, ChevronLeft, CopyIcon, PackageOpen, SearchIcon } from "lucide-react"
 
@@ -296,6 +297,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         const selectedIdSet = new Set(selectedProductIds)
         return products.filter((product) => selectedIdSet.has(product._id))
     }, [products, selectedProductIds])
+    const intendedSellingPricesByProductId = React.useMemo(() => getAllIntendedSellingPrices(), [products])
 
     const availableProducts = React.useMemo(() => {
         return products.filter((product) => {
@@ -765,6 +767,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             { quantity: 0, baseTotal: 0, weightPercentage: 0, shippingShare: 0, finalTotal: 0 }
         )
 
+        const totalImportCharges = totals.shippingShare
+        const totalLandedPrice = totals.finalTotal
+
         return (
             <div className="overflow-hidden rounded-md border">
                 <Table>
@@ -772,11 +777,12 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         <TableRow>
                             <TableHead>Product</TableHead>
                             <TableHead className="text-right">Quantity</TableHead>
-                            <TableHead className="text-right">Base Unit (RWF)</TableHead>
-                            <TableHead className="text-right">Base Total (RWF)</TableHead>
+                            <TableHead className="text-right">Vendor Price (RWF)</TableHead>
+                            <TableHead className="text-right">Vendor Total (RWF)</TableHead>
+                            <TableHead className="text-right">Import Charges (RWF)</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
-                            <TableHead className="text-right">Import Costs (RWF)</TableHead>
-                            <TableHead className="text-right">Total After Distribution Cost (RWF)</TableHead>
+                            <TableHead className="text-right">Selling Price (RWF)</TableHead>
+                            <TableHead className="text-right">Total Landed Price (RWF)</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -786,7 +792,8 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             const productTotal = baseUnitPrice * product.quantityInitial
                             const finalUnit = preview ? preview.landedCost : baseUnitPrice
                             const finalTotal = finalUnit * product.quantityInitial
-                            const shippingShare = Math.max(0, finalTotal - productTotal)
+                            const importCharges = Math.max(0, finalTotal - productTotal)
+                            const intendedSellingPrice = intendedSellingPricesByProductId[product._id]
 
                             return (
                                 <TableRow key={product._id}>
@@ -795,10 +802,15 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                     <TableCell className="text-right">{baseUnitPrice.toLocaleString()}</TableCell>
                                     <TableCell className="text-right">{productTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
                                     <TableCell className="text-right">
+                                        {importCharges.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    </TableCell>
+                                    <TableCell className="text-right">
                                         {preview ? `${preview.weightPercentage.toFixed(2)}%` : "-"}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {shippingShare.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                        {typeof intendedSellingPrice === "number"
+                                            ? intendedSellingPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                                            : "-"}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
@@ -811,8 +823,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableCell className="text-right">{totals.quantity.toLocaleString()}</TableCell>
                             <TableCell className="text-right">-</TableCell>
                             <TableCell className="text-right">{totals.baseTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                            <TableCell className="text-right">{`${totals.weightPercentage.toFixed(2)}%`}</TableCell>
                             <TableCell className="text-right">{totals.shippingShare.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-right">{`${totals.weightPercentage.toFixed(2)}%`}</TableCell>
+                            <TableCell className="text-right">-</TableCell>
                             <TableCell className="text-right">{totals.finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
                         </TableRow>
                     </TableBody>
@@ -828,11 +841,12 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                     <TableRow>
                         <TableHead>Product</TableHead>
                         <TableHead className="text-right">Quantity</TableHead>
-                        <TableHead className="text-right">Base Unit (RWF)</TableHead>
-                        <TableHead className="text-right">Base Total (RWF)</TableHead>
+                        <TableHead className="text-right">Vendor Price (RWF)</TableHead>
+                        <TableHead className="text-right">Vendor Total (RWF)</TableHead>
+                        <TableHead className="text-right">Import Charges (RWF)</TableHead>
                         <TableHead className="text-right">Weight %</TableHead>
-                        <TableHead className="text-right">Import Costs (RWF)</TableHead>
-                        <TableHead className="text-right">Total After Distribution Cost (RWF)</TableHead>
+                        <TableHead className="text-right">Selling Price (RWF)</TableHead>
+                        <TableHead className="text-right">Total Landed Price (RWF)</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -844,6 +858,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-14" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
                         </TableRow>
                     ))}
@@ -1364,6 +1379,34 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             ) : null}
                         </div>
                         <p className="mt-2 text-sm font-medium text-foreground">{form.trackingId || "Not set"}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Total Import Charges</p>
+                        <p className="mt-2 text-sm font-medium text-foreground">
+                            {selectedProducts
+                                .reduce((sum, product) => {
+                                    const preview = allocationPreviewByProductId.get(product._id)
+                                    const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
+                                    const baseTotal = baseUnitPrice * product.quantityInitial
+                                    const finalUnit = preview ? preview.landedCost : baseUnitPrice
+                                    const finalTotal = finalUnit * product.quantityInitial
+                                    return sum + Math.max(0, finalTotal - baseTotal)
+                                }, 0)
+                                .toLocaleString(undefined, { maximumFractionDigits: 2 })} RWF
+                        </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Total Landed Price</p>
+                        <p className="mt-2 text-sm font-medium text-foreground">
+                            {selectedProducts
+                                .reduce((sum, product) => {
+                                    const preview = allocationPreviewByProductId.get(product._id)
+                                    const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
+                                    const finalUnit = preview ? preview.landedCost : baseUnitPrice
+                                    return sum + (finalUnit * product.quantityInitial)
+                                }, 0)
+                                .toLocaleString(undefined, { maximumFractionDigits: 2 })} RWF
+                        </p>
                     </div>
                 </div>
             )}

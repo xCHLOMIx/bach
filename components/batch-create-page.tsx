@@ -19,6 +19,7 @@ import {
 import { AddProductSheet } from "@/components/add-product-sheet"
 import { calculateBatchProductLandedCosts, convertInternationalExpenseToRwf } from "@/lib/costs"
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
+import { getAllIntendedSellingPrices } from "@/lib/intended-pricing"
 import { cn } from "@/lib/utils"
 import { CheckIcon, ChevronLeft, SearchIcon } from "lucide-react"
 
@@ -159,6 +160,7 @@ export function BatchCreatePage() {
         const selectedIdSet = new Set(selectedProductIds)
         return products.filter((product) => selectedIdSet.has(product._id))
     }, [products, selectedProductIds])
+    const intendedSellingPricesByProductId = React.useMemo(() => getAllIntendedSellingPrices(), [products])
 
     const parsedCosts = React.useMemo(() => {
         return {
@@ -634,11 +636,12 @@ export function BatchCreatePage() {
                         <TableRow>
                             <TableHead>Product</TableHead>
                             <TableHead className="text-right">Quantity</TableHead>
-                            <TableHead className="text-right">Base Unit (RWF)</TableHead>
-                            <TableHead className="text-right">Base Total (RWF)</TableHead>
+                            <TableHead className="text-right">Vendor Price (RWF)</TableHead>
+                            <TableHead className="text-right">Vendor Total (RWF)</TableHead>
+                            <TableHead className="text-right">Import Charges (RWF)</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
-                            <TableHead className="text-right">Import Costs (RWF)</TableHead>
-                            <TableHead className="text-right">Total After Distribution Cost (RWF)</TableHead>
+                            <TableHead className="text-right">Selling Price (RWF)</TableHead>
+                            <TableHead className="text-right">Total Landed Price (RWF)</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -648,7 +651,8 @@ export function BatchCreatePage() {
                             const productTotal = baseUnitPrice * product.quantityInitial
                             const finalUnit = preview ? preview.landedCost : baseUnitPrice
                             const finalTotal = finalUnit * product.quantityInitial
-                            const shippingShare = Math.max(0, finalTotal - productTotal)
+                            const importCharges = Math.max(0, finalTotal - productTotal)
+                            const intendedSellingPrice = intendedSellingPricesByProductId[product._id]
 
                             return (
                                 <TableRow key={product._id}>
@@ -657,10 +661,15 @@ export function BatchCreatePage() {
                                     <TableCell className="text-right">{baseUnitPrice.toLocaleString()}</TableCell>
                                     <TableCell className="text-right">{productTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
                                     <TableCell className="text-right">
+                                        {importCharges.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    </TableCell>
+                                    <TableCell className="text-right">
                                         {preview ? `${preview.weightPercentage.toFixed(2)}%` : "-"}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {shippingShare.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                        {typeof intendedSellingPrice === "number"
+                                            ? intendedSellingPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                                            : "-"}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
@@ -673,8 +682,9 @@ export function BatchCreatePage() {
                             <TableCell className="text-right">{totals.quantity.toLocaleString()}</TableCell>
                             <TableCell className="text-right">-</TableCell>
                             <TableCell className="text-right">{totals.baseTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                            <TableCell className="text-right">{`${totals.weightPercentage.toFixed(2)}%`}</TableCell>
                             <TableCell className="text-right">{totals.shippingShare.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-right">{`${totals.weightPercentage.toFixed(2)}%`}</TableCell>
+                            <TableCell className="text-right">-</TableCell>
                             <TableCell className="text-right">{totals.finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
                         </TableRow>
                     </TableBody>
@@ -690,11 +700,12 @@ export function BatchCreatePage() {
                     <TableRow>
                         <TableHead>Product</TableHead>
                         <TableHead className="text-right">Quantity</TableHead>
-                        <TableHead className="text-right">Base Unit (RWF)</TableHead>
-                        <TableHead className="text-right">Base Total (RWF)</TableHead>
+                        <TableHead className="text-right">Vendor Price (RWF)</TableHead>
+                        <TableHead className="text-right">Vendor Total (RWF)</TableHead>
+                        <TableHead className="text-right">Import Charges (RWF)</TableHead>
                         <TableHead className="text-right">Weight %</TableHead>
-                        <TableHead className="text-right">Import Costs (RWF)</TableHead>
-                        <TableHead className="text-right">Total After Distribution Cost (RWF)</TableHead>
+                        <TableHead className="text-right">Selling Price (RWF)</TableHead>
+                        <TableHead className="text-right">Total Landed Price (RWF)</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -706,6 +717,7 @@ export function BatchCreatePage() {
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-14" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
                         </TableRow>
                     ))}

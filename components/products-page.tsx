@@ -58,6 +58,8 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Columns3Icon, ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon, SearchIcon, ShoppingCartIcon, Trash2Icon, XIcon } from "lucide-react"
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
+import { getAllIntendedSellingPrices, getIntendedSellingPrice, setIntendedSellingPrice } from "@/lib/intended-pricing"
+import { cn } from "@/lib/utils"
 
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"]
 const NO_CATEGORY_VALUE = "__none__"
@@ -205,6 +207,7 @@ export function ProductsPage() {
     const [editCustomCategoryName, setEditCustomCategoryName] = React.useState("")
     const [editQuantityInitial, setEditQuantityInitial] = React.useState("")
     const [editUnitPriceForeign, setEditUnitPriceForeign] = React.useState("")
+    const [editIntendedSellingPrice, setEditIntendedSellingPrice] = React.useState("")
     const [editExternalLink, setEditExternalLink] = React.useState("")
     const [editSourceCurrency, setEditSourceCurrency] = React.useState("USD")
     const [editExchangeRate, setEditExchangeRate] = React.useState("")
@@ -426,6 +429,8 @@ export function ProductsPage() {
 
         if (open) {
             void ensureFormOptionsLoaded()
+        } else {
+            setEditIntendedSellingPrice("")
         }
 
         setIsEditProductSheetOpen(open)
@@ -691,6 +696,7 @@ export function ProductsPage() {
         setEditCustomCategoryName("")
         setEditQuantityInitial(String(product.quantityInitial))
         setEditUnitPriceForeign(formatDecimalWithCommas(String(product.unitPriceForeign)))
+        setEditIntendedSellingPrice(formatDecimalWithCommas(String(getIntendedSellingPrice(product._id) ?? "")))
         setEditExternalLink(product.externalLink ?? "")
         setEditSourceCurrency(product.sourceCurrency)
         setEditExchangeRate(formatDecimalWithCommas(String(product.exchangeRate ?? 1)))
@@ -1014,6 +1020,11 @@ export function ProductsPage() {
                 return
             }
 
+            const intendedSellingPriceValue = editIntendedSellingPrice.trim()
+                ? Number(stripCommas(editIntendedSellingPrice))
+                : null
+            setIntendedSellingPrice(editProductId, intendedSellingPriceValue)
+
             setEditProductId("")
             setEditProductName("")
             setEditCategoryId("")
@@ -1021,6 +1032,7 @@ export function ProductsPage() {
             setEditCustomCategoryName("")
             setEditQuantityInitial("")
             setEditUnitPriceForeign("")
+            setEditIntendedSellingPrice("")
             setEditExternalLink("")
             setEditSourceCurrency("USD")
             setEditExchangeRate("")
@@ -1164,6 +1176,7 @@ export function ProductsPage() {
     }, [filteredProducts, sortColumn, sortDirection])
     const selectedProducts = products.filter((product) => selectedProductIds.has(product._id))
     const singleSelectedProduct = selectedProducts.length === 1 ? selectedProducts[0] : null
+    const intendedSellingPricesByProductId = React.useMemo(() => getAllIntendedSellingPrices(), [products])
 
     const saleSelectedQuantity = Number(saleQuantity || 0)
     const saleAvailableQuantity = saleSelectedProduct?.quantityRemaining ?? 0
@@ -1239,6 +1252,11 @@ export function ProductsPage() {
     }, [])
 
     const renderProductColumnCell = React.useCallback((product: Product, columnKey: ProductTableColumnKey) => {
+        const intendedSellingPrice = intendedSellingPricesByProductId[product._id]
+        const intendedProfitPerUnit = typeof intendedSellingPrice === "number"
+            ? intendedSellingPrice - product.landedCost
+            : undefined
+
         if (columnKey === "image") {
             return (
                 <TableCell className="p-0">
@@ -1321,8 +1339,20 @@ export function ProductsPage() {
         if (columnKey === "landedPrice") {
             return (
                 <TableCell className="p-0">
-                    <div className="block p-2">
-                        {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <div className="block space-y-1 p-2">
+                        <p>
+                            {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            Selling: {typeof intendedSellingPrice === "number"
+                                ? intendedSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                : "-"}
+                        </p>
+                        <p className={cn("text-xs", typeof intendedProfitPerUnit === "number" && intendedProfitPerUnit >= 0 ? "text-emerald-600" : "text-destructive")}>
+                            Profit: {typeof intendedProfitPerUnit === "number"
+                                ? intendedProfitPerUnit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                : "-"}
+                        </p>
                     </div>
                 </TableCell>
             )
@@ -1335,7 +1365,7 @@ export function ProductsPage() {
                 </div>
             </TableCell>
         )
-    }, [])
+    }, [intendedSellingPricesByProductId])
 
     const handleDeleteSelectedProduct = React.useCallback(() => {
         if (selectedProducts.length === 0) {
@@ -1739,6 +1769,22 @@ export function ProductsPage() {
 
                             <Field>
                                 <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-intended-selling-price">Selling price (RWF, optional)</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.intendedSellingPrice}</FieldError>
+                                </div>
+                                <Input
+                                    id="edit-intended-selling-price"
+                                    type="text"
+                                    inputMode="decimal"
+                                    autoComplete="off"
+                                    placeholder="Enter intended selling price"
+                                    value={editIntendedSellingPrice}
+                                    onChange={(event) => setEditIntendedSellingPrice(toDecimalInput(event.target.value))}
+                                />
+                            </Field>
+
+                            <Field>
+                                <div className="flex items-center justify-between">
                                     <FieldLabel htmlFor="edit-currency">Source currency</FieldLabel>
                                     <FieldError className="text-destructive text-xs">{editErrors.sourceCurrency}</FieldError>
                                 </div>
@@ -2104,55 +2150,74 @@ export function ProductsPage() {
                 ) : (
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         {sortedFilteredProducts.map((product) => (
-                            <div
-                                key={product._id}
-                                className="cursor-pointer rounded-lg border bg-card p-4"
-                                role="link"
-                                tabIndex={0}
-                                onClick={() => router.push(`/app/products/${product._id}`)}
-                                onKeyDown={(event) => {
-                                    if (event.key === "Enter" || event.key === " ") {
-                                        event.preventDefault()
-                                        router.push(`/app/products/${product._id}`)
-                                    }
-                                }}
-                            >
-                                <Link href={`/app/products/${product._id}`} className="block mb-3 overflow-hidden rounded-md border bg-muted">
-                                    {product.images?.[0] ? (
-                                        <img
-                                            src={product.images[0]}
-                                            alt={product.name}
-                                            className="h-36 w-full object-cover"
-                                        />
-                                    ) : (
-                                        <div className="h-36 w-full flex items-center justify-center">
-                                            <div className="text-3xl font-bold text-muted-foreground">
-                                                {product.name.replace(/\s+/g, "").slice(0, 2).toUpperCase()}
-                                            </div>
+                            (() => {
+                                const intendedSellingPrice = intendedSellingPricesByProductId[product._id]
+                                const intendedProfitPerUnit = typeof intendedSellingPrice === "number"
+                                    ? intendedSellingPrice - product.landedCost
+                                    : undefined
+
+                                return (
+                                    <div
+                                        key={product._id}
+                                        className="cursor-pointer rounded-lg border bg-card p-4"
+                                        role="link"
+                                        tabIndex={0}
+                                        onClick={() => router.push(`/app/products/${product._id}`)}
+                                        onKeyDown={(event) => {
+                                            if (event.key === "Enter" || event.key === " ") {
+                                                event.preventDefault()
+                                                router.push(`/app/products/${product._id}`)
+                                            }
+                                        }}
+                                    >
+                                        <Link href={`/app/products/${product._id}`} className="block mb-3 overflow-hidden rounded-md border bg-muted">
+                                            {product.images?.[0] ? (
+                                                <img
+                                                    src={product.images[0]}
+                                                    alt={product.name}
+                                                    className="h-36 w-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="h-36 w-full flex items-center justify-center">
+                                                    <div className="text-3xl font-bold text-muted-foreground">
+                                                        {product.name.replace(/\s+/g, "").slice(0, 2).toUpperCase()}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </Link>
+                                        <div className="mb-1 truncate text-base font-semibold text-card-foreground">
+                                            <Link href={`/app/products/${product._id}`} className="hover:underline">
+                                                {product.name}
+                                            </Link>
                                         </div>
-                                    )}
-                                </Link>
-                                <div className="mb-1 truncate text-base font-semibold text-card-foreground">
-                                    <Link href={`/app/products/${product._id}`} className="hover:underline">
-                                        {product.name}
-                                    </Link>
-                                </div>
-                                <div className="text-sm text-muted-foreground">Category: {product.categoryId?.name ?? "-"}</div>
-                                <div className="text-sm text-muted-foreground">Batch: {product.batchId?.batchName ?? "Unassigned"}</div>
-                                <div className="mt-3 flex flex-wrap items-center gap-2">
-                                    <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
-                                        Stock: {product.quantityRemaining}
-                                    </Badge>
-                                    <Badge variant="secondary" className="text-white">Buying Price: RWF {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Badge>
-                                </div>
-                                <div className="mt-3 text-xs text-muted-foreground">
-                                    Landed Price (RWF): {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </div>
-                                <div className="mt-1 text-xs text-muted-foreground">
-                                    Total Landed Cost (RWF): {(product.landedCost * product.quantityRemaining).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </div>
-                                <div className="mt-4" onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</div>
-                            </div>
+                                        <div className="text-sm text-muted-foreground">Category: {product.categoryId?.name ?? "-"}</div>
+                                        <div className="text-sm text-muted-foreground">Batch: {product.batchId?.batchName ?? "Unassigned"}</div>
+                                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                                            <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
+                                                Stock: {product.quantityRemaining}
+                                            </Badge>
+                                            <Badge variant="secondary" className="text-white">Buying Price: RWF {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Badge>
+                                        </div>
+                                        <div className="mt-3 text-xs text-muted-foreground">
+                                            Landed Price (RWF): {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </div>
+                                        <div className="mt-1 text-xs text-muted-foreground">
+                                            Selling Price (RWF): {typeof intendedSellingPrice === "number"
+                                                ? intendedSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                                : "-"}
+                                        </div>
+                                        <div className={cn("mt-1 text-xs", typeof intendedProfitPerUnit === "number" && intendedProfitPerUnit >= 0 ? "text-emerald-600" : "text-destructive")}>
+                                            Intended Profit / Unit (RWF): {typeof intendedProfitPerUnit === "number"
+                                                ? intendedProfitPerUnit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                                : "-"}
+                                        </div>
+                                        <div className="mt-1 text-xs text-muted-foreground">
+                                            Total Landed Cost (RWF): {(product.landedCost * product.quantityRemaining).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </div>
+                                        <div className="mt-4" onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</div>
+                                    </div>
+                                )
+                            })()
                         ))}
                     </div>
                 )}
