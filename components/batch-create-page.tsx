@@ -24,6 +24,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { CheckIcon, ChevronLeft, SearchIcon } from "lucide-react"
+import { AddProductSheet } from "@/components/add-product-sheet"
 import { cn } from "@/lib/utils"
 import { calculateBatchProductLandedCosts, convertInternationalExpenseToRwf } from "@/lib/costs"
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
@@ -224,24 +225,32 @@ export function BatchCreatePage() {
         return previewMap
     }, [selectedProducts, parsedCosts])
 
-    React.useEffect(() => {
-        const loadProducts = async () => {
-            setIsLoading(true)
-            try {
-                const response = await fetch("/api/products")
-                if (!response.ok) {
-                    return
-                }
-
-                const data = await response.json()
-                setProducts(data.products ?? [])
-            } finally {
-                setIsLoading(false)
+    const loadProducts = React.useCallback(async () => {
+        setIsLoading(true)
+        try {
+            const response = await fetch("/api/products")
+            if (!response.ok) {
+                return [] as Product[]
             }
-        }
 
-        loadProducts()
+            const data = await response.json()
+            const nextProducts = (data.products ?? []) as Product[]
+            setProducts(nextProducts)
+            return nextProducts
+        } finally {
+            setIsLoading(false)
+        }
     }, [])
+
+    React.useEffect(() => {
+        void loadProducts()
+    }, [loadProducts])
+
+    const handleProductCreated = React.useCallback(async () => {
+        const nextProducts = await loadProducts()
+        const nextIds = new Set(nextProducts.map((product) => product._id))
+        setSelectedProductIds((current) => current.filter((id) => nextIds.has(id)))
+    }, [loadProducts])
 
     React.useEffect(() => {
         const handleSearchShortcut = (event: KeyboardEvent) => {
@@ -467,19 +476,22 @@ export function BatchCreatePage() {
 
         return (
             <div className="space-y-3">
-                <div className="relative w-full sm:w-64">
-                    <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                        ref={productSearchInputRef}
-                        value={productSearch}
-                        onChange={(event) => setProductSearch(event.target.value)}
-                        placeholder="Search products"
-                        className="pr-18 pl-9"
-                    />
-                    <KbdGroup className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex">
-                        <Kbd>Ctrl</Kbd>
-                        <Kbd>F</Kbd>
-                    </KbdGroup>
+                <div className="flex items-center justify-between gap-2">
+                    <div className="relative w-full sm:w-64">
+                        <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            ref={productSearchInputRef}
+                            value={productSearch}
+                            onChange={(event) => setProductSearch(event.target.value)}
+                            placeholder="Search products"
+                            className="pr-18 pl-9"
+                        />
+                        <KbdGroup className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex">
+                            <Kbd>Ctrl</Kbd>
+                            <Kbd>F</Kbd>
+                        </KbdGroup>
+                    </div>
+                    <AddProductSheet onProductCreated={handleProductCreated} />
                 </div>
 
                 <div className="overflow-hidden rounded-md border">

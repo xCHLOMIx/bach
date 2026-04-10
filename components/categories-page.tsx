@@ -483,7 +483,7 @@ export function CategoriesPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="w-12">
-                                        <Checkbox checked={false} readOnly disabled />
+                                        <Checkbox checked={false} disabled />
                                     </TableHead>
                                     {visibleColumns.name && <TableHead>Name</TableHead>}
                                     {visibleColumns.created && <TableHead>Created</TableHead>}

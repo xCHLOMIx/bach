@@ -25,6 +25,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
+import { AddProductSheet } from "@/components/add-product-sheet"
 import { calculateBatchProductLandedCosts, convertInternationalExpenseToRwf } from "@/lib/costs"
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 import { cn } from "@/lib/utils"
@@ -378,6 +379,18 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         return previewMap
     }, [selectedProducts, parsedCosts])
 
+    const refreshProductsOnly = React.useCallback(async () => {
+        const productsRes = await fetch("/api/products")
+        if (!productsRes.ok) {
+            return [] as Product[]
+        }
+
+        const productsData = await productsRes.json()
+        const nextProducts = (productsData.products ?? []) as Product[]
+        setProducts(nextProducts)
+        return nextProducts
+    }, [])
+
     React.useEffect(() => {
         const load = async () => {
             setIsLoading(true)
@@ -434,6 +447,12 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
 
         load()
     }, [batchId])
+
+    const handleProductCreated = React.useCallback(async () => {
+        const nextProducts = await refreshProductsOnly()
+        const nextIds = new Set(nextProducts.map((product) => product._id))
+        setSelectedProductIds((current) => current.filter((id) => nextIds.has(id)))
+    }, [refreshProductsOnly])
 
     const renderFieldError = (field: string) => {
         if (!errors[field]) {
@@ -564,19 +583,22 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
 
         return (
             <div className="space-y-3">
-                <div className="relative w-full sm:w-64">
-                    <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                        ref={productSearchInputRef}
-                        value={productSearch}
-                        onChange={(event) => setProductSearch(event.target.value)}
-                        placeholder="Search products"
-                        className="pr-18 pl-9"
-                    />
-                    <KbdGroup className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex">
-                        <Kbd>Ctrl</Kbd>
-                        <Kbd>F</Kbd>
-                    </KbdGroup>
+                <div className="flex items-center justify-between gap-2">
+                    <div className="relative w-full sm:w-64">
+                        <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            ref={productSearchInputRef}
+                            value={productSearch}
+                            onChange={(event) => setProductSearch(event.target.value)}
+                            placeholder="Search products"
+                            className="pr-18 pl-9"
+                        />
+                        <KbdGroup className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex">
+                            <Kbd>Ctrl</Kbd>
+                            <Kbd>F</Kbd>
+                        </KbdGroup>
+                    </div>
+                    <AddProductSheet onProductCreated={handleProductCreated} />
                 </div>
 
                 <div className="overflow-hidden rounded-md border">
@@ -786,16 +808,31 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             label: "Intl shipping",
             amount: Number(stripCommas(form.intlShipping) || 0),
             value: formatIntlDisplay(form.intlShipping, form.intlShippingCurrency, form.intlShippingExchangeRate),
+            estimateRwf: convertInternationalExpenseToRwf(
+                Number(stripCommas(form.intlShipping) || 0),
+                form.intlShippingCurrency,
+                Number(stripCommas(form.intlShippingExchangeRate) || 1)
+            ),
         },
         {
             label: "Warehouse USA",
             amount: Number(stripCommas(form.warehouseUSA) || 0),
             value: formatIntlDisplay(form.warehouseUSA, form.warehouseUSACurrency, form.warehouseUSAExchangeRate),
+            estimateRwf: convertInternationalExpenseToRwf(
+                Number(stripCommas(form.warehouseUSA) || 0),
+                form.warehouseUSACurrency,
+                Number(stripCommas(form.warehouseUSAExchangeRate) || 1)
+            ),
         },
         {
             label: "Amazon Prime",
             amount: Number(stripCommas(form.amazonPrime) || 0),
             value: formatIntlDisplay(form.amazonPrime, form.amazonPrimeCurrency, form.amazonPrimeExchangeRate),
+            estimateRwf: convertInternationalExpenseToRwf(
+                Number(stripCommas(form.amazonPrime) || 0),
+                form.amazonPrimeCurrency,
+                Number(stripCommas(form.amazonPrimeExchangeRate) || 1)
+            ),
         },
         {
             label: "Collection fee (RWF)",
@@ -1210,6 +1247,11 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         <div key={item.label} className="rounded-md border p-3">
                             <p className="text-xs text-muted-foreground">{item.label}</p>
                             <p className="text-sm font-medium">{item.value}</p>
+                            {typeof item.estimateRwf === "number" && item.estimateRwf > 0 ? (
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Estimate (RWF): {item.estimateRwf.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                </p>
+                            ) : null}
                         </div>
                     )) : (
                         <div className="rounded-md border p-3 text-sm text-muted-foreground md:col-span-2">
