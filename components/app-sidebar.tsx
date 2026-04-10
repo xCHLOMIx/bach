@@ -94,7 +94,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const visibleRecentProducts = recentProducts.slice(0, 4).map((product) => ({
     name: product.name,
-    url: `/app/products?productId=${product._id}`,
+    url: `/app/products/${product._id}`,
     image: product.images?.[0] ?? "",
   }))
 

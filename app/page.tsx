@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { redirect } from "next/navigation"
 
 import { LandingPage } from "@/components/landing-page"
 import { getServerAuthPayload } from "@/lib/server-auth"
@@ -20,6 +21,10 @@ export default async function HomePage() {
 
   await connectToDatabase()
   const user = await UserModel.findById(payload.userId).lean()
+
+  if (user) {
+    redirect("/app/dashboard")
+  }
 
   const displayName = user ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() : ""
   const initials = displayName
