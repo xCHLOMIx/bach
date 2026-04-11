@@ -76,13 +76,15 @@ export default function AccountPage() {
         loadUser()
     }, [router])
 
+    // Extract tab value outside effect to avoid object reference changes
+    const tabFromParams = searchParams.get("tab")
+
     // Update active tab based on search params
     useEffect(() => {
-        const tab = searchParams.get("tab")
-        if (tab) {
-            setActiveTab(tab)
+        if (tabFromParams) {
+            setActiveTab(tabFromParams)
         }
-    }, [searchParams])
+    }, [tabFromParams])
 
     const handleProfileChange = (
         e: React.ChangeEvent<HTMLInputElement>

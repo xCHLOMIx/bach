@@ -247,17 +247,20 @@ export default function ProductDetailsPage() {
     }
   }, [editSourceCurrency])
 
+  // Extract image length to optimize callback dependencies (only depends on actual data being used)
+  const imageCount = product?.images?.length ?? 0
+
   const handlePrevImage = useCallback(() => {
-    if (product?.images && product.images.length > 0) {
-      setCurrentImageIndex((prev) => (prev === 0 ? product.images.length - 1 : prev - 1))
+    if (imageCount > 0) {
+      setCurrentImageIndex((prev) => (prev === 0 ? imageCount - 1 : prev - 1))
     }
-  }, [product])
+  }, [imageCount])
 
   const handleNextImage = useCallback(() => {
-    if (product?.images && product.images.length > 0) {
-      setCurrentImageIndex((prev) => (prev === product.images.length - 1 ? 0 : prev + 1))
+    if (imageCount > 0) {
+      setCurrentImageIndex((prev) => (prev === imageCount - 1 ? 0 : prev + 1))
     }
-  }, [product])
+  }, [imageCount])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

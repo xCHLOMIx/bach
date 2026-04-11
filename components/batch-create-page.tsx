@@ -330,6 +330,57 @@ export function BatchCreatePage() {
         })
     }, [])
 
+    // Memoize calculated row data to avoid recalculation on every parent re-render
+    const { tableRowsData, totals } = React.useMemo(() => {
+        if (selectedProducts.length === 0) {
+            return { tableRowsData: [], totals: { quantity: 0, baseTotal: 0, weightPercentage: 0, shippingShare: 0, finalTotal: 0 } }
+        }
+
+        const rowsData = selectedProducts.map((product) => {
+            const preview = allocationPreviewByProductId.get(product._id)
+            const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
+            const productTotal = baseUnitPrice * product.quantityInitial
+            const finalUnit = preview ? preview.landedCost : baseUnitPrice
+            const finalTotal = finalUnit * product.quantityInitial
+            const importCharges = Math.max(0, finalTotal - productTotal)
+            const intendedSellingPrice = intendedSellingPricesByProductId[product._id]
+
+            return {
+                _id: product._id,
+                name: product.name,
+                quantity: product.quantityInitial,
+                baseUnitPrice,
+                productTotal,
+                finalTotal,
+                importCharges,
+                weightPercentage: preview?.weightPercentage ?? 0,
+                intendedSellingPrice,
+            }
+        })
+
+        const calculatedTotals = selectedProducts.reduce(
+            (acc, product) => {
+                const preview = allocationPreviewByProductId.get(product._id)
+                const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
+                const baseTotal = baseUnitPrice * product.quantityInitial
+                const finalUnit = preview ? preview.landedCost : baseUnitPrice
+                const finalTotal = finalUnit * product.quantityInitial
+                const shippingShare = Math.max(0, finalTotal - baseTotal)
+
+                return {
+                    quantity: acc.quantity + product.quantityInitial,
+                    baseTotal: acc.baseTotal + baseTotal,
+                    weightPercentage: acc.weightPercentage + (preview?.weightPercentage ?? 0),
+                    shippingShare: acc.shippingShare + shippingShare,
+                    finalTotal: acc.finalTotal + finalTotal,
+                }
+            },
+            { quantity: 0, baseTotal: 0, weightPercentage: 0, shippingShare: 0, finalTotal: 0 }
+        )
+
+        return { tableRowsData: rowsData, totals: calculatedTotals }
+    }, [selectedProducts, allocationPreviewByProductId, intendedSellingPricesByProductId])
+
     const submit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
 
@@ -623,26 +674,7 @@ export function BatchCreatePage() {
             )
         }
 
-        const totals = selectedProducts.reduce(
-            (acc, product) => {
-                const preview = allocationPreviewByProductId.get(product._id)
-                const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
-                const baseTotal = baseUnitPrice * product.quantityInitial
-                const finalUnit = preview ? preview.landedCost : baseUnitPrice
-                const finalTotal = finalUnit * product.quantityInitial
-                const shippingShare = Math.max(0, finalTotal - baseTotal)
-
-                return {
-                    quantity: acc.quantity + product.quantityInitial,
-                    baseTotal: acc.baseTotal + baseTotal,
-                    weightPercentage: acc.weightPercentage + (preview?.weightPercentage ?? 0),
-                    shippingShare: acc.shippingShare + shippingShare,
-                    finalTotal: acc.finalTotal + finalTotal,
-                }
-            },
-            { quantity: 0, baseTotal: 0, weightPercentage: 0, shippingShare: 0, finalTotal: 0 }
-        )
-
+        // Use memoized data instead of calculating inline
         return (
             <div className="overflow-hidden rounded-md border">
                 <Table>
@@ -659,38 +691,28 @@ export function BatchCreatePage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {selectedProducts.map((product) => {
-                            const preview = allocationPreviewByProductId.get(product._id)
-                            const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
-                            const productTotal = baseUnitPrice * product.quantityInitial
-                            const finalUnit = preview ? preview.landedCost : baseUnitPrice
-                            const finalTotal = finalUnit * product.quantityInitial
-                            const importCharges = Math.max(0, finalTotal - productTotal)
-                            const intendedSellingPrice = intendedSellingPricesByProductId[product._id]
-
-                            return (
-                                <TableRow key={product._id}>
-                                    <TableCell className="truncate max-w-xs font-medium">{product.name}</TableCell>
-                                    <TableCell className="text-right">{product.quantityInitial.toLocaleString()}</TableCell>
-                                    <TableCell className="text-right">{baseUnitPrice.toLocaleString()}</TableCell>
-                                    <TableCell className="text-right">{productTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                                    <TableCell className="text-right">
-                                        {importCharges.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {preview ? `${preview.weightPercentage.toFixed(2)}%` : "-"}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {typeof intendedSellingPrice === "number"
-                                            ? intendedSellingPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })
-                                            : "-"}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                                    </TableCell>
-                                </TableRow>
-                            )
-                        })}
+                        {tableRowsData.map((row) => (
+                            <TableRow key={row._id}>
+                                <TableCell className="truncate max-w-xs font-medium">{row.name}</TableCell>
+                                <TableCell className="text-right">{row.quantity.toLocaleString()}</TableCell>
+                                <TableCell className="text-right">{row.baseUnitPrice.toLocaleString()}</TableCell>
+                                <TableCell className="text-right">{row.productTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                <TableCell className="text-right">
+                                    {row.importCharges.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    {row.weightPercentage > 0 ? `${row.weightPercentage.toFixed(2)}%` : "-"}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    {typeof row.intendedSellingPrice === "number"
+                                        ? row.intendedSellingPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                                        : "-"}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    {row.finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                </TableCell>
+                            </TableRow>
+                        ))}
                         <TableRow className="bg-muted/30 font-semibold">
                             <TableCell>Totals</TableCell>
                             <TableCell className="text-right">{totals.quantity.toLocaleString()}</TableCell>
@@ -777,7 +799,7 @@ export function BatchCreatePage() {
                     id="tracking-id"
                     placeholder="Optional tracking number"
                     value={form.trackingId}
-                    onChange={(event) => setForm((current) => ({ ...current, trackingId: event.target.value }))}
+                    onChange={(event) => handleInputChange('trackingId', event.target.value)}
                 />
             </div>
 
@@ -952,7 +974,7 @@ export function BatchCreatePage() {
                                 type="text"
                                 inputMode="decimal"
                                 value={form.localTransport}
-                                onChange={(event) => setForm((current) => ({ ...current, localTransport: toDecimalInput(event.target.value) }))}
+                                onChange={(event) => handleInputChange('localTransport', toDecimalInput(event.target.value))}
                             />
                             {renderFieldError("localTransport")}
                         </div>
@@ -1015,7 +1037,7 @@ export function BatchCreatePage() {
                                 type="text"
                                 inputMode="decimal"
                                 value={form.localTransport}
-                                onChange={(event) => setForm((current) => ({ ...current, localTransport: toDecimalInput(event.target.value) }))}
+                                onChange={(event) => handleInputChange('localTransport', toDecimalInput(event.target.value))}
                             />
                             {renderFieldError("localTransport")}
                         </div>
