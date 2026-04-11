@@ -124,11 +124,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </div>
               <button
                 onClick={handlePin}
-                className={`h-8 w-8 rounded-md transition-colors flex items-center justify-center ${
-                  isPinned
+                className={`h-8 w-8 rounded-md transition-colors flex items-center justify-center ${isPinned
                     ? "bg-green-100 text-green-700 hover:bg-green-200"
                     : "hover:bg-accent hover:text-accent-foreground"
-                }`}
+                  }`}
                 title={isPinned ? "Unpin sidebar" : "Pin sidebar"}
               >
                 {isPinned ? (
