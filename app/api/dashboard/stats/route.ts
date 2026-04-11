@@ -22,48 +22,32 @@ export async function GET(request: NextRequest) {
   const previousPeriodStart = new Date(currentPeriodStart)
   previousPeriodStart.setDate(currentPeriodStart.getDate() - DAYS_WINDOW)
 
-  const [products, categories, batches, statsData, latestSales, totalSalesCount] = await Promise.all([
+  // Fast simple queries instead of complex aggregation
+  const [products, categories, batches, sales, latestSales] = await Promise.all([
     ProductModel.countDocuments({ userId: user._id }),
     CategoryModel.countDocuments({ userId: user._id }),
     BatchModel.countDocuments({ userId: user._id }),
-    // Use aggregation pipeline to calculate stats on database
-    SaleModel.aggregate([
-      { $match: { userId: user._id } },
-      {
-        $group: {
-          _id: null,
-          totalProfit: { $sum: { $multiply: ["$profit", "$quantity"] } },
-          currentPeriodProfit: {
-            $sum: {
-              $cond: [
-                { $gte: ["$soldAt", currentPeriodStart] },
-                { $multiply: ["$profit", "$quantity"] },
-                0,
-              ],
-            },
-          },
-          previousPeriodProfit: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $gte: ["$soldAt", previousPeriodStart] },
-                    { $lt: ["$soldAt", currentPeriodStart] },
-                  ],
-                },
-                { $multiply: ["$profit", "$quantity"] },
-                0,
-              ],
-            },
-          },
-        },
-      },
-    ]),
+    SaleModel.find({ userId: user._id }).select("profit quantity soldAt").lean(),
     SaleModel.find({ userId: user._id }).populate("productId", "name").sort({ soldAt: -1 }).limit(8).lean(),
-    SaleModel.countDocuments({ userId: user._id }),
   ])
 
-  const { totalProfit = 0, currentPeriodProfit = 0, previousPeriodProfit = 0 } = statsData[0] || {}
+  // Calculate stats in memory (faster for small-medium datasets)
+  const totalProfit = sales.reduce((sum, sale) => sum + (sale.profit * sale.quantity), 0)
+
+  const currentPeriodProfit = sales.reduce((sum, sale) => {
+    if (new Date(sale.soldAt) >= currentPeriodStart) {
+      return sum + (sale.profit * sale.quantity)
+    }
+    return sum
+  }, 0)
+
+  const previousPeriodProfit = sales.reduce((sum, sale) => {
+    const saleDate = new Date(sale.soldAt)
+    if (saleDate >= previousPeriodStart && saleDate < currentPeriodStart) {
+      return sum + (sale.profit * sale.quantity)
+    }
+    return sum
+  }, 0)
 
   let profitChangePercent = 0
   if (previousPeriodProfit === 0) {
@@ -85,7 +69,7 @@ export async function GET(request: NextRequest) {
       products,
       categories,
       batches,
-      sales: totalSalesCount,
+      sales: sales.length,
       totalProfit,
       profitChangePercent,
       profitTrend,

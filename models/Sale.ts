@@ -13,8 +13,7 @@ const saleSchema = new Schema(
   { timestamps: true }
 )
 
-// Add indexes for faster queries
-saleSchema.index({ userId: 1, productId: 1 })
+// Index only for userId - simpler indexes are faster
 saleSchema.index({ userId: 1, soldAt: -1 })
 
 export type SaleDocument = InferSchemaType<typeof saleSchema> & { _id: string }
