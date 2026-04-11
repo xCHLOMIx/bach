@@ -10,6 +10,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { Box, CirclePlusIcon, MailIcon } from "lucide-react"
 
@@ -23,6 +24,7 @@ export function NavMain({
   }[]
 }) {
   const pathname = usePathname()
+  const { setOpen, setOpenMobile } = useSidebar()
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
@@ -33,7 +35,13 @@ export function NavMain({
               tooltip="Add product"
               className="min-w-8 bg-secondary text-primary-foreground duration-300 transition ease-linear hover:bg-secondary/85 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
             >
-              <Link href="/app/products?addProduct=1">
+              <Link
+                href="/app/products?addProduct=1"
+                onClick={() => {
+                  setOpen(false)
+                  setOpenMobile(false)
+                }}
+              >
                 <CirclePlusIcon
                 />
                 <span>Add product</span>
@@ -60,7 +68,13 @@ export function NavMain({
                   tooltip={item.title}
                   className={isActive ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : ""}
                 >
-                  <Link href={item.url}>
+                  <Link
+                    href={item.url}
+                    onClick={() => {
+                      setOpen(false)
+                      setOpenMobile(false)
+                    }}
+                  >
                     {item.icon}
                     <span>{item.title}</span>
                   </Link>
