@@ -23,23 +23,7 @@ export function getAllIntendedSellingPrices(products?: ProductWithSellingPrice[]
   return prices
 }
 
-export function setIntendedSellingPrice(productId: string, value: number | null | undefined) {
-  if (!productId) {
-    return
-  }
 
-  // Save to database only - no localStorage
-  fetch("/api/products", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      productId,
-      intendedSellingPrice: String(value ?? ""),
-    }).toString(),
-  }).catch(() => {
-    // Silent fail - just don't save
-  })
-}
 
 export function getIntendedSellingPrice(productId: string, products?: ProductWithSellingPrice[]): number | undefined {
   const pricesMap = getAllIntendedSellingPrices(products)

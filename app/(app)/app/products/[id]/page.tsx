@@ -425,7 +425,7 @@ export default function ProductDetailsPage() {
     const parsedEditSellingPrice = editIntendedSellingPrice.trim()
       ? Number(stripCommas(editIntendedSellingPrice))
       : null
-    const parsedOriginalSellingPrice = getIntendedSellingPrice(editProductId)
+    const parsedOriginalSellingPrice = product?.intendedSellingPrice ?? undefined
     const sellingPriceChanged = parsedEditSellingPrice === null
       ? typeof parsedOriginalSellingPrice === "number"
       : parsedEditSellingPrice !== parsedOriginalSellingPrice
