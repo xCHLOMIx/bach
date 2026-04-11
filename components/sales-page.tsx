@@ -276,21 +276,27 @@ export function SalesPage() {
         try {
             const failedProducts: string[] = []
 
-            for (const row of bulkSaleRows) {
-                const response = await fetch("/api/sales", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        productId: row.productId,
-                        quantity: Number(row.quantity),
-                        sellingPrice: Number(stripCommas(row.sellingPrice)),
-                    }),
-                })
+            // Use Promise.all for parallel requests instead of sequential loop
+            const responses = await Promise.all(
+                bulkSaleRows.map((row) =>
+                    fetch("/api/sales", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            productId: row.productId,
+                            quantity: Number(row.quantity),
+                            sellingPrice: Number(stripCommas(row.sellingPrice)),
+                        }),
+                    })
+                )
+            )
 
+            // Check responses for failures
+            responses.forEach((response, index) => {
                 if (!response.ok) {
-                    failedProducts.push(row.name)
+                    failedProducts.push(bulkSaleRows[index].name)
                 }
-            }
+            })
 
             if (failedProducts.length > 0) {
                 setBulkSaleGeneralError(`Failed to record sale for: ${failedProducts.join(", ")}`)

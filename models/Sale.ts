@@ -13,6 +13,10 @@ const saleSchema = new Schema(
   { timestamps: true }
 )
 
+// Add indexes for faster queries
+saleSchema.index({ userId: 1, productId: 1 })
+saleSchema.index({ userId: 1, soldAt: -1 })
+
 export type SaleDocument = InferSchemaType<typeof saleSchema> & { _id: string }
 
 export const SaleModel = models.Sale || model("Sale", saleSchema)

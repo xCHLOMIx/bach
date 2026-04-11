@@ -13,7 +13,20 @@ export async function GET(request: NextRequest) {
   const user = await getAuthorizedUser(request)
   if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
 
-  const sales = await SaleModel.find({ userId: user._id })
+  // Parse optional date range query parameter (e.g., ?days=90)
+  const { searchParams } = new URL(request.url)
+  const daysStr = searchParams.get("days")
+  const days = daysStr ? parseInt(daysStr, 10) : null
+
+  // Build query filter with optional date range
+  const query: any = { userId: user._id }
+  if (days && days > 0) {
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - days)
+    query.soldAt = { $gte: startDate }
+  }
+
+  const sales = await SaleModel.find(query)
     .populate("productId", "name")
     .sort({ soldAt: -1 })
     .lean()
@@ -74,9 +87,14 @@ export async function POST(request: NextRequest) {
   product.quantityRemaining -= quantity
   await product.save()
 
-  const hydratedSale = await SaleModel.findById(sale._id)
-    .populate("productId", "name")
-    .lean()
+  // Populate the sale in memory instead of fetching again
+  const hydratedSale = {
+    ...sale.toObject(),
+    productId: {
+      _id: product._id,
+      name: product.name,
+    },
+  }
 
   return successResponse({ sale: hydratedSale })
 }

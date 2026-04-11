@@ -380,15 +380,21 @@ export function BatchesPage() {
         try {
             const failedBatchIds: string[] = []
 
-            for (const batchId of selectedBatchIds) {
-                const response = await fetch(`/api/batches/${batchId}?confirm=true`, {
-                    method: "DELETE",
-                })
+            // Use Promise.all for parallel deletions instead of sequential loop
+            const responses = await Promise.all(
+                Array.from(selectedBatchIds).map((batchId) =>
+                    fetch(`/api/batches/${batchId}?confirm=true`, {
+                        method: "DELETE",
+                    })
+                )
+            )
 
+            // Check responses for failures
+            responses.forEach((response, index) => {
                 if (!response.ok) {
-                    failedBatchIds.push(batchId)
+                    failedBatchIds.push(Array.from(selectedBatchIds)[index])
                 }
-            }
+            })
 
             if (failedBatchIds.length > 0) {
                 alert(`Failed to delete ${failedBatchIds.length} batches`)

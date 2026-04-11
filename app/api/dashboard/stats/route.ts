@@ -14,38 +14,48 @@ export async function GET(request: NextRequest) {
   const user = await getAuthorizedUser(request)
   if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
 
-  const [products, categories, batches, sales, latestSales] = await Promise.all([
+  const [products, categories, batches, statsData, latestSales, totalSalesCount] = await Promise.all([
     ProductModel.countDocuments({ userId: user._id }),
     CategoryModel.countDocuments({ userId: user._id }),
     BatchModel.countDocuments({ userId: user._id }),
-    SaleModel.find({ userId: user._id }).lean(),
+    // Use aggregation pipeline to calculate stats on database
+    SaleModel.aggregate([
+      { $match: { userId: user._id } },
+      {
+        $group: {
+          _id: null,
+          totalProfit: { $sum: { $multiply: ["$profit", "$quantity"] } },
+          currentPeriodProfit: {
+            $sum: {
+              $cond: [
+                { $gte: ["$soldAt", currentPeriodStart] },
+                { $multiply: ["$profit", "$quantity"] },
+                0,
+              ],
+            },
+          },
+          previousPeriodProfit: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $gte: ["$soldAt", previousPeriodStart] },
+                    { $lt: ["$soldAt", currentPeriodStart] },
+                  ],
+                },
+                { $multiply: ["$profit", "$quantity"] },
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]),
     SaleModel.find({ userId: user._id }).populate("productId", "name").sort({ soldAt: -1 }).limit(8).lean(),
+    SaleModel.countDocuments({ userId: user._id }),
   ])
 
-  const totalProfit = sales.reduce((sum, sale) => sum + sale.profit * sale.quantity, 0)
-
-  const now = new Date()
-  const DAYS_WINDOW = 7
-  const currentPeriodStart = new Date(now)
-  currentPeriodStart.setDate(now.getDate() - DAYS_WINDOW)
-  const previousPeriodStart = new Date(currentPeriodStart)
-  previousPeriodStart.setDate(currentPeriodStart.getDate() - DAYS_WINDOW)
-
-  const currentPeriodProfit = sales.reduce((sum, sale) => {
-    const soldAt = new Date(sale.soldAt)
-    if (soldAt >= currentPeriodStart) {
-      return sum + sale.profit * sale.quantity
-    }
-    return sum
-  }, 0)
-
-  const previousPeriodProfit = sales.reduce((sum, sale) => {
-    const soldAt = new Date(sale.soldAt)
-    if (soldAt >= previousPeriodStart && soldAt < currentPeriodStart) {
-      return sum + sale.profit * sale.quantity
-    }
-    return sum
-  }, 0)
+  const { totalProfit = 0, currentPeriodProfit = 0, previousPeriodProfit = 0 } = statsData[0] || {}
 
   let profitChangePercent = 0
   if (previousPeriodProfit === 0) {
@@ -67,7 +77,7 @@ export async function GET(request: NextRequest) {
       products,
       categories,
       batches,
-      sales: sales.length,
+      sales: totalSalesCount,
       totalProfit,
       profitChangePercent,
       profitTrend,

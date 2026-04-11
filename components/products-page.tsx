@@ -1336,6 +1336,7 @@ export function ProductsPage() {
                                 src={product.images[0]}
                                 alt={product.name}
                                 className="h-10 w-10 rounded-md object-cover"
+                                loading="lazy"
                             />
                         ) : (
                             <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground">
@@ -1863,6 +1864,7 @@ export function ProductsPage() {
                                                     src={product.images[0]}
                                                     alt={product.name}
                                                     className="h-36 w-full object-cover"
+                                                    loading="lazy"
                                                 />
                                             ) : (
                                                 <div className="h-36 w-full flex items-center justify-center">
@@ -2437,6 +2439,7 @@ export function ProductsPage() {
                         src={previewImageSrc}
                         alt="Preview"
                         className="max-h-[92vh] w-auto max-w-[96vw] rounded-xl object-contain"
+                        loading="lazy"
                         onClick={(event) => event.stopPropagation()}
                     />
                 </div>
@@ -2484,6 +2487,7 @@ export function ProductsPage() {
                                                 alt="Main product image"
                                                 className="h-full w-full cursor-pointer object-cover"
                                                 draggable
+                                                loading="lazy"
                                                 onDragStart={() => setDraggedEditImageId(editImages[0].id)}
                                                 onDragEnd={() => setDraggedEditImageId(null)}
                                                 onDragOver={(event) => event.preventDefault()}
@@ -2549,6 +2553,7 @@ export function ProductsPage() {
                                                         alt={`Product image ${imageIndex + 1}`}
                                                         className="w-full h-full cursor-pointer object-cover"
                                                         draggable
+                                                        loading="lazy"
                                                         onDragStart={() => setDraggedEditImageId(image.id)}
                                                         onDragEnd={() => setDraggedEditImageId(null)}
                                                         onDragOver={(event) => event.preventDefault()}

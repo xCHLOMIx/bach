@@ -83,7 +83,16 @@ export function ChartAreaInteractive() {
     let active = true
 
     const loadSalesData = async () => {
-      const response = await fetch("/api/sales")
+      // Determine days to fetch based on timeRange
+      let daysToFetch = 90
+      if (timeRange === "30d") {
+        daysToFetch = 30
+      } else if (timeRange === "7d") {
+        daysToFetch = 7
+      }
+
+      // Pass date range to API to reduce payload on server
+      const response = await fetch(`/api/sales?days=${daysToFetch}`)
       if (!response.ok || !active) return
 
       const json = await response.json()
@@ -120,7 +129,7 @@ export function ChartAreaInteractive() {
     return () => {
       active = false
     }
-  }, [])
+  }, [timeRange])
 
   React.useEffect(() => {
     if (isMobile) {

@@ -320,6 +320,16 @@ export function BatchCreatePage() {
         []
     )
 
+    // Consolidated input change handler to prevent unnecessary re-renders from inline functions
+    const handleInputChange = React.useCallback((field: keyof typeof form, value: string | boolean) => {
+        setForm((current) => {
+            if (current[field] === value) {
+                return current
+            }
+            return { ...current, [field]: value }
+        })
+    }, [])
+
     const submit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
 
@@ -756,7 +766,7 @@ export function BatchCreatePage() {
                     id="batch-name"
                     placeholder="Batch name"
                     value={form.batchName}
-                    onChange={(event) => setForm((current) => ({ ...current, batchName: event.target.value }))}
+                    onChange={(event) => handleInputChange('batchName', event.target.value)}
                 />
                 {renderFieldError("batchName")}
             </div>
@@ -783,7 +793,7 @@ export function BatchCreatePage() {
                             type="text"
                             inputMode="decimal"
                             value={form.intlShipping}
-                            onChange={(event) => setForm((current) => ({ ...current, intlShipping: toDecimalInput(event.target.value) }))}
+                            onChange={(event) => handleInputChange('intlShipping', toDecimalInput(event.target.value))}
                         />
                         {renderFieldError("intlShipping")}
                     </div>
@@ -807,7 +817,7 @@ export function BatchCreatePage() {
                             inputMode="decimal"
                             disabled={form.intlShippingCurrency === "RWF"}
                             value={form.intlShippingExchangeRate}
-                            onChange={(event) => setForm((current) => ({ ...current, intlShippingExchangeRate: toDecimalInput(event.target.value) }))}
+                            onChange={(event) => handleInputChange('intlShippingExchangeRate', toDecimalInput(event.target.value))}
                         />
                         {renderFieldError("intlShippingExchangeRate")}
                     </div>
@@ -822,7 +832,7 @@ export function BatchCreatePage() {
                             type="text"
                             inputMode="decimal"
                             value={form.warehouseUSA}
-                            onChange={(event) => setForm((current) => ({ ...current, warehouseUSA: toDecimalInput(event.target.value) }))}
+                            onChange={(event) => handleInputChange('warehouseUSA', toDecimalInput(event.target.value))}
                         />
                         {renderFieldError("warehouseUSA")}
                     </div>
@@ -846,7 +856,7 @@ export function BatchCreatePage() {
                             inputMode="decimal"
                             disabled={form.warehouseUSACurrency === "RWF"}
                             value={form.warehouseUSAExchangeRate}
-                            onChange={(event) => setForm((current) => ({ ...current, warehouseUSAExchangeRate: toDecimalInput(event.target.value) }))}
+                            onChange={(event) => handleInputChange('warehouseUSAExchangeRate', toDecimalInput(event.target.value))}
                         />
                         {renderFieldError("warehouseUSAExchangeRate")}
                     </div>
@@ -861,7 +871,7 @@ export function BatchCreatePage() {
                             type="text"
                             inputMode="decimal"
                             value={form.amazonPrime}
-                            onChange={(event) => setForm((current) => ({ ...current, amazonPrime: toDecimalInput(event.target.value) }))}
+                            onChange={(event) => handleInputChange('amazonPrime', toDecimalInput(event.target.value))}
                         />
                         {renderFieldError("amazonPrime")}
                     </div>
@@ -885,7 +895,7 @@ export function BatchCreatePage() {
                             inputMode="decimal"
                             disabled={form.amazonPrimeCurrency === "RWF"}
                             value={form.amazonPrimeExchangeRate}
-                            onChange={(event) => setForm((current) => ({ ...current, amazonPrimeExchangeRate: toDecimalInput(event.target.value) }))}
+                            onChange={(event) => handleInputChange('amazonPrimeExchangeRate', toDecimalInput(event.target.value))}
                         />
                         {renderFieldError("amazonPrimeExchangeRate")}
                     </div>
@@ -930,7 +940,7 @@ export function BatchCreatePage() {
                                 type="text"
                                 inputMode="decimal"
                                 value={form.collectionFee}
-                                onChange={(event) => setForm((current) => ({ ...current, collectionFee: toDecimalInput(event.target.value) }))}
+                                onChange={(event) => handleInputChange('collectionFee', toDecimalInput(event.target.value))}
                             />
                             {renderFieldError("collectionFee")}
                         </div>
@@ -957,7 +967,7 @@ export function BatchCreatePage() {
                                 type="text"
                                 inputMode="decimal"
                                 value={form.customsDuties}
-                                onChange={(event) => setForm((current) => ({ ...current, customsDuties: toDecimalInput(event.target.value) }))}
+                                onChange={(event) => handleInputChange('customsDuties', toDecimalInput(event.target.value))}
                             />
                             {renderFieldError("customsDuties")}
                         </div>
@@ -969,7 +979,7 @@ export function BatchCreatePage() {
                                 type="text"
                                 inputMode="decimal"
                                 value={form.arrivalNotif}
-                                onChange={(event) => setForm((current) => ({ ...current, arrivalNotif: toDecimalInput(event.target.value) }))}
+                                onChange={(event) => handleInputChange('arrivalNotif', toDecimalInput(event.target.value))}
                             />
                             {renderFieldError("arrivalNotif")}
                         </div>
@@ -981,7 +991,7 @@ export function BatchCreatePage() {
                                 type="text"
                                 inputMode="decimal"
                                 value={form.warehouseStorage}
-                                onChange={(event) => setForm((current) => ({ ...current, warehouseStorage: toDecimalInput(event.target.value) }))}
+                                onChange={(event) => handleInputChange('warehouseStorage', toDecimalInput(event.target.value))}
                             />
                             {renderFieldError("warehouseStorage")}
                         </div>
@@ -993,7 +1003,7 @@ export function BatchCreatePage() {
                                 type="text"
                                 inputMode="decimal"
                                 value={form.declaration}
-                                onChange={(event) => setForm((current) => ({ ...current, declaration: toDecimalInput(event.target.value) }))}
+                                onChange={(event) => handleInputChange('declaration', toDecimalInput(event.target.value))}
                             />
                             {renderFieldError("declaration")}
                         </div>
@@ -1017,7 +1027,7 @@ export function BatchCreatePage() {
                                 type="text"
                                 inputMode="decimal"
                                 value={form.miscellaneous}
-                                onChange={(event) => setForm((current) => ({ ...current, miscellaneous: toDecimalInput(event.target.value) }))}
+                                onChange={(event) => handleInputChange('miscellaneous', toDecimalInput(event.target.value))}
                             />
                             {renderFieldError("miscellaneous")}
                         </div>
