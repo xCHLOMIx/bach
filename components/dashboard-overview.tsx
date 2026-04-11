@@ -67,7 +67,7 @@ export function DashboardOverview() {
                     <CardDescription>Latest sales with profit per unit</CardDescription>
                 </CardHeader>
                 <div className="mt-4 overflow-x-auto rounded-xl border">
-                    <div className="min-w-[680px]">
+                    <div className="min-w-170">
                         <Table>
                             <TableHeader>
                                 <TableRow>
