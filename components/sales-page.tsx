@@ -21,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 import { PackageSearchIcon, XIcon } from "lucide-react"
+import { formatRWF } from "@/lib/utils"
 
 type Sale = {
     _id: string
@@ -357,7 +358,7 @@ export function SalesPage() {
                             Total profit: {(sales.reduce(
                                 (sum, sale) => sum + sale.profit * sale.quantity,
                                 0
-                            )).toLocaleString()} RWF
+                            ))} RWF
                         </p>
                     )}
                     <div className="overflow-hidden rounded-xl border">
@@ -390,10 +391,10 @@ export function SalesPage() {
                                         <TableRow key={sale._id}>
                                             <TableCell>{sale.productId?.name ?? "Unknown product"}</TableCell>
                                             <TableCell>{sale.quantity}</TableCell>
-                                            <TableCell>{sale.sellingPrice.toLocaleString()}</TableCell>
-                                            <TableCell>{sale.landedCost.toLocaleString()}</TableCell>
-                                            <TableCell>{sale.profit.toLocaleString()}</TableCell>
-                                            <TableCell>{(sale.profit * sale.quantity).toLocaleString()}</TableCell>
+                                            <TableCell>{formatRWF(sale.sellingPrice)}</TableCell>
+                                            <TableCell>{formatRWF(sale.landedCost)}</TableCell>
+                                            <TableCell>{formatRWF(sale.profit)}</TableCell>
+                                            <TableCell>{formatRWF(sale.profit * sale.quantity)}</TableCell>
                                             <TableCell>{new Date(sale.soldAt).toLocaleString()}</TableCell>
                                         </TableRow>
                                     ))}
@@ -608,65 +609,68 @@ export function SalesPage() {
                                                     </div>
 
                                                     <div className="mt-3 rounded-md bg-muted p-2 text-xs text-muted-foreground">
-                                                        <p>Total landed cost: <span className="font-semibold text-foreground">{totalLandedCost.toLocaleString()} RWF</span></p>
-                                                        <p>Total value: <span className="font-semibold text-foreground">{totalSellingValue.toLocaleString()} RWF</span></p>
+                                                        <p>Total landed cost: <span className="font-semibold text-foreground">{formatRWF(totalLandedCost)} RWF</span></p>
+                                                        <p>Total value: <span className="font-semibold text-foreground">{formatRWF(totalSellingValue)} RWF</span></p>
                                                         <p>
-                                                            {totalProfit >= 0 ? "Profit" : "Loss"}: <span className={totalProfit >= 0 ? "font-semibold text-primary" : "font-semibold text-destructive"}>{Math.abs(totalProfit).toLocaleString()} RWF</span>
-                                                        </p>
-                                                    </div>
+                                                            {totalProfit >= 0 ? "Profit" : "Loss"}: <span className={totalProfit >= 0 ? "font-semibold text-primary" : "font-semibold text-destructive"}>{formatRWF(Math.abs(totalProfit))} RWF</span></p>
+                                                    </p>
                                                 </div>
-                                            )
+                                                </div>
+                                    )
                                         })}
 
-                                        {bulkSaleGeneralError ? (
-                                            <p className="text-xs font-medium text-destructive">{bulkSaleGeneralError}</p>
-                                        ) : null}
-                                    </div>
+                                    {bulkSaleGeneralError ? (
+                                        <p className="text-xs font-medium text-destructive">{bulkSaleGeneralError}</p>
+                                    ) : null}
+                                </div>
 
-                                    <div className="flex gap-3">
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => {
-                                                setStep("product")
-                                            }}
-                                        >
-                                            Back
-                                        </Button>
-                                        <Button
-                                            onClick={handleSaveSale}
-                                            disabled={!canSubmitSale}
-                                            className="flex-1 disabled:opacity-40"
-                                        >
-                                            {isSaving ? "Saving..." : "Record Sale"}
-                                        </Button>
-                                    </div>
-                                </>
+                            <div className="flex gap-3">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setStep("product")
+                                    }}
+                                >
+                                    Back
+                                </Button>
+                                <Button
+                                    onClick={handleSaveSale}
+                                    disabled={!canSubmitSale}
+                                    className="flex-1 disabled:opacity-40"
+                                >
+                                    {isSaving ? "Saving..." : "Record Sale"}
+                                </Button>
+                            </div>
+                        </>
                             )}
-                        </div>
                     </div>
                 </div>
-            )}
+                </div>
+    )
+}
 
-            {showDiscardConfirm && (
-                <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 animate-in fade-in duration-150">
-                    <div className="modal-pop-in w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-lg dark:border-slate-800 dark:bg-slate-950">
-                        <h3 className="text-base font-semibold text-foreground">
-                            Discard this sale draft?
-                        </h3>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                            You have unsaved changes. Do you want to discard them and close?
-                        </p>
-                        <div className="mt-4 flex justify-end gap-2">
-                            <Button variant="outline" onClick={() => setShowDiscardConfirm(false)}>
-                                Continue editing
-                            </Button>
-                            <Button variant="destructive" onClick={discardSaleDraftAndClose}>
-                                Discard and close
-                            </Button>
-                        </div>
-                    </div>
+{
+    showDiscardConfirm && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 animate-in fade-in duration-150">
+            <div className="modal-pop-in w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-lg dark:border-slate-800 dark:bg-slate-950">
+                <h3 className="text-base font-semibold text-foreground">
+                    Discard this sale draft?
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                    You have unsaved changes. Do you want to discard them and close?
+                </p>
+                <div className="mt-4 flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setShowDiscardConfirm(false)}>
+                        Continue editing
+                    </Button>
+                    <Button variant="destructive" onClick={discardSaleDraftAndClose}>
+                        Discard and close
+                    </Button>
                 </div>
-            )}
+            </div>
         </div>
+    )
+}
+        </div >
     )
 }

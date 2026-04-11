@@ -36,6 +36,7 @@ type Product = {
     quantityInitial: number
     unitPriceLocalRWF?: number
     purchasePriceRWF: number
+    intendedSellingPrice?: number | null
 }
 
 const initialBatchForm = {
@@ -161,7 +162,7 @@ export function BatchCreatePage() {
         const selectedIdSet = new Set(selectedProductIds)
         return products.filter((product) => selectedIdSet.has(product._id))
     }, [products, selectedProductIds])
-    const intendedSellingPricesByProductId = React.useMemo(() => getAllIntendedSellingPrices(), [products])
+    const intendedSellingPricesByProductId = React.useMemo(() => getAllIntendedSellingPrices(products), [products])
 
     const parsedCosts = React.useMemo(() => {
         return {

@@ -138,7 +138,7 @@ export function SectionCards({ stats }: { stats?: SectionCardStats }) {
         <CardHeader>
           <CardDescription>Total Profit</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {(stats?.totalProfit ?? 0).toLocaleString()} RWF
+            {formatRWF(stats?.totalProfit ?? 0)} RWF
           </CardTitle>
           <CardAction>
             <Badge variant="outline" className={profitBadgeClass}>

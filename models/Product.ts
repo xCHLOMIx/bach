@@ -14,6 +14,7 @@ const productSchema = new Schema(
     unitPriceLocalRWF: { type: Number, required: true, min: 0, default: 0 },
     purchasePriceRWF: { type: Number, required: true, min: 0, default: 0 },
     landedCost: { type: Number, required: true, min: 0, default: 0 },
+    intendedSellingPrice: { type: Number, required: false, default: null },
     externalLink: { type: String, trim: true, default: "" },
     images: { type: [String], default: [] },
   },

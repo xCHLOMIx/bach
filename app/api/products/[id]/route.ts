@@ -4,7 +4,7 @@ import { Types } from "mongoose"
 import { connectToDatabase } from "@/lib/db"
 import { errorResponse, successResponse, type FieldErrors } from "@/lib/api"
 import { getAuthorizedUser } from "@/lib/auth-guard"
-import { calculateBatchProductLandedCosts } from "@/lib/costs"
+import { buildBatchCostInputsFromBatch, calculateBatchProductLandedCosts } from "@/lib/costs"
 import { uploadImageFile } from "@/lib/cloudinary"
 import { BatchModel } from "@/models/Batch"
 import { CategoryModel } from "@/models/Category"
@@ -51,19 +51,7 @@ async function recalculateBatchProducts(batchId: string) {
       quantityInitial: product.quantityInitial,
       unitPriceLocalRWF: product.unitPriceLocalRWF ?? product.purchasePriceRWF,
     })),
-    {
-      intlShipping: batch.intlShipping,
-      taxValue: batch.taxValue,
-      customsDuties: batch.customsDuties,
-      declaration: batch.declaration,
-      arrivalNotif: batch.arrivalNotif,
-      warehouseStorage: batch.warehouseStorage,
-      amazonPrime: batch.amazonPrime,
-      warehouseUSA: batch.warehouseUSA,
-      collectionFee: batch.collectionFee ?? 0,
-      localTransport: batch.localTransport ?? 0,
-      miscellaneous: batch.miscellaneous,
-    }
+    buildBatchCostInputsFromBatch(batch)
   )
 
   const operations = allocations.map((allocation) => ({
@@ -127,6 +115,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const hasExternalLink = formData.has("externalLink")
   const hasCategoryId = formData.has("categoryId")
   const hasBatchId = formData.has("batchId")
+  const hasIntendedSellingPrice = formData.has("intendedSellingPrice")
   const hasImagesTouched = formData.get("imagesTouched") === "1"
 
   const name = hasName ? String(formData.get("name") ?? "").trim() : undefined
@@ -137,9 +126,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const externalLink = hasExternalLink ? String(formData.get("externalLink") ?? "").trim() : undefined
   const categoryId = hasCategoryId ? (formData.get("categoryId") ? String(formData.get("categoryId")).trim() : null) : undefined
   const batchId = hasBatchId ? (formData.get("batchId") ? String(formData.get("batchId")).trim() : null) : undefined
+  const rawIntendedSellingPrice = hasIntendedSellingPrice ? String(formData.get("intendedSellingPrice") ?? "").trim() : undefined
 
   const quantityInitial = rawQuantityInitial !== undefined ? Number(rawQuantityInitial) : undefined
   const unitPriceForeign = rawUnitPriceForeign !== undefined ? Number(rawUnitPriceForeign) : undefined
+  const intendedSellingPrice = rawIntendedSellingPrice !== undefined ? (rawIntendedSellingPrice ? Number(rawIntendedSellingPrice) : null) : undefined
   const exchangeRate = rawExchangeRate !== undefined ? Number(rawExchangeRate) : undefined
   
   // Handle multiple images
@@ -186,6 +177,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (batchId !== undefined && batchId && !Types.ObjectId.isValid(batchId)) {
     errors.batchId = "Invalid batch"
   }
+  if (rawIntendedSellingPrice !== undefined && rawIntendedSellingPrice && (!Number.isFinite(intendedSellingPrice) || intendedSellingPrice < 0)) {
+    errors.intendedSellingPrice = "Selling price must be 0 or higher"
+  }
   if (Object.keys(errors).length > 0) {
     return errorResponse(errors, 400)
   }
@@ -212,6 +206,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (categoryId !== undefined) updateData.categoryId = categoryId || null
     if (quantityInitial !== undefined) updateData.quantityInitial = quantityInitial
     if (externalLink !== undefined) updateData.externalLink = externalLink
+    if (intendedSellingPrice !== undefined) updateData.intendedSellingPrice = intendedSellingPrice
     if (batchId !== undefined) {
       updateData.batchId = batchId || null
       nextBatchId = batchId || null
@@ -290,7 +285,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       updateData.images = updatedImages
     }
 
-    const product = await ProductModel.findByIdAndUpdate(productId, updateData, { new: true, runValidators: true })
+    const product = await ProductModel.findByIdAndUpdate(productId, updateData, { returnDocument: 'after', runValidators: true })
       .populate("categoryId", "name")
       .populate("batchId", "batchName")
 

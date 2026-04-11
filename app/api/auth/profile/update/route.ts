@@ -48,7 +48,7 @@ export async function PATCH(request: NextRequest) {
         lastName: lastName.trim(),
         phoneNumber: phoneNumber.trim(),
       },
-      { new: true }
+      { returnDocument: 'after' }
     )
 
     return successResponse({

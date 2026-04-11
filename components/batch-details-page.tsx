@@ -298,7 +298,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         const selectedIdSet = new Set(selectedProductIds)
         return products.filter((product) => selectedIdSet.has(product._id))
     }, [products, selectedProductIds])
-    const intendedSellingPricesByProductId = React.useMemo(() => getAllIntendedSellingPrices(), [products])
+    const intendedSellingPricesByProductId = React.useMemo(() => getAllIntendedSellingPrices(products), [products])
 
     const availableProducts = React.useMemo(() => {
         return products.filter((product) => {
@@ -530,6 +530,10 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             setInitialForm(form)
             setInitialSelectedProductIds([...selectedProductIds])
             setIsEditing(false)
+
+            // Refresh products to show updated landed costs
+            await refreshProductsOnly()
+
             toast.success("Batch updated")
             return
         } finally {
@@ -791,8 +795,8 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                 <TableHead className="text-right">Weight %</TableHead>
                                 <TableHead className="text-right">Selling Price (RWF)</TableHead>
                                 <TableHead className="text-right">Selling Total (RWF)</TableHead>
-                                <TableHead className="text-right">Landed Costs (RWF)</TableHead>
-                                <TableHead className="text-right">Landed Total (RWF)</TableHead>
+                                <TableHead className="text-right">Landed Cost / Unit (RWF)</TableHead>
+                                <TableHead className="text-right">Total Landed Cost (RWF)</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>

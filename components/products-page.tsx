@@ -58,7 +58,7 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Columns3Icon, ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon, SearchIcon, ShoppingCartIcon, Trash2Icon, XIcon } from "lucide-react"
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
-import { getAllIntendedSellingPrices, getIntendedSellingPrice, setIntendedSellingPrice } from "@/lib/intended-pricing"
+import { getAllIntendedSellingPrices, getIntendedSellingPrice } from "@/lib/intended-pricing"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -1056,6 +1056,7 @@ export function ProductsPage() {
             formData.append("sourceCurrency", editSourceCurrency)
             formData.append("exchangeRate", stripCommas(editExchangeRate))
             formData.append("batchId", editBatchId || "")
+            formData.append("intendedSellingPrice", stripCommas(editIntendedSellingPrice))
             formData.append("imagesTouched", "1")
 
             let existingCount = 0
@@ -1086,11 +1087,6 @@ export function ProductsPage() {
                 setEditErrors(data.errors ?? { general: "Failed to update product" })
                 return
             }
-
-            const intendedSellingPriceValue = editIntendedSellingPrice.trim()
-                ? Number(stripCommas(editIntendedSellingPrice))
-                : null
-            setIntendedSellingPrice(editProductId, intendedSellingPriceValue)
 
             toast.success("Product updated")
 
@@ -1248,6 +1244,9 @@ export function ProductsPage() {
     const selectedProducts = products.filter((product) => selectedProductIds.has(product._id))
     const singleSelectedProduct = selectedProducts.length === 1 ? selectedProducts[0] : null
     const intendedSellingPricesByProductId = React.useMemo(() => getAllIntendedSellingPrices(), [products])
+    const currentEditProduct = React.useMemo(() => {
+        return products.find((p) => p._id === editProductId)
+    }, [products, editProductId])
 
     const saleSelectedQuantity = Number(saleQuantity || 0)
     const saleAvailableQuantity = saleSelectedProduct?.quantityRemaining ?? 0
@@ -1546,396 +1545,13 @@ export function ProductsPage() {
                     </a>
                 </Button>
             )}
-            <Sheet
-                open={isEditProductSheetOpen}
-                onOpenChange={handleEditProductSheetOpenChange}
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openEditProductSheet(product)}
             >
-                <SheetTrigger asChild>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditProductSheet(product)}
-                    >
-                        Edit
-                    </Button>
-                </SheetTrigger>
-                <SheetContent
-                    className="overflow-y-auto"
-                    onInteractOutside={(event) => {
-                        if (isPreviewOpen) {
-                            const target = event.target
-                            if (!(target instanceof Element) || !target.closest('[data-image-preview="true"]')) {
-                                event.preventDefault()
-                            }
-                        }
-                    }}
-                    onEscapeKeyDown={(event) => {
-                        if (isPreviewOpen) {
-                            event.preventDefault()
-                        }
-                    }}
-                >
-                    <SheetHeader>
-                        <SheetTitle className="truncate">Edit {product.name}</SheetTitle>
-                        <SheetDescription>
-                            Update product details and batch assignment.
-                        </SheetDescription>
-                    </SheetHeader>
-                    <form className="grid gap-6 p-4" onSubmit={submitEditProduct} onKeyDown={preventImplicitSubmitOnEnter}>
-                        {/* Images Section */}
-                        <div className="space-y-3 border-b pb-4">
-                            <h3 className="font-semibold text-sm">Images</h3>
-
-                            {/* Main Image Display */}
-                            <div className="relative h-64 w-full overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center group">
-                                {editImages[0] ? (
-                                    <>
-                                        <img
-                                            src={editImages[0].src}
-                                            alt="Main product image"
-                                            className="h-full w-full cursor-pointer object-cover"
-                                            draggable
-                                            onDragStart={() => setDraggedEditImageId(editImages[0].id)}
-                                            onDragEnd={() => setDraggedEditImageId(null)}
-                                            onDragOver={(event) => event.preventDefault()}
-                                            onDrop={() => reorderEditImages(editImages[0].id)}
-                                            onClick={() => openImagePreview(editImages.map((image) => image.src), 0)}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => removeEditImage(editImages[0].id)}
-                                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                            <XIcon className="h-4 w-4" />
-                                        </button>
-                                    </>
-                                ) : (
-                                    <label className="cursor-pointer flex flex-col items-center gap-2 px-3 text-center w-full h-full justify-center">
-                                        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70 transition-colors group-hover:border-primary/50">
-                                            <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
-                                        </div>
-                                        <div className="text-sm font-medium text-foreground">Add main image</div>
-                                        <div className="text-xs text-muted-foreground">Click to upload</div>
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            multiple
-                                            className="hidden"
-                                            onChange={(event) => {
-                                                const selectedFiles = toSelectedFiles(event)
-                                                if (selectedFiles.length > 0) {
-                                                    const nextImages = selectedFiles.map((file, index) => {
-                                                        const src = URL.createObjectURL(file)
-                                                        editGeneratedObjectUrlsRef.current.push(src)
-
-                                                        return {
-                                                            id: `new-${Date.now()}-${index}-${file.name}`,
-                                                            type: "new" as const,
-                                                            src,
-                                                            file,
-                                                        }
-                                                    })
-
-                                                    setEditImages((current) => [
-                                                        ...nextImages,
-                                                        ...current,
-                                                    ])
-                                                }
-
-                                                event.currentTarget.value = ""
-                                            }}
-                                        />
-                                    </label>
-                                )}
-                            </div>
-
-                            {editImages.length > 0 && (
-                                <div className="grid grid-cols-3 gap-2">
-                                    {editImages.slice(1).map((image, index) => {
-                                        const imageIndex = index + 1
-                                        return (
-                                            <div key={image.id} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
-                                                <img
-                                                    src={image.src}
-                                                    alt={`Product image ${imageIndex + 1}`}
-                                                    className="w-full h-full cursor-pointer object-cover"
-                                                    draggable
-                                                    onDragStart={() => setDraggedEditImageId(image.id)}
-                                                    onDragEnd={() => setDraggedEditImageId(null)}
-                                                    onDragOver={(event) => event.preventDefault()}
-                                                    onDrop={() => reorderEditImages(image.id)}
-                                                    onClick={() => openImagePreview(editImages.map((entry) => entry.src), imageIndex)}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeEditImage(image.id)}
-                                                    className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                                >
-                                                    <XIcon className="h-3 w-3" />
-                                                </button>
-                                            </div>
-                                        )
-                                    })}
-
-                                    <label className="relative aspect-square rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors group">
-                                        <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            multiple
-                                            className="hidden"
-                                            onChange={(event) => {
-                                                const selectedFiles = toSelectedFiles(event)
-                                                if (selectedFiles.length > 0) {
-                                                    const nextImages = selectedFiles.map((file, index) => {
-                                                        const src = URL.createObjectURL(file)
-                                                        editGeneratedObjectUrlsRef.current.push(src)
-
-                                                        return {
-                                                            id: `new-${Date.now()}-${index}-${file.name}`,
-                                                            type: "new" as const,
-                                                            src,
-                                                            file,
-                                                        }
-                                                    })
-
-                                                    setEditImages((current) => [
-                                                        ...current,
-                                                        ...nextImages,
-                                                    ])
-                                                }
-
-                                                event.currentTarget.value = ""
-                                            }}
-                                        />
-                                    </label>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Product Details Section */}
-                        <div className="space-y-3 border-b pb-4">
-                            <h3 className="font-semibold text-sm">Product Details</h3>
-
-                            <Field>
-                                <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="edit-name">Product name</FieldLabel>
-                                    <FieldError className="text-destructive text-xs">{editErrors.name}</FieldError>
-                                </div>
-                                <Input
-                                    id="edit-name"
-                                    placeholder="Product name"
-                                    value={editProductName}
-                                    onChange={(event) => setEditProductName(event.target.value)}
-                                />
-                            </Field>
-
-                            <Field>
-                                <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="edit-external-link">External link (optional)</FieldLabel>
-                                    <FieldError className="text-destructive text-xs">{editErrors.externalLink}</FieldError>
-                                </div>
-                                <Input
-                                    id="edit-external-link"
-                                    type="url"
-                                    placeholder="https://example.com/product"
-                                    value={editExternalLink}
-                                    onChange={(event) => setEditExternalLink(event.target.value)}
-                                />
-                            </Field>
-
-                            <Field>
-                                <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="edit-category">Category (optional)</FieldLabel>
-                                    <FieldError className="text-destructive text-xs">{editErrors.categoryId}</FieldError>
-                                </div>
-                                {isAddingEditCustomCategory ? (
-                                    <div className="flex gap-2">
-                                        <Input
-                                            id="edit-category"
-                                            placeholder="Type new category name"
-                                            value={editCustomCategoryName}
-                                            onChange={(event) => setEditCustomCategoryName(event.target.value)}
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => {
-                                                setIsAddingEditCustomCategory(false)
-                                                setEditCustomCategoryName("")
-                                                setEditCategoryId("")
-                                            }}
-                                        >
-                                            Cancel
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center gap-2">
-                                        <Select
-                                            value={editCategoryId || NO_CATEGORY_VALUE}
-                                            onValueChange={(value) => {
-                                                setIsAddingEditCustomCategory(false)
-                                                setEditCustomCategoryName("")
-                                                setEditCategoryId(value === NO_CATEGORY_VALUE ? "" : value)
-                                            }}
-                                        >
-                                            <SelectTrigger id="edit-category" className="w-full">
-                                                <SelectValue placeholder="Choose category (optional)" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value={NO_CATEGORY_VALUE}>No category</SelectItem>
-                                                {categories.map((category) => (
-                                                    <SelectItem key={category._id} value={category._id}>
-                                                        {category.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            className="h-8 px-3"
-                                            onClick={() => {
-                                                setIsAddingEditCustomCategory(true)
-                                                setEditCategoryId("")
-                                            }}
-                                        >
-                                            Add category
-                                        </Button>
-                                    </div>
-                                )}
-                            </Field>
-
-                            <Field>
-                                <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="edit-quantity">Initial stock</FieldLabel>
-                                    <FieldError className="text-destructive text-xs">{editErrors.quantityInitial}</FieldError>
-                                </div>
-                                <Input
-                                    id="edit-quantity"
-                                    type="text"
-                                    inputMode="numeric"
-                                    autoComplete="off"
-                                    placeholder="Enter initial stock"
-                                    value={editQuantityInitial}
-                                    onChange={(event) => setEditQuantityInitial(toIntegerInput(event.target.value))}
-                                />
-                            </Field>
-
-                            <Field>
-                                <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="edit-unit-price">Unit price</FieldLabel>
-                                    <FieldError className="text-destructive text-xs">{editErrors.unitPriceForeign}</FieldError>
-                                </div>
-                                <Input
-                                    id="edit-unit-price"
-                                    type="text"
-                                    inputMode="decimal"
-                                    autoComplete="off"
-                                    placeholder="Enter unit price"
-                                    value={editUnitPriceForeign}
-                                    onChange={(event) => setEditUnitPriceForeign(toDecimalInput(event.target.value))}
-                                />
-                            </Field>
-
-                            <Field>
-                                <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="edit-intended-selling-price">Selling price (RWF, optional)</FieldLabel>
-                                    <FieldError className="text-destructive text-xs">{editErrors.intendedSellingPrice}</FieldError>
-                                </div>
-                                <Input
-                                    id="edit-intended-selling-price"
-                                    type="text"
-                                    inputMode="decimal"
-                                    autoComplete="off"
-                                    placeholder="Enter intended selling price"
-                                    value={editIntendedSellingPrice}
-                                    onChange={(event) => setEditIntendedSellingPrice(toDecimalInput(event.target.value))}
-                                />
-                            </Field>
-
-                            <Field>
-                                <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="edit-currency">Source currency</FieldLabel>
-                                    <FieldError className="text-destructive text-xs">{editErrors.sourceCurrency}</FieldError>
-                                </div>
-                                <Select value={editSourceCurrency} onValueChange={setEditSourceCurrency}>
-                                    <SelectTrigger id="edit-currency">
-                                        <SelectValue placeholder="Choose source currency" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {SOURCE_CURRENCY_OPTIONS.map((currency) => (
-                                            <SelectItem key={currency} value={currency}>
-                                                {currency}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </Field>
-
-                            <Field>
-                                <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="edit-exchange-rate">Exchange rate to RWF</FieldLabel>
-                                    <FieldError className="text-destructive text-xs">{editErrors.exchangeRate}</FieldError>
-                                </div>
-                                <Input
-                                    id="edit-exchange-rate"
-                                    type="text"
-                                    inputMode="decimal"
-                                    autoComplete="off"
-                                    placeholder={editSourceCurrency === "RWF" ? "Auto-set to 1 for RWF" : "Enter exchange rate to RWF"}
-                                    value={editExchangeRate}
-                                    disabled={editSourceCurrency === "RWF"}
-                                    onChange={(event) => setEditExchangeRate(toDecimalInput(event.target.value))}
-                                />
-                            </Field>
-                        </div>
-
-                        {/* Batch Settings Section */}
-                        <div className="space-y-3">
-                            <h3 className="font-semibold text-sm">Batch Settings</h3>
-
-                            <Field>
-                                <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="edit-batch">Batch</FieldLabel>
-                                    <FieldError className="text-destructive text-xs">{editErrors.batchId}</FieldError>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Select value={editBatchId} onValueChange={setEditBatchId}>
-                                        <SelectTrigger id="edit-batch" className="w-full">
-                                            <SelectValue placeholder="Select batch" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {batches.map((batch) => (
-                                                <SelectItem key={batch._id} value={batch._id}>
-                                                    {batch.batchName}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {editBatchId && (
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setEditBatchId("")}
-                                        >
-                                            Clear
-                                        </Button>
-                                    )}
-                                </div>
-                            </Field>
-                        </div>
-
-                        {editErrors.general ? (
-                            <p className="text-sm text-destructive">{editErrors.general}</p>
-                        ) : null}
-                        <Button type="submit" disabled={!canSubmitEditProduct || !hasEditProductChanges || isEditSubmitting} loading={isEditSubmitting} loadingText="Saving product">
-                            Save Changes
-                        </Button>
-                    </form>
-                </SheetContent>
-            </Sheet>
+                Edit
+            </Button>
 
             <Button
                 variant="outline"
@@ -2825,6 +2441,391 @@ export function ProductsPage() {
                     />
                 </div>
             ) : null}
+
+            {/* Edit Product Sheet - Rendered Once at Component Level */}
+            {editProductId && (
+                <Sheet
+                    open={isEditProductSheetOpen}
+                    onOpenChange={handleEditProductSheetOpenChange}
+                >
+                    <SheetContent
+                        className="overflow-y-auto"
+                        onInteractOutside={(event) => {
+                            if (isPreviewOpen) {
+                                const target = event.target
+                                if (!(target instanceof Element) || !target.closest('[data-image-preview="true"]')) {
+                                    event.preventDefault()
+                                }
+                            }
+                        }}
+                        onEscapeKeyDown={(event) => {
+                            if (isPreviewOpen) {
+                                event.preventDefault()
+                            }
+                        }}
+                    >
+                        <SheetHeader>
+                            <SheetTitle className="truncate">Edit {currentEditProduct?.name || "Product"}</SheetTitle>
+                            <SheetDescription>
+                                Update product details and batch assignment.
+                            </SheetDescription>
+                        </SheetHeader>
+                        <form className="grid gap-6 p-4" onSubmit={submitEditProduct} onKeyDown={preventImplicitSubmitOnEnter}>
+                            {/* Images Section */}
+                            <div className="space-y-3 border-b pb-4">
+                                <h3 className="font-semibold text-sm">Images</h3>
+
+                                {/* Main Image Display */}
+                                <div className="relative h-64 w-full overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center group">
+                                    {editImages[0] ? (
+                                        <>
+                                            <img
+                                                src={editImages[0].src}
+                                                alt="Main product image"
+                                                className="h-full w-full cursor-pointer object-cover"
+                                                draggable
+                                                onDragStart={() => setDraggedEditImageId(editImages[0].id)}
+                                                onDragEnd={() => setDraggedEditImageId(null)}
+                                                onDragOver={(event) => event.preventDefault()}
+                                                onDrop={() => reorderEditImages(editImages[0].id)}
+                                                onClick={() => openImagePreview(editImages.map((image) => image.src), 0)}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => removeEditImage(editImages[0].id)}
+                                                className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                <XIcon className="h-4 w-4" />
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <label className="cursor-pointer flex flex-col items-center gap-2 px-3 text-center w-full h-full justify-center">
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70 transition-colors group-hover:border-primary/50">
+                                                <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+                                            </div>
+                                            <div className="text-sm font-medium text-foreground">Add main image</div>
+                                            <div className="text-xs text-muted-foreground">Click to upload</div>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                multiple
+                                                className="hidden"
+                                                onChange={(event) => {
+                                                    const selectedFiles = toSelectedFiles(event)
+                                                    if (selectedFiles.length > 0) {
+                                                        const nextImages = selectedFiles.map((file, index) => {
+                                                            const src = URL.createObjectURL(file)
+                                                            editGeneratedObjectUrlsRef.current.push(src)
+
+                                                            return {
+                                                                id: `new-${Date.now()}-${index}-${file.name}`,
+                                                                type: "new" as const,
+                                                                src,
+                                                                file,
+                                                            }
+                                                        })
+
+                                                        setEditImages((current) => [
+                                                            ...nextImages,
+                                                            ...current,
+                                                        ])
+                                                    }
+
+                                                    event.currentTarget.value = ""
+                                                }}
+                                            />
+                                        </label>
+                                    )}
+                                </div>
+
+                                {editImages.length > 0 && (
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {editImages.slice(1).map((image, index) => {
+                                            const imageIndex = index + 1
+                                            return (
+                                                <div key={image.id} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
+                                                    <img
+                                                        src={image.src}
+                                                        alt={`Product image ${imageIndex + 1}`}
+                                                        className="w-full h-full cursor-pointer object-cover"
+                                                        draggable
+                                                        onDragStart={() => setDraggedEditImageId(image.id)}
+                                                        onDragEnd={() => setDraggedEditImageId(null)}
+                                                        onDragOver={(event) => event.preventDefault()}
+                                                        onDrop={() => reorderEditImages(image.id)}
+                                                        onClick={() => openImagePreview(editImages.map((entry) => entry.src), imageIndex)}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeEditImage(image.id)}
+                                                        className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <XIcon className="h-3 w-3" />
+                                                    </button>
+                                                </div>
+                                            )
+                                        })}
+
+                                        <label className="relative aspect-square rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors group">
+                                            <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                multiple
+                                                className="hidden"
+                                                onChange={(event) => {
+                                                    const selectedFiles = toSelectedFiles(event)
+                                                    if (selectedFiles.length > 0) {
+                                                        const nextImages = selectedFiles.map((file, index) => {
+                                                            const src = URL.createObjectURL(file)
+                                                            editGeneratedObjectUrlsRef.current.push(src)
+
+                                                            return {
+                                                                id: `new-${Date.now()}-${index}-${file.name}`,
+                                                                type: "new" as const,
+                                                                src,
+                                                                file,
+                                                            }
+                                                        })
+
+                                                        setEditImages((current) => [
+                                                            ...current,
+                                                            ...nextImages,
+                                                        ])
+                                                    }
+
+                                                    event.currentTarget.value = ""
+                                                }}
+                                            />
+                                        </label>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Product Details Section */}
+                            <div className="space-y-3 border-b pb-4">
+                                <h3 className="font-semibold text-sm">Product Details</h3>
+
+                                <Field>
+                                    <div className="flex items-center justify-between">
+                                        <FieldLabel htmlFor="edit-name">Product name</FieldLabel>
+                                        <FieldError className="text-destructive text-xs">{editErrors.name}</FieldError>
+                                    </div>
+                                    <Input
+                                        id="edit-name"
+                                        placeholder="Product name"
+                                        value={editProductName}
+                                        onChange={(event) => setEditProductName(event.target.value)}
+                                    />
+                                </Field>
+
+                                <Field>
+                                    <div className="flex items-center justify-between">
+                                        <FieldLabel htmlFor="edit-external-link">External link (optional)</FieldLabel>
+                                        <FieldError className="text-destructive text-xs">{editErrors.externalLink}</FieldError>
+                                    </div>
+                                    <Input
+                                        id="edit-external-link"
+                                        type="url"
+                                        placeholder="https://example.com/product"
+                                        value={editExternalLink}
+                                        onChange={(event) => setEditExternalLink(event.target.value)}
+                                    />
+                                </Field>
+
+                                <Field>
+                                    <div className="flex items-center justify-between">
+                                        <FieldLabel htmlFor="edit-category">Category (optional)</FieldLabel>
+                                        <FieldError className="text-destructive text-xs">{editErrors.categoryId}</FieldError>
+                                    </div>
+                                    {isAddingEditCustomCategory ? (
+                                        <div className="flex gap-2">
+                                            <Input
+                                                id="edit-category"
+                                                placeholder="Type new category name"
+                                                value={editCustomCategoryName}
+                                                onChange={(event) => setEditCustomCategoryName(event.target.value)}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => {
+                                                    setIsAddingEditCustomCategory(false)
+                                                    setEditCustomCategoryName("")
+                                                    setEditCategoryId("")
+                                                }}
+                                            >
+                                                Cancel
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2">
+                                            <Select
+                                                value={editCategoryId || NO_CATEGORY_VALUE}
+                                                onValueChange={(value) => {
+                                                    setIsAddingEditCustomCategory(false)
+                                                    setEditCustomCategoryName("")
+                                                    setEditCategoryId(value === NO_CATEGORY_VALUE ? "" : value)
+                                                }}
+                                            >
+                                                <SelectTrigger id="edit-category" className="w-full">
+                                                    <SelectValue placeholder="Choose category (optional)" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value={NO_CATEGORY_VALUE}>No category</SelectItem>
+                                                    {categories.map((category) => (
+                                                        <SelectItem key={category._id} value={category._id}>
+                                                            {category.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                className="h-8 px-3"
+                                                onClick={() => {
+                                                    setIsAddingEditCustomCategory(true)
+                                                    setEditCategoryId("")
+                                                }}
+                                            >
+                                                Add category
+                                            </Button>
+                                        </div>
+                                    )}
+                                </Field>
+
+                                <Field>
+                                    <div className="flex items-center justify-between">
+                                        <FieldLabel htmlFor="edit-quantity">Initial stock</FieldLabel>
+                                        <FieldError className="text-destructive text-xs">{editErrors.quantityInitial}</FieldError>
+                                    </div>
+                                    <Input
+                                        id="edit-quantity"
+                                        type="text"
+                                        inputMode="numeric"
+                                        autoComplete="off"
+                                        placeholder="Enter initial stock"
+                                        value={editQuantityInitial}
+                                        onChange={(event) => setEditQuantityInitial(toIntegerInput(event.target.value))}
+                                    />
+                                </Field>
+
+                                <Field>
+                                    <div className="flex items-center justify-between">
+                                        <FieldLabel htmlFor="edit-unit-price">Unit price</FieldLabel>
+                                        <FieldError className="text-destructive text-xs">{editErrors.unitPriceForeign}</FieldError>
+                                    </div>
+                                    <Input
+                                        id="edit-unit-price"
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        placeholder="Enter unit price"
+                                        value={editUnitPriceForeign}
+                                        onChange={(event) => setEditUnitPriceForeign(toDecimalInput(event.target.value))}
+                                    />
+                                </Field>
+
+                                <Field>
+                                    <div className="flex items-center justify-between">
+                                        <FieldLabel htmlFor="edit-intended-selling-price">Selling price (RWF, optional)</FieldLabel>
+                                        <FieldError className="text-destructive text-xs">{editErrors.intendedSellingPrice}</FieldError>
+                                    </div>
+                                    <Input
+                                        id="edit-intended-selling-price"
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        placeholder="Enter intended selling price"
+                                        value={editIntendedSellingPrice}
+                                        onChange={(event) => setEditIntendedSellingPrice(toDecimalInput(event.target.value))}
+                                    />
+                                </Field>
+
+                                <Field>
+                                    <div className="flex items-center justify-between">
+                                        <FieldLabel htmlFor="edit-currency">Source currency</FieldLabel>
+                                        <FieldError className="text-destructive text-xs">{editErrors.sourceCurrency}</FieldError>
+                                    </div>
+                                    <Select value={editSourceCurrency} onValueChange={setEditSourceCurrency}>
+                                        <SelectTrigger id="edit-currency">
+                                            <SelectValue placeholder="Choose source currency" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {SOURCE_CURRENCY_OPTIONS.map((currency) => (
+                                                <SelectItem key={currency} value={currency}>
+                                                    {currency}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </Field>
+
+                                <Field>
+                                    <div className="flex items-center justify-between">
+                                        <FieldLabel htmlFor="edit-exchange-rate">Exchange rate to RWF</FieldLabel>
+                                        <FieldError className="text-destructive text-xs">{editErrors.exchangeRate}</FieldError>
+                                    </div>
+                                    <Input
+                                        id="edit-exchange-rate"
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        placeholder={editSourceCurrency === "RWF" ? "Auto-set to 1 for RWF" : "Enter exchange rate to RWF"}
+                                        value={editExchangeRate}
+                                        disabled={editSourceCurrency === "RWF"}
+                                        onChange={(event) => setEditExchangeRate(toDecimalInput(event.target.value))}
+                                    />
+                                </Field>
+                            </div>
+
+                            {/* Batch Settings Section */}
+                            <div className="space-y-3">
+                                <h3 className="font-semibold text-sm">Batch Settings</h3>
+
+                                <Field>
+                                    <div className="flex items-center justify-between">
+                                        <FieldLabel htmlFor="edit-batch">Batch</FieldLabel>
+                                        <FieldError className="text-destructive text-xs">{editErrors.batchId}</FieldError>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Select value={editBatchId} onValueChange={setEditBatchId}>
+                                            <SelectTrigger id="edit-batch" className="w-full">
+                                                <SelectValue placeholder="Select batch" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {batches.map((batch) => (
+                                                    <SelectItem key={batch._id} value={batch._id}>
+                                                        {batch.batchName}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {editBatchId && (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setEditBatchId("")}
+                                            >
+                                                Clear
+                                            </Button>
+                                        )}
+                                    </div>
+                                </Field>
+                            </div>
+
+                            {editErrors.general ? (
+                                <p className="text-sm text-destructive">{editErrors.general}</p>
+                            ) : null}
+                            <Button type="submit" disabled={!canSubmitEditProduct || !hasEditProductChanges || isEditSubmitting} loading={isEditSubmitting} loadingText="Saving product">
+                                Save Changes
+                            </Button>
+                        </form>
+                    </SheetContent>
+                </Sheet>
+            )}
         </div>
     )
 }

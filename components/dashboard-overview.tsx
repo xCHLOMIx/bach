@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SectionCards } from "@/components/section-cards"
+import { formatRWF } from "@/lib/utils"
 
 type StatsResponse = {
     stats: {
@@ -101,9 +102,9 @@ export function DashboardOverview() {
                                         <TableRow key={sale._id}>
                                             <TableCell>{sale.productId?.name ?? "Unknown product"}</TableCell>
                                             <TableCell>{sale.quantity}</TableCell>
-                                            <TableCell>{sale.sellingPrice.toLocaleString()}</TableCell>
-                                            <TableCell>{sale.landedCost.toLocaleString()}</TableCell>
-                                            <TableCell>{sale.profit.toLocaleString()}</TableCell>
+                                            <TableCell>{formatRWF(sale.sellingPrice)}</TableCell>
+                                            <TableCell>{formatRWF(sale.landedCost)}</TableCell>
+                                            <TableCell>{formatRWF(sale.profit)}</TableCell>
                                             <TableCell>{new Date(sale.soldAt).toLocaleString()}</TableCell>
                                         </TableRow>
                                     ))

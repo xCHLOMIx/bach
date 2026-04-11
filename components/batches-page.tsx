@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { convertInternationalExpenseToRwf } from "@/lib/costs"
-import { cn } from "@/lib/utils"
+import { cn, formatRWF } from "@/lib/utils"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { CheckIcon, CopyIcon, PackageSearchIcon, SearchIcon, ChevronUpIcon, ChevronDownIcon, Trash2Icon, Columns3Icon } from "lucide-react"
 import { toast } from "sonner"
@@ -1207,7 +1207,7 @@ export function BatchesPage() {
                                                 ) : null}
                                             </div>
                                         </TableCell>
-                                        <TableCell>{getBatchTotalCosts(batch).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                        <TableCell>{formatRWF(getBatchTotalCosts(batch))}</TableCell>
                                         <TableCell>{batch.productCount ?? 0}</TableCell>
                                         <TableCell>{new Date(batch.createdAt).toLocaleDateString()}</TableCell>
                                         <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>

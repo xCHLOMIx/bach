@@ -121,6 +121,7 @@ export function calculateBatchProductLandedCosts(
     0
   )
 
+  // Allocate import charges proportionally by each product's purchase value
   return perProduct.map((product) => {
     const percentage =
       totalPurchaseValue > 0 ? product.purchaseValue / totalPurchaseValue : 0

@@ -20,7 +20,6 @@ import {
     SheetTitle,
     SheetTrigger,
 } from "@/components/ui/sheet"
-import { setIntendedSellingPrice } from "@/lib/intended-pricing"
 import { ImagePlusIcon, PlusIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -240,6 +239,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
             formData.append("sourceCurrency", sourceCurrency)
             formData.append("exchangeRate", stripCommas(exchangeRate))
             formData.append("externalLink", externalLink)
+            formData.append("intendedSellingPrice", stripCommas(intendedSellingPrice))
             for (const file of imageFiles) {
                 formData.append("images", file)
             }
@@ -257,11 +257,6 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
 
             const createdProductId = (data?.product as { _id?: string } | undefined)?._id
             if (createdProductId) {
-                const parsedIntendedSellingPrice = Number(stripCommas(intendedSellingPrice) || 0)
-                if (intendedSellingPrice.trim() && Number.isFinite(parsedIntendedSellingPrice) && parsedIntendedSellingPrice >= 0) {
-                    setIntendedSellingPrice(createdProductId, parsedIntendedSellingPrice)
-                }
-
                 toast.success("Product created")
             }
 

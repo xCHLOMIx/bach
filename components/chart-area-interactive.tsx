@@ -4,6 +4,7 @@ import * as React from "react"
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 
 import { useIsMobile } from "@/hooks/use-mobile"
+import { formatRWF } from "@/lib/utils"
 import {
   Card,
   CardAction,
@@ -239,7 +240,7 @@ export function ChartAreaInteractive() {
               axisLine={false}
               tickMargin={8}
               width={80}
-              tickFormatter={(value) => Number(value).toLocaleString()}
+              tickFormatter={(value) => formatRWF(Number(value))}
             />
             <ChartTooltip
               cursor={false}
@@ -257,7 +258,7 @@ export function ChartAreaInteractive() {
                     return (
                       <div className="grid gap-1">
                         <span className="font-mono font-medium text-foreground tabular-nums">
-                          {Number(value).toLocaleString()} RWF
+                          {formatRWF(Number(value))} RWF
                         </span>
                         <span className="max-w-56 truncate text-[11px] text-muted-foreground">
                           Products: {payload.productsSummary}

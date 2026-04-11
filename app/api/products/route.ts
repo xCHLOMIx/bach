@@ -41,11 +41,13 @@ export async function POST(request: NextRequest) {
   const sourceCurrency = String(formData.get("sourceCurrency") ?? "").trim().toUpperCase()
   const rawExchangeRate = String(formData.get("exchangeRate") ?? "").trim()
   const externalLink = String(formData.get("externalLink") ?? "").trim()
+  const rawIntendedSellingPrice = String(formData.get("intendedSellingPrice") ?? "").trim()
   const images = formData.getAll("images").filter((entry) => entry instanceof File) as File[]
 
   const quantityInitial = Number(rawQuantityInitial)
   const unitPriceForeign = Number(rawUnitPriceForeign)
   const exchangeRate = Number(rawExchangeRate)
+  const intendedSellingPrice = rawIntendedSellingPrice ? Number(rawIntendedSellingPrice) : null
 
   const errors: FieldErrors = {}
 
@@ -79,6 +81,9 @@ export async function POST(request: NextRequest) {
       errors.externalLink = "Enter a valid URL"
     }
   }
+  if (rawIntendedSellingPrice && (!Number.isFinite(intendedSellingPrice) || intendedSellingPrice < 0)) {
+    errors.intendedSellingPrice = "Selling price must be 0 or higher"
+  }
   if (Object.keys(errors).length > 0) {
     return errorResponse(errors, 400)
   }
@@ -105,6 +110,7 @@ export async function POST(request: NextRequest) {
     unitPriceLocalRWF,
     purchasePriceRWF: unitPriceLocalRWF,
     landedCost: unitPriceLocalRWF,
+    intendedSellingPrice,
     externalLink,
     images: uploadedUrls,
   })

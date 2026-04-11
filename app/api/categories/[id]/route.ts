@@ -38,7 +38,7 @@ export async function PATCH(
   const category = await CategoryModel.findByIdAndUpdate(
     id,
     { name },
-    { new: true }
+    { returnDocument: 'after' }
   ).lean()
 
   if (!category) {

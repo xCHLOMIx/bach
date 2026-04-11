@@ -2,47 +2,43 @@ const INTENDED_SELLING_PRICES_KEY = "products:intended-selling-prices"
 
 type IntendedSellingPrices = Record<string, number>
 
-export function getAllIntendedSellingPrices(): IntendedSellingPrices {
-  if (typeof window === "undefined") {
+type ProductWithSellingPrice = {
+  _id: string
+  intendedSellingPrice?: number | null
+}
+
+export function getAllIntendedSellingPrices(products?: ProductWithSellingPrice[]): IntendedSellingPrices {
+  // Build from product data (now stored in database)
+  if (!products || products.length === 0) {
     return {}
   }
 
-  const raw = window.localStorage.getItem(INTENDED_SELLING_PRICES_KEY)
-  if (!raw) {
-    return {}
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>
-    const normalized: IntendedSellingPrices = {}
-
-    for (const [productId, value] of Object.entries(parsed)) {
-      const numericValue = Number(value)
-      if (Number.isFinite(numericValue) && numericValue >= 0) {
-        normalized[productId] = numericValue
-      }
+  const prices: IntendedSellingPrices = {}
+  for (const product of products) {
+    if (product.intendedSellingPrice && Number.isFinite(product.intendedSellingPrice)) {
+      prices[product._id] = product.intendedSellingPrice
     }
-
-    return normalized
-  } catch {
-    return {}
   }
+
+  return prices
 }
 
 export function setIntendedSellingPrice(productId: string, value: number | null | undefined) {
-  if (typeof window === "undefined" || !productId) {
+  if (!productId) {
     return
   }
 
-  const next = getAllIntendedSellingPrices()
-
-  if (value === null || value === undefined || !Number.isFinite(value) || value < 0) {
-    delete next[productId]
-  } else {
-    next[productId] = value
-  }
-
-  window.localStorage.setItem(INTENDED_SELLING_PRICES_KEY, JSON.stringify(next))
+  // Save to database only - no localStorage
+  fetch("/api/products", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      productId,
+      intendedSellingPrice: String(value ?? ""),
+    }).toString(),
+  }).catch(() => {
+    // Silent fail - just don't save
+  })
 }
 
 export function getIntendedSellingPrice(productId: string): number | undefined {
