@@ -16,12 +16,14 @@ import { Box, CirclePlusIcon, MailIcon } from "lucide-react"
 
 export function NavMain({
   items,
+  isPinned = false,
 }: {
   items: {
     title: string
     url: string
     icon?: React.ReactNode
   }[]
+  isPinned?: boolean
 }) {
   const pathname = usePathname()
   const { setOpen, setOpenMobile } = useSidebar()
@@ -38,8 +40,10 @@ export function NavMain({
               <Link
                 href="/app/products?addProduct=1"
                 onClick={() => {
-                  setOpen(false)
-                  setOpenMobile(false)
+                  if (!isPinned) {
+                    setOpen(false)
+                    setOpenMobile(false)
+                  }
                 }}
               >
                 <CirclePlusIcon
@@ -71,8 +75,10 @@ export function NavMain({
                   <Link
                     href={item.url}
                     onClick={() => {
-                      setOpen(false)
-                      setOpenMobile(false)
+                      if (!isPinned) {
+                        setOpen(false)
+                        setOpenMobile(false)
+                      }
                     }}
                   >
                     {item.icon}
@@ -84,6 +90,6 @@ export function NavMain({
           })}
         </SidebarMenu>
       </SidebarGroupContent>
-    </SidebarGroup>
+    </SidebarGroup >
   )
 }

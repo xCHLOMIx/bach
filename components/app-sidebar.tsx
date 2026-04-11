@@ -14,7 +14,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Box, Boxes, ChartBarIcon, LayoutDashboardIcon, ListIcon } from "lucide-react"
+import { Box, Boxes, ChartBarIcon, LayoutDashboardIcon, ListIcon, PinIcon, PinOffIcon } from "lucide-react"
 import Image from "next/image"
 
 type ProductApiItem = {
@@ -61,7 +61,8 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [recentProducts, setRecentProducts] = React.useState<ProductApiItem[]>([])
   const [isLoadingRecentProducts, setIsLoadingRecentProducts] = React.useState(true)
-  const { isMobile, setOpenMobile } = useSidebar()
+  const [isPinned, setIsPinned] = React.useState(false)
+  const { isMobile, setOpenMobile, setOpen } = useSidebar()
 
   React.useEffect(() => {
     let active = true
@@ -97,22 +98,45 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     url: `/app/products/${product._id}`,
     image: product.images?.[0] ?? "",
   }))
+  const handlePin = () => {
+    setIsPinned(!isPinned)
+    if (!isPinned && isMobile) {
+      setOpen(true)
+    }
+  }
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <div className="flex items-center gap-2 p-1.5">
-              <Image
-                src="/logos/logo_black.svg"
-                alt="Bach"
-                width={22}
-                height={22}
-                className="size-8"
-                priority
-              />
-              <span className="text-base font-semibold">Bach Inc.</span>
+            <div className="flex items-center justify-between gap-2 p-1.5">
+              <div className="flex items-center gap-2">
+                <Image
+                  src="/logos/logo_black.svg"
+                  alt="Bach"
+                  width={22}
+                  height={22}
+                  className="size-8"
+                  priority
+                />
+                <span className="text-base font-semibold">Bach Inc.</span>
+              </div>
+              <button
+                onClick={handlePin}
+                className={`h-8 w-8 rounded-md transition-colors flex items-center justify-center ${
+                  isPinned
+                    ? "bg-green-100 text-green-700 hover:bg-green-200"
+                    : "hover:bg-accent hover:text-accent-foreground"
+                }`}
+                title={isPinned ? "Unpin sidebar" : "Pin sidebar"}
+              >
+                {isPinned ? (
+                  <PinIcon className="h-4 w-4" />
+                ) : (
+                  <PinOffIcon className="h-4 w-4" />
+                )}
+              </button>
             </div>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -124,12 +148,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           }
 
           const target = event.target
-          if (target instanceof Element && target.closest("a[href]")) {
+          if (target instanceof Element && target.closest("a[href]") && !isPinned) {
             setOpenMobile(false)
           }
         }}
       >
-        <NavMain items={data.navMain} />
+        <NavMain items={data.navMain} isPinned={isPinned} />
         <NavDocuments
           items={visibleRecentProducts}
           isLoading={isLoadingRecentProducts}
@@ -138,6 +162,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarFooter>
         <NavUser user={data.user} />
       </SidebarFooter>
-    </Sidebar>
+    </Sidebar >
   )
 }
