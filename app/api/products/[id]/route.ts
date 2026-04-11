@@ -177,7 +177,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (batchId !== undefined && batchId && !Types.ObjectId.isValid(batchId)) {
     errors.batchId = "Invalid batch"
   }
-  if (rawIntendedSellingPrice !== undefined && rawIntendedSellingPrice && (!Number.isFinite(intendedSellingPrice) || intendedSellingPrice < 0)) {
+  if (rawIntendedSellingPrice !== undefined && rawIntendedSellingPrice && typeof intendedSellingPrice === "number" && (!Number.isFinite(intendedSellingPrice) || intendedSellingPrice < 0)) {
     errors.intendedSellingPrice = "Selling price must be 0 or higher"
   }
   if (Object.keys(errors).length > 0) {
@@ -309,13 +309,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
 
       // Re-fetch product to get updated landedCost from batch recalculation
-      hydratedProduct = await ProductModel.findById(productId)
+      const refetchedProduct = await ProductModel.findById(productId)
         .populate("categoryId", "name")
         .populate("batchId", "batchName")
 
-      if (!hydratedProduct) {
+      if (!refetchedProduct) {
         return errorResponse({ id: "Product not found" }, 404)
       }
+      
+      hydratedProduct = refetchedProduct
     }
 
     return successResponse({ product: hydratedProduct })

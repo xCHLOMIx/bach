@@ -349,11 +349,6 @@ export default function ProductDetailsPage() {
         return
       }
 
-      const intendedSellingPriceValue = editIntendedSellingPrice.trim()
-        ? Number(stripCommas(editIntendedSellingPrice))
-        : null
-      setIntendedSellingPrice(editProductId, intendedSellingPriceValue)
-
       setIsEditProductSheetOpen(false)
       await loadProduct()
     } finally {

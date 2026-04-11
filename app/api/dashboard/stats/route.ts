@@ -14,6 +14,14 @@ export async function GET(request: NextRequest) {
   const user = await getAuthorizedUser(request)
   if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
 
+  // Calculate date range for profit trend analysis
+  const now = new Date()
+  const DAYS_WINDOW = 7
+  const currentPeriodStart = new Date(now)
+  currentPeriodStart.setDate(now.getDate() - DAYS_WINDOW)
+  const previousPeriodStart = new Date(currentPeriodStart)
+  previousPeriodStart.setDate(currentPeriodStart.getDate() - DAYS_WINDOW)
+
   const [products, categories, batches, statsData, latestSales, totalSalesCount] = await Promise.all([
     ProductModel.countDocuments({ userId: user._id }),
     CategoryModel.countDocuments({ userId: user._id }),

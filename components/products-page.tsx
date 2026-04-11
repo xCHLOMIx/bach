@@ -86,6 +86,7 @@ type Product = {
     landedCost: number
     externalLink?: string
     images: string[]
+    intendedSellingPrice?: number | null
     createdAt: string
 }
 

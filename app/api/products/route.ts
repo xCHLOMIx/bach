@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       errors.externalLink = "Enter a valid URL"
     }
   }
-  if (rawIntendedSellingPrice && (!Number.isFinite(intendedSellingPrice) || intendedSellingPrice < 0)) {
+  if (rawIntendedSellingPrice && typeof intendedSellingPrice === "number" && (!Number.isFinite(intendedSellingPrice) || intendedSellingPrice < 0)) {
     errors.intendedSellingPrice = "Selling price must be 0 or higher"
   }
   if (Object.keys(errors).length > 0) {
