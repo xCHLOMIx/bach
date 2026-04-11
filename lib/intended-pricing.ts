@@ -41,6 +41,7 @@ export function setIntendedSellingPrice(productId: string, value: number | null 
   })
 }
 
-export function getIntendedSellingPrice(productId: string): number | undefined {
-  return getAllIntendedSellingPrices()[productId]
+export function getIntendedSellingPrice(productId: string, products?: ProductWithSellingPrice[]): number | undefined {
+  const pricesMap = getAllIntendedSellingPrices(products)
+  return pricesMap[productId]
 }

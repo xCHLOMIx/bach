@@ -297,6 +297,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const affectsBatchAllocation =
       movedBetweenBatches || quantityInitial !== undefined || shouldRecalculateLocalPricing
 
+    // Only re-fetch if batch allocation was affected (to get updated landedCost)
+    let hydratedProduct = product
     if (affectsBatchAllocation) {
       if (nextBatchId) {
         await recalculateBatchProducts(nextBatchId)
@@ -305,14 +307,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (previousBatchId && previousBatchId !== nextBatchId) {
         await recalculateBatchProducts(previousBatchId)
       }
-    }
 
-    const hydratedProduct = await ProductModel.findById(productId)
-      .populate("categoryId", "name")
-      .populate("batchId", "batchName")
+      // Re-fetch product to get updated landedCost from batch recalculation
+      hydratedProduct = await ProductModel.findById(productId)
+        .populate("categoryId", "name")
+        .populate("batchId", "batchName")
 
-    if (!hydratedProduct) {
-      return errorResponse({ id: "Product not found" }, 404)
+      if (!hydratedProduct) {
+        return errorResponse({ id: "Product not found" }, 404)
+      }
     }
 
     return successResponse({ product: hydratedProduct })

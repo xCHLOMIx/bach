@@ -58,7 +58,7 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Columns3Icon, ImagePlusIcon, LayoutGridIcon, ListIcon, PackageSearchIcon, SearchIcon, ShoppingCartIcon, Trash2Icon, XIcon } from "lucide-react"
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
-import { getAllIntendedSellingPrices, getIntendedSellingPrice } from "@/lib/intended-pricing"
+import { getAllIntendedSellingPrices } from "@/lib/intended-pricing"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -357,7 +357,7 @@ export function ProductsPage() {
         const parsedEditSellingPrice = editIntendedSellingPrice.trim()
             ? Number(stripCommas(editIntendedSellingPrice))
             : null
-        const parsedOriginalSellingPrice = getIntendedSellingPrice(editProductId)
+        const parsedOriginalSellingPrice = originalEditProduct?.intendedSellingPrice ?? undefined
         const sellingPriceChanged = parsedEditSellingPrice === null
             ? typeof parsedOriginalSellingPrice === "number"
             : parsedEditSellingPrice !== parsedOriginalSellingPrice
@@ -759,7 +759,7 @@ export function ProductsPage() {
         setEditCustomCategoryName("")
         setEditQuantityInitial(String(product.quantityInitial))
         setEditUnitPriceForeign(formatDecimalWithCommas(String(product.unitPriceForeign)))
-        setEditIntendedSellingPrice(formatDecimalWithCommas(String(getIntendedSellingPrice(product._id) ?? "")))
+        setEditIntendedSellingPrice(formatDecimalWithCommas(String(product.intendedSellingPrice ?? "")))
         setEditExternalLink(product.externalLink ?? "")
         setEditSourceCurrency(product.sourceCurrency)
         setEditExchangeRate(formatDecimalWithCommas(String(product.exchangeRate ?? 1)))
@@ -1243,7 +1243,7 @@ export function ProductsPage() {
     }, [filteredProducts, sortColumn, sortDirection])
     const selectedProducts = products.filter((product) => selectedProductIds.has(product._id))
     const singleSelectedProduct = selectedProducts.length === 1 ? selectedProducts[0] : null
-    const intendedSellingPricesByProductId = React.useMemo(() => getAllIntendedSellingPrices(), [products])
+    const intendedSellingPricesByProductId = React.useMemo(() => getAllIntendedSellingPrices(products), [products])
     const currentEditProduct = React.useMemo(() => {
         return products.find((p) => p._id === editProductId)
     }, [products, editProductId])

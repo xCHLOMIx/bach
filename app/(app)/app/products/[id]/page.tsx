@@ -36,7 +36,6 @@ import {
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
-import { getIntendedSellingPrice, setIntendedSellingPrice } from "@/lib/intended-pricing"
 
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"]
 
@@ -53,6 +52,7 @@ type Product = {
   exchangeRate?: number
   purchasePriceRWF: number
   landedCost: number
+  intendedSellingPrice?: number | null
   externalLink?: string
   images: string[]
   createdAt: string
@@ -295,7 +295,7 @@ export default function ProductDetailsPage() {
     setEditProductName(currentProduct.name)
     setEditQuantityInitial(String(currentProduct.quantityInitial))
     setEditUnitPriceForeign(formatDecimalWithCommas(String(currentProduct.unitPriceForeign)))
-    setEditIntendedSellingPrice(formatDecimalWithCommas(String(getIntendedSellingPrice(currentProduct._id) ?? "")))
+    setEditIntendedSellingPrice(formatDecimalWithCommas(String(currentProduct.intendedSellingPrice ?? "")))
     setEditExternalLink(currentProduct.externalLink ?? "")
     setEditSourceCurrency(currentProduct.sourceCurrency)
     setEditExchangeRate(formatDecimalWithCommas(String(currentProduct.exchangeRate ?? 1)))
@@ -478,8 +478,8 @@ export default function ProductDetailsPage() {
       return undefined
     }
 
-    return getIntendedSellingPrice(product._id)
-  }, [product?._id, isEditProductSheetOpen])
+    return product.intendedSellingPrice
+  }, [product?._id, product?.intendedSellingPrice, isEditProductSheetOpen])
 
   const intendedProfitPerUnit = useMemo(() => {
     if (!product || typeof intendedSellingPrice !== "number") {
