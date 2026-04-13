@@ -250,7 +250,9 @@ export function ProductsPage() {
     const isPreviewOpen = previewImages.length > 0
     const editGeneratedObjectUrlsRef = React.useRef<string[]>([])
     const productSearchInputRef = React.useRef<HTMLInputElement | null>(null)
+    const productSearchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
     const hasHydratedSearchSortRef = React.useRef(false)
+    const isInitialMountRef = React.useRef(true)
 
     // Filter and pagination state
     const [isFilterSheetOpen, setIsFilterSheetOpen] = React.useState(false)
@@ -497,7 +499,7 @@ export function ProductsPage() {
         } finally {
             setIsLoading(false)
         }
-    }, [productSearch, filterPriceMin, filterPriceMax, filterCategories, filterBatches, sortColumn, sortDirection, itemsPerPage, getApiSortColumn])
+    }, [filterPriceMin, filterPriceMax, filterCategories, filterBatches, sortColumn, sortDirection, itemsPerPage, getApiSortColumn])
 
     // Apply filters with current state values - plain function, not memoized
     const applyFilters = async () => {
@@ -1693,6 +1695,29 @@ export function ProductsPage() {
         void loadProducts(1, nextSearch)
     }, [loadProducts])
 
+    React.useEffect(() => {
+        if (isInitialMountRef.current) {
+            isInitialMountRef.current = false
+            return
+        }
+
+        if (productSearchTimeoutRef.current) {
+            clearTimeout(productSearchTimeoutRef.current)
+        }
+
+        productSearchTimeoutRef.current = setTimeout(() => {
+            const nextSearch = productSearchInput.trim()
+            setProductSearch(nextSearch)
+            void loadProducts(1, nextSearch)
+        }, 1000)
+
+        return () => {
+            if (productSearchTimeoutRef.current) {
+                clearTimeout(productSearchTimeoutRef.current)
+            }
+        }
+    }, [productSearchInput, loadProducts])
+
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
             <CardHeader className="flex items-center justify-between gap-3">
@@ -1778,12 +1803,6 @@ export function ProductsPage() {
                                     ref={productSearchInputRef}
                                     value={productSearchInput}
                                     onChange={(event) => setProductSearchInput(event.target.value)}
-                                    onKeyDown={(event) => {
-                                        if (event.key === "Enter") {
-                                            event.preventDefault()
-                                            applyProductSearch(productSearchInput)
-                                        }
-                                    }}
                                     placeholder="Search products"
                                     className="h-12 pr-18 pl-9"
                                 />
@@ -1792,7 +1811,6 @@ export function ProductsPage() {
                                         type="button"
                                         onClick={() => {
                                             setProductSearchInput("")
-                                            applyProductSearch("")
                                         }}
                                         className="absolute right-1 top-1 bottom-1 flex w-10 items-center justify-center rounded-md bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700"
                                     >

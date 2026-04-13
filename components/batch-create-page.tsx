@@ -83,9 +83,11 @@ export function BatchCreatePage() {
     const [errors, setErrors] = React.useState<Record<string, string>>({})
 
     const [productSearch, setProductSearch] = React.useState("")
+    const [productSearchInput, setProductSearchInput] = React.useState("")
     const [productPage, setProductPage] = React.useState(1)
     const productSearchInputRef = React.useRef<HTMLInputElement | null>(null)
     const submitIntentRef = React.useRef(false)
+    const productSearchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
 
     const stripCommas = (value: string) => value.replace(/,/g, "")
 
@@ -262,6 +264,22 @@ export function BatchCreatePage() {
         window.addEventListener("keydown", handleSearchShortcut)
         return () => window.removeEventListener("keydown", handleSearchShortcut)
     }, [])
+
+    React.useEffect(() => {
+        if (productSearchTimeoutRef.current) {
+            clearTimeout(productSearchTimeoutRef.current)
+        }
+
+        productSearchTimeoutRef.current = setTimeout(() => {
+            setProductSearch(productSearchInput)
+        }, 1000)
+
+        return () => {
+            if (productSearchTimeoutRef.current) {
+                clearTimeout(productSearchTimeoutRef.current)
+            }
+        }
+    }, [productSearchInput])
 
     React.useEffect(() => {
         setProductPage(1)
@@ -566,15 +584,15 @@ export function BatchCreatePage() {
                         <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             ref={productSearchInputRef}
-                            value={productSearch}
-                            onChange={(event) => setProductSearch(event.target.value)}
+                            value={productSearchInput}
+                            onChange={(event) => setProductSearchInput(event.target.value)}
                             placeholder="Search products"
                             className="h-12 pr-18 pl-9"
                         />
-                        {productSearch ? (
+                        {productSearchInput ? (
                             <button
                                 type="button"
-                                onClick={() => setProductSearch("")}
+                                onClick={() => setProductSearchInput("")}
                                 className="absolute right-1 top-1 bottom-1 flex w-10 items-center justify-center rounded-md bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700"
                                 aria-label="Clear search"
                             >
