@@ -696,7 +696,7 @@ export function BatchCreatePage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {tableRowsData.map((row) => {
+                        {tableRowsData.map((row, index) => {
                             const unitSellingPrice = typeof row.intendedSellingPrice === "number" ? row.intendedSellingPrice : row.finalTotal / row.quantity
                             const totalSellingPrice = typeof row.intendedSellingPrice === "number" ? row.intendedSellingPrice * row.quantity : row.finalTotal
                             const unitLandedCost = row.finalTotal / row.quantity
@@ -705,7 +705,7 @@ export function BatchCreatePage() {
 
                             return (
                                 <TableRow key={row._id}>
-                                    <TableCell className="truncate max-w-xs font-medium">{row.name}</TableCell>
+                                    <TableCell className="truncate max-w-xs font-medium">{index + 1}. {row.name}</TableCell>
                                     <TableCell className="text-right">{row.quantity.toLocaleString()}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="text-sm">Unit: {row.baseUnitPrice.toLocaleString()}</div>

@@ -848,7 +848,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {selectedProducts.map((product) => {
+                            {selectedProducts.map((product, index) => {
                                 const preview = allocationPreviewByProductId.get(product._id)
                                 const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
                                 const productTotal = baseUnitPrice * product.quantityInitial
@@ -859,7 +859,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
 
                                 return (
                                     <TableRow key={product._id}>
-                                        <TableCell className="truncate max-w-xs font-medium">{product.name}</TableCell>
+                                        <TableCell className="truncate max-w-xs font-medium">{index + 1}. {product.name}</TableCell>
                                         <TableCell className="text-right">{product.quantityInitial.toLocaleString()}</TableCell>
                                         <TableCell className="text-right">
                                             {product.quantityInitial === 1 ? (
@@ -1539,16 +1539,6 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             No expense details above 0.
                         </div>
                     )}
-                    <div className="w-max rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Entries</p>
-                        <p className="mt-2 text-sm font-medium text-foreground">{selectedProducts.length.toLocaleString()}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">Distinct products in batch</p>
-                    </div>
-                    <div className="w-max rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Entries</p>
-                        <p className="mt-2 text-sm font-medium text-foreground">{selectedProducts.length.toLocaleString()}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">Distinct products in batch</p>
-                    </div>
                     <div className="w-max rounded-md border p-3">
                         <div className="flex items-center justify-between gap-2">
                             <p className="text-xs text-muted-foreground">Tracking number</p>
