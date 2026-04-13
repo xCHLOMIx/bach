@@ -17,13 +17,69 @@ export async function GET(request: NextRequest) {
   const user = await getAuthorizedUser(request)
   if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
 
-  const products = await ProductModel.find({ userId: user._id })
+  const searchParams = request.nextUrl.searchParams
+  const page = Math.max(1, Number(searchParams.get("page") ?? "1"))
+  const limit = Math.max(1, Number(searchParams.get("limit") ?? "20"))
+  const search = String(searchParams.get("search") ?? "").trim()
+  const priceMin = searchParams.get("priceMin") ? Number(searchParams.get("priceMin")) : null
+  const priceMax = searchParams.get("priceMax") ? Number(searchParams.get("priceMax")) : null
+  const categoriesParam = searchParams.get("categories")
+  const batchesParam = searchParams.get("batches")
+  const sortColumn = String(searchParams.get("sortColumn") ?? "name")
+  const sortDirection = String(searchParams.get("sortDirection") ?? "asc") as "asc" | "desc"
+
+  // Build filter object
+  const filter: any = { userId: user._id }
+
+  // Search filter
+  if (search) {
+    filter.name = { $regex: search, $options: "i" }
+  }
+
+  // Category filter
+  if (categoriesParam) {
+    const categoryIds = categoriesParam
+      .split(",")
+      .filter((id) => id.trim())
+      .map((id) => new Types.ObjectId(id.trim()))
+    if (categoryIds.length > 0) {
+      filter.categoryId = { $in: categoryIds }
+    }
+  }
+
+  // Batch filter
+  if (batchesParam) {
+    const batchIds = batchesParam
+      .split(",")
+      .filter((id) => id.trim())
+      .map((id) => new Types.ObjectId(id.trim()))
+    if (batchIds.length > 0) {
+      filter.batchId = { $in: batchIds }
+    }
+  }
+
+  // Price filter
+  if (priceMin !== null || priceMax !== null) {
+    filter.landedCost = {}
+    if (priceMin !== null) filter.landedCost.$gte = priceMin
+    if (priceMax !== null) filter.landedCost.$lte = priceMax
+  }
+
+  // Build sort object
+  const sortObj: any = {}
+  sortObj[sortColumn] = sortDirection === "asc" ? 1 : -1
+
+  // Execute query with pagination
+  const totalCount = await ProductModel.countDocuments(filter)
+  const products = await ProductModel.find(filter)
     .populate("categoryId", "name")
     .populate("batchId", "batchName")
-    .sort({ createdAt: -1 })
+    .sort(sortObj)
+    .skip((page - 1) * limit)
+    .limit(limit)
     .lean()
 
-  return successResponse({ products })
+  return successResponse({ products, totalCount })
 }
 
 export async function POST(request: NextRequest) {

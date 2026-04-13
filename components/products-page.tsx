@@ -93,6 +93,7 @@ type Product = {
 type ProductTableColumnKey =
     | "image"
     | "name"
+    | "category"
     | "addedAt"
     | "batch"
     | "onHand"
@@ -106,6 +107,7 @@ type ProductSortDirection = "asc" | "desc"
 const DEFAULT_PRODUCT_COLUMN_ORDER: ProductTableColumnKey[] = [
     "image",
     "name",
+    "category",
     "addedAt",
     "batch",
     "onHand",
@@ -160,6 +162,7 @@ export function ProductsPage() {
     const [visibleColumns, setVisibleColumns] = React.useState<Record<ProductTableColumnKey, boolean>>({
         image: true,
         name: true,
+        category: true,
         addedAt: true,
         batch: true,
         onHand: true,
@@ -245,6 +248,17 @@ export function ProductsPage() {
     const isPreviewOpen = previewImages.length > 0
     const editGeneratedObjectUrlsRef = React.useRef<string[]>([])
     const productSearchInputRef = React.useRef<HTMLInputElement | null>(null)
+
+    // Filter and pagination state
+    const [isFilterSheetOpen, setIsFilterSheetOpen] = React.useState(false)
+    const [filterPriceMin, setFilterPriceMin] = React.useState("")
+    const [filterPriceMax, setFilterPriceMax] = React.useState("")
+    const [filterCategories, setFilterCategories] = React.useState<Set<string>>(new Set())
+    const [filterBatches, setFilterBatches] = React.useState<Set<string>>(new Set())
+    const [currentPage, setCurrentPage] = React.useState(1)
+    const [totalCount, setTotalCount] = React.useState(0)
+    const itemsPerPage = 20
+    const totalPages = Math.ceil(totalCount / itemsPerPage)
 
     const openImagePreview = React.useCallback((images: string[], index: number) => {
         if (images.length === 0) {
@@ -429,19 +443,65 @@ export function ProductsPage() {
         return formatDecimalWithCommas(`${beforeDot}${afterDot}`)
     }
 
-    const loadProducts = React.useCallback(async () => {
+    const loadProducts = React.useCallback(async (page: number = 1) => {
         setIsLoading(true)
         try {
-            const productsResponse = await fetch("/api/products")
+            const params = new URLSearchParams()
+            params.set("page", page.toString())
+            params.set("limit", itemsPerPage.toString())
+            params.set("search", productSearch)
+
+            if (filterPriceMin) params.set("priceMin", stripCommas(filterPriceMin))
+            if (filterPriceMax) params.set("priceMax", stripCommas(filterPriceMax))
+            if (filterCategories.size > 0) params.set("categories", Array.from(filterCategories).join(","))
+            if (filterBatches.size > 0) params.set("batches", Array.from(filterBatches).join(","))
+
+            params.set("sortColumn", sortColumn)
+            params.set("sortDirection", sortDirection)
+
+            const productsResponse = await fetch(`/api/products?${params.toString()}`)
 
             if (productsResponse.ok) {
                 const productsData = await productsResponse.json()
                 setProducts(productsData.products ?? [])
+                setTotalCount(productsData.totalCount ?? 0)
+                setCurrentPage(page)
             }
         } finally {
             setIsLoading(false)
         }
-    }, [])
+    }, [productSearch, filterPriceMin, filterPriceMax, filterCategories, filterBatches, sortColumn, sortDirection, itemsPerPage])
+
+    // Apply filters with current state values - plain function, not memoized
+    const applyFilters = async () => {
+        setIsLoading(true)
+        try {
+            const params = new URLSearchParams()
+            params.set("page", "1")
+            params.set("limit", itemsPerPage.toString())
+            params.set("search", productSearch)
+
+            if (filterPriceMin) params.set("priceMin", stripCommas(filterPriceMin))
+            if (filterPriceMax) params.set("priceMax", stripCommas(filterPriceMax))
+            if (filterCategories.size > 0) params.set("categories", Array.from(filterCategories).join(","))
+            if (filterBatches.size > 0) params.set("batches", Array.from(filterBatches).join(","))
+
+            params.set("sortColumn", sortColumn)
+            params.set("sortDirection", sortDirection)
+
+            const productsResponse = await fetch(`/api/products?${params.toString()}`)
+
+            if (productsResponse.ok) {
+                const productsData = await productsResponse.json()
+                setProducts(productsData.products ?? [])
+                setTotalCount(productsData.totalCount ?? 0)
+                setCurrentPage(1)
+                setIsFilterSheetOpen(false)
+            }
+        } finally {
+            setIsLoading(false)
+        }
+    }
 
     const loadFormOptions = React.useCallback(async () => {
         const [categoriesResponse, batchesResponse] = await Promise.all([
@@ -499,8 +559,23 @@ export function ProductsPage() {
     }, [ensureFormOptionsLoaded, isPreviewOpen])
 
     React.useEffect(() => {
-        loadProducts()
-    }, [loadProducts])
+        if (isFilterSheetOpen) {
+            void ensureFormOptionsLoaded()
+        }
+    }, [isFilterSheetOpen, ensureFormOptionsLoaded])
+
+    React.useEffect(() => {
+        loadProducts(1)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
+    // Trigger reload when search or sort changes (not on filter state changes)
+    React.useEffect(() => {
+        if (currentPage !== 1) {
+            loadProducts(1)
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [productSearch, sortColumn, sortDirection])
 
     React.useEffect(() => {
         const savedViewMode = window.localStorage.getItem(PRODUCTS_VIEW_MODE_STORAGE_KEY)
@@ -744,7 +819,7 @@ export function ProductsPage() {
             setExchangeRate("")
             setImageFiles([])
             setIsAddProductSheetOpen(false)
-            await loadProducts()
+            await loadProducts(1)
         } finally {
             setIsSubmitting(false)
         }
@@ -957,7 +1032,7 @@ export function ProductsPage() {
                 setShowSaleModal(false)
                 resetSaleDraft()
                 setSelectedProductIds(new Set())
-                await loadProducts()
+                await loadProducts(1)
                 return
             } finally {
                 setIsSaleSubmitting(false)
@@ -994,7 +1069,7 @@ export function ProductsPage() {
             setShowSaleModal(false)
             resetSaleDraft()
             setSelectedProductIds(new Set())
-            await loadProducts()
+            await loadProducts(1)
         } finally {
             setIsSaleSubmitting(false)
         }
@@ -1105,7 +1180,7 @@ export function ProductsPage() {
             setEditBatchId("")
             clearEditImages()
             setIsEditProductSheetOpen(false)
-            await loadProducts()
+            await loadProducts(1)
         } finally {
             setIsEditSubmitting(false)
         }
@@ -1174,7 +1249,7 @@ export function ProductsPage() {
             setShowDeleteConfirm(false)
             setDeleteConfirmData(null)
             setIsDeleteInfoLoading(false)
-            await loadProducts()
+            await loadProducts(1)
         } catch (error) {
             alert("Failed to delete product")
             console.error(error)
@@ -1186,62 +1261,10 @@ export function ProductsPage() {
     const saleFilteredProducts = products.filter((product) =>
         product.name.toLowerCase().includes(saleProductSearch.toLowerCase())
     )
-    const filteredProducts = products.filter((product) =>
-        product.name.toLowerCase().includes(productSearch.toLowerCase().trim())
-    )
-    const sortedFilteredProducts = React.useMemo(() => {
-        const sorted = [...filteredProducts]
 
-        const stringCollator = new Intl.Collator(undefined, {
-            sensitivity: "base",
-            numeric: true,
-        })
-
-        const getSortValue = (product: Product, column: ProductSortColumn) => {
-            if (column === "name") {
-                return product.name
-            }
-
-            if (column === "addedAt") {
-                return new Date(product.createdAt).getTime()
-            }
-
-            if (column === "batch") {
-                return product.batchId?.batchName ?? ""
-            }
-
-            if (column === "onHand") {
-                return product.quantityRemaining
-            }
-
-            if (column === "buyingPrice") {
-                return product.purchasePriceRWF
-            }
-
-            if (column === "landedPrice") {
-                return product.landedCost
-            }
-
-            return product.landedCost * product.quantityRemaining
-        }
-
-        sorted.sort((a, b) => {
-            const aValue = getSortValue(a, sortColumn)
-            const bValue = getSortValue(b, sortColumn)
-
-            let result = 0
-
-            if (typeof aValue === "number" && typeof bValue === "number") {
-                result = aValue - bValue
-            } else {
-                result = stringCollator.compare(String(aValue), String(bValue))
-            }
-
-            return sortDirection === "asc" ? result : -result
-        })
-
-        return sorted
-    }, [filteredProducts, sortColumn, sortDirection])
+    // Server is now handling filtering and sorting, so just use products directly
+    const sortedFilteredProducts = products
+    const paginatedProducts = products
     const selectedProducts = products.filter((product) => selectedProductIds.has(product._id))
     const singleSelectedProduct = selectedProducts.length === 1 ? selectedProducts[0] : null
     const intendedSellingPricesByProductId = React.useMemo(() => getAllIntendedSellingPrices(products), [products])
@@ -1276,6 +1299,7 @@ export function ProductsPage() {
     const columnLabels: Record<ProductTableColumnKey, string> = {
         image: "Image",
         name: "Name",
+        category: "Category",
         addedAt: "Added",
         batch: "Batch",
         onHand: "On Hand",
@@ -1357,6 +1381,21 @@ export function ProductsPage() {
                             {product.name}
                         </span>
                     </Link>
+                </TableCell>
+            )
+        }
+
+        if (columnKey === "category") {
+            return (
+                <TableCell className="p-0">
+                    <div className="block p-2">
+                        <span
+                            className="block w-11/12 overflow-hidden text-ellipsis whitespace-nowrap"
+                            title={product.categoryId?.name ?? "No Category"}
+                        >
+                            {product.categoryId?.name ?? "No Category"}
+                        </span>
+                    </div>
                 </TableCell>
             )
         }
@@ -1528,7 +1567,7 @@ export function ProductsPage() {
 
             setShowBulkDeleteConfirm(false)
             setSelectedProductIds(new Set())
-            await loadProducts()
+            await loadProducts(1)
         } finally {
             setIsBulkDeleting(false)
         }
@@ -1668,10 +1707,20 @@ export function ProductsPage() {
                                     placeholder="Search products"
                                     className="pr-18 pl-9"
                                 />
-                                <KbdGroup className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex">
-                                    <Kbd>Ctrl</Kbd>
-                                    <Kbd>F</Kbd>
-                                </KbdGroup>
+                                {productSearch ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setProductSearch("")}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    >
+                                        <XIcon className="h-4 w-4" />
+                                    </button>
+                                ) : (
+                                    <KbdGroup className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex">
+                                        <Kbd>Ctrl</Kbd>
+                                        <Kbd>F</Kbd>
+                                    </KbdGroup>
+                                )}
                             </div>
                             <div className="flex w-full items-center gap-2 sm:w-auto">
                                 <h3 className="text-sm text-muted-foreground">Total</h3>
@@ -1684,6 +1733,142 @@ export function ProductsPage() {
                                 )}
                             </div>
                             <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end sm:ml-auto">
+                                {(filterPriceMin || filterPriceMax || filterCategories.size > 0 || filterBatches.size > 0) && (
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {
+                                            setFilterPriceMin("")
+                                            setFilterPriceMax("")
+                                            setFilterCategories(new Set())
+                                            setFilterBatches(new Set())
+                                        }}
+                                    >
+                                        Clear Filters
+                                    </Button>
+                                )}
+                                <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
+                                    <SheetTrigger asChild>
+                                        <Button size="sm" variant="outline">
+                                            Filter
+                                        </Button>
+                                    </SheetTrigger>
+                                    <SheetContent side="right" className="w-full sm:w-96 overflow-y-auto" overlayClassName="" overlayStyle={{ backgroundColor: "transparent" }}>
+                                        <SheetHeader>
+                                            <SheetTitle>Filter Products</SheetTitle>
+                                            <SheetDescription>Apply filters to narrow down your product list</SheetDescription>
+                                        </SheetHeader>
+                                        <div className="space-y-6 py-6 px-6">
+                                            {/* Landed Cost Range Filter */}
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">Landed Cost Range (RWF)</label>
+                                                <div className="flex gap-2 mt-2 items-center">
+                                                    <div className="flex-1">
+                                                        <Input
+                                                            type="text"
+                                                            placeholder="Min"
+                                                            value={filterPriceMin}
+                                                            onChange={(e) => setFilterPriceMin(toDecimalInput(e.target.value))}
+                                                        />
+                                                    </div> -
+                                                    <div className="flex-1">
+                                                        <Input
+                                                            type="text"
+                                                            placeholder="Max"
+                                                            value={filterPriceMax}
+                                                            onChange={(e) => setFilterPriceMax(toDecimalInput(e.target.value))}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Category Filter */}
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">Categories</label>
+                                                <div className="space-y-2 max-h-48 mt-2 overflow-y-auto border rounded-md p-3">
+                                                    {categories.length === 0 ? (
+                                                        <p className="text-sm text-muted-foreground">No categories available</p>
+                                                    ) : (
+                                                        categories.map((category) => (
+                                                            <div key={category._id} className="flex items-center gap-2">
+                                                                <Checkbox
+                                                                    id={`category-${category._id}`}
+                                                                    checked={filterCategories.has(category._id)}
+                                                                    onCheckedChange={(checked) => {
+                                                                        setFilterCategories((prev) => {
+                                                                            const next = new Set(prev)
+                                                                            if (checked) {
+                                                                                next.add(category._id)
+                                                                            } else {
+                                                                                next.delete(category._id)
+                                                                            }
+                                                                            return next
+                                                                        })
+                                                                    }}
+                                                                />
+                                                                <label htmlFor={`category-${category._id}`} className="text-sm cursor-pointer">{category.name}</label>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Batch Filter */}
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">Batches</label>
+                                                <div className="space-y-2 max-h-48 mt-2 overflow-y-auto border rounded-md p-3">
+                                                    {batches.length === 0 ? (
+                                                        <p className="text-sm text-muted-foreground">No batches available</p>
+                                                    ) : (
+                                                        batches.map((batch) => (
+                                                            <div key={batch._id} className="flex items-center gap-2">
+                                                                <Checkbox
+                                                                    id={`batch-${batch._id}`}
+                                                                    checked={filterBatches.has(batch._id)}
+                                                                    onCheckedChange={(checked) => {
+                                                                        setFilterBatches((prev) => {
+                                                                            const next = new Set(prev)
+                                                                            if (checked) {
+                                                                                next.add(batch._id)
+                                                                            } else {
+                                                                                next.delete(batch._id)
+                                                                            }
+                                                                            return next
+                                                                        })
+                                                                    }}
+                                                                />
+                                                                <label htmlFor={`batch-${batch._id}`} className="text-sm cursor-pointer">{batch.batchName}</label>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-2 border-t pt-6 px-6">
+                                            <Button
+                                                variant="outline"
+                                                className="flex-1"
+                                                onClick={() => {
+                                                    setFilterPriceMin("")
+                                                    setFilterPriceMax("")
+                                                    setFilterCategories(new Set())
+                                                    setFilterBatches(new Set())
+                                                    setProductSearch("")
+                                                }}
+                                            >
+                                                Clear All
+                                            </Button>
+                                            <Button
+                                                className="flex-1"
+                                                onClick={applyFilters}
+                                            >
+                                                Apply Filters
+                                            </Button>
+                                        </div>
+                                    </SheetContent>
+                                </Sheet>
+
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button size="sm" variant="outline">
@@ -1697,6 +1882,7 @@ export function ProductsPage() {
                                         <DropdownMenuSeparator />
                                         <DropdownMenuCheckboxItem checked={visibleColumns.image} onCheckedChange={(value) => handleColumnVisibilityChange("image", Boolean(value))}>Image</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.name} onCheckedChange={(value) => handleColumnVisibilityChange("name", Boolean(value))}>Name</DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem checked={visibleColumns.category} onCheckedChange={(value) => handleColumnVisibilityChange("category", Boolean(value))}>Category</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.addedAt} onCheckedChange={(value) => handleColumnVisibilityChange("addedAt", Boolean(value))}>Added</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.batch} onCheckedChange={(value) => handleColumnVisibilityChange("batch", Boolean(value))}>Batch</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.onHand} onCheckedChange={(value) => handleColumnVisibilityChange("onHand", Boolean(value))}>On Hand</DropdownMenuCheckboxItem>
@@ -1743,15 +1929,23 @@ export function ProductsPage() {
                                         <TableRow>
                                             <TableHead className="w-12">
                                                 <Checkbox
-                                                    checked={selectedProductIds.size === sortedFilteredProducts.length && sortedFilteredProducts.length > 0}
+                                                    checked={paginatedProducts.length > 0 && paginatedProducts.every((product) => selectedProductIds.has(product._id))}
                                                     onCheckedChange={(value) => {
                                                         if (value) {
-                                                            setSelectedProductIds(new Set(sortedFilteredProducts.map((product) => product._id)))
+                                                            setSelectedProductIds((prev) => {
+                                                                const next = new Set(prev)
+                                                                paginatedProducts.forEach((product) => next.add(product._id))
+                                                                return next
+                                                            })
                                                         } else {
-                                                            setSelectedProductIds(new Set())
+                                                            setSelectedProductIds((prev) => {
+                                                                const next = new Set(prev)
+                                                                paginatedProducts.forEach((product) => next.delete(product._id))
+                                                                return next
+                                                            })
                                                         }
                                                     }}
-                                                    title="Select all"
+                                                    title="Select all on this page"
                                                 />
                                             </TableHead>
                                             {orderedVisibleColumns.map((columnKey) => (
@@ -1792,7 +1986,7 @@ export function ProductsPage() {
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
-                                            sortedFilteredProducts.map((product) => (
+                                            paginatedProducts.map((product) => (
                                                 <TableRow
                                                     key={product._id}
                                                     className={selectedProductIds.has(product._id) ? "bg-primary/20 text-foreground hover:bg-primary/20 cursor-default" : "hover:bg-muted/40 cursor-default"}
@@ -1835,81 +2029,189 @@ export function ProductsPage() {
                                 </Table>
                             </div>
                         </div>
+
+                        {/* Pagination Controls */}
+                        {totalCount > 0 && (
+                            <div className="mt-4 flex items-center justify-between">
+                                <p className="text-sm text-muted-foreground">
+                                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} products
+                                </p>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => loadProducts(Math.max(currentPage - 1, 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        <ChevronLeftIcon className="h-4 w-4" />
+                                        Previous
+                                    </Button>
+                                    <div className="flex items-center gap-1">
+                                        {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+                                            let pageNum;
+                                            if (totalPages <= 5) {
+                                                pageNum = i + 1;
+                                            } else if (currentPage <= 3) {
+                                                pageNum = i + 1;
+                                            } else if (currentPage >= totalPages - 2) {
+                                                pageNum = totalPages - 4 + i;
+                                            } else {
+                                                pageNum = currentPage - 2 + i;
+                                            }
+                                            return (
+                                                <Button
+                                                    key={pageNum}
+                                                    variant={currentPage === pageNum ? "default" : "outline"}
+                                                    size="sm"
+                                                    onClick={() => loadProducts(pageNum)}
+                                                >
+                                                    {pageNum}
+                                                </Button>
+                                            );
+                                        })}
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => loadProducts(Math.min(currentPage + 1, totalPages))}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        Next
+                                        <ChevronRightIcon className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </>
                 ) : (
-                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                        {sortedFilteredProducts.map((product) => (
-                            (() => {
-                                const intendedSellingPrice = intendedSellingPricesByProductId[product._id]
-                                const intendedProfitPerUnit = typeof intendedSellingPrice === "number"
-                                    ? intendedSellingPrice - product.landedCost
-                                    : undefined
+                    <>
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                            {paginatedProducts.map((product) => (
+                                (() => {
+                                    const intendedSellingPrice = intendedSellingPricesByProductId[product._id]
+                                    const intendedProfitPerUnit = typeof intendedSellingPrice === "number"
+                                        ? intendedSellingPrice - product.landedCost
+                                        : undefined
 
-                                return (
-                                    <div
-                                        key={product._id}
-                                        className="cursor-pointer rounded-lg border bg-card p-4"
-                                        role="link"
-                                        tabIndex={0}
-                                        onClick={() => router.push(`/app/products/${product._id}`)}
-                                        onKeyDown={(event) => {
-                                            if (event.key === "Enter" || event.key === " ") {
-                                                event.preventDefault()
-                                                router.push(`/app/products/${product._id}`)
-                                            }
-                                        }}
-                                    >
-                                        <Link href={`/app/products/${product._id}`} className="block mb-3 overflow-hidden rounded-md border bg-muted">
-                                            {product.images?.[0] ? (
-                                                <img
-                                                    src={product.images[0]}
-                                                    alt={product.name}
-                                                    className="h-36 w-full object-cover"
-                                                    loading="lazy"
-                                                />
-                                            ) : (
-                                                <div className="h-36 w-full flex items-center justify-center">
-                                                    <div className="text-3xl font-bold text-muted-foreground">
-                                                        {product.name.replace(/\s+/g, "").slice(0, 2).toUpperCase()}
+                                    return (
+                                        <div
+                                            key={product._id}
+                                            className="cursor-pointer rounded-lg border bg-card p-4"
+                                            role="link"
+                                            tabIndex={0}
+                                            onClick={() => router.push(`/app/products/${product._id}`)}
+                                            onKeyDown={(event) => {
+                                                if (event.key === "Enter" || event.key === " ") {
+                                                    event.preventDefault()
+                                                    router.push(`/app/products/${product._id}`)
+                                                }
+                                            }}
+                                        >
+                                            <Link href={`/app/products/${product._id}`} className="block mb-3 overflow-hidden rounded-md border bg-muted">
+                                                {product.images?.[0] ? (
+                                                    <img
+                                                        src={product.images[0]}
+                                                        alt={product.name}
+                                                        className="h-36 w-full object-cover"
+                                                        loading="lazy"
+                                                    />
+                                                ) : (
+                                                    <div className="h-36 w-full flex items-center justify-center">
+                                                        <div className="text-3xl font-bold text-muted-foreground">
+                                                            {product.name.replace(/\s+/g, "").slice(0, 2).toUpperCase()}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            )}
-                                        </Link>
-                                        <div className="mb-1 truncate text-base font-semibold text-card-foreground">
-                                            <Link href={`/app/products/${product._id}`} className="hover:underline">
-                                                {product.name}
+                                                )}
                                             </Link>
+                                            <div className="mb-1 truncate text-base font-semibold text-card-foreground">
+                                                <Link href={`/app/products/${product._id}`} className="hover:underline">
+                                                    {product.name}
+                                                </Link>
+                                            </div>
+                                            <div className="text-sm text-muted-foreground">Category: {product.categoryId?.name ?? "-"}</div>
+                                            <div className="text-sm text-muted-foreground">Batch: {product.batchId?.batchName ?? "Unassigned"}</div>
+                                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                                                <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
+                                                    Stock: {product.quantityRemaining}
+                                                </Badge>
+                                                <Badge variant="secondary" className="text-white">Buying Price: RWF {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Badge>
+                                            </div>
+                                            <div className="mt-3 text-xs text-muted-foreground">
+                                                Landed Costs (RWF): {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </div>
+                                            <div className="mt-1 text-xs text-muted-foreground">
+                                                Selling Price (RWF): {typeof intendedSellingPrice === "number"
+                                                    ? intendedSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                                    : "-"}
+                                            </div>
+                                            <div className={cn("mt-1 text-xs", typeof intendedProfitPerUnit === "number" && intendedProfitPerUnit >= 0 ? "text-emerald-600" : "text-destructive")}>
+                                                Intended Profit / Unit (RWF): {typeof intendedProfitPerUnit === "number"
+                                                    ? intendedProfitPerUnit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                                    : "-"}
+                                            </div>
+                                            <div className="mt-1 text-xs text-muted-foreground">
+                                                Total Landed Cost (RWF): {(product.landedCost * product.quantityRemaining).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </div>
+                                            <div className="mt-4" onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</div>
                                         </div>
-                                        <div className="text-sm text-muted-foreground">Category: {product.categoryId?.name ?? "-"}</div>
-                                        <div className="text-sm text-muted-foreground">Batch: {product.batchId?.batchName ?? "Unassigned"}</div>
-                                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                                            <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
-                                                Stock: {product.quantityRemaining}
-                                            </Badge>
-                                            <Badge variant="secondary" className="text-white">Buying Price: RWF {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Badge>
-                                        </div>
-                                        <div className="mt-3 text-xs text-muted-foreground">
-                                            Landed Costs (RWF): {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </div>
-                                        <div className="mt-1 text-xs text-muted-foreground">
-                                            Selling Price (RWF): {typeof intendedSellingPrice === "number"
-                                                ? intendedSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                                : "-"}
-                                        </div>
-                                        <div className={cn("mt-1 text-xs", typeof intendedProfitPerUnit === "number" && intendedProfitPerUnit >= 0 ? "text-emerald-600" : "text-destructive")}>
-                                            Intended Profit / Unit (RWF): {typeof intendedProfitPerUnit === "number"
-                                                ? intendedProfitPerUnit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                                : "-"}
-                                        </div>
-                                        <div className="mt-1 text-xs text-muted-foreground">
-                                            Total Landed Cost (RWF): {(product.landedCost * product.quantityRemaining).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </div>
-                                        <div className="mt-4" onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</div>
+                                    )
+                                })()
+                            ))}
+                        </div>
+
+                        {/* Grid View Pagination Controls */}
+                        {totalCount > 0 && (
+                            <div className="mt-6 flex items-center justify-between">
+                                <p className="text-sm text-muted-foreground">
+                                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} products
+                                </p>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => loadProducts(Math.max(currentPage - 1, 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        <ChevronLeftIcon className="h-4 w-4" />
+                                        Previous
+                                    </Button>
+                                    <div className="flex items-center gap-1">
+                                        {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+                                            let pageNum;
+                                            if (totalPages <= 5) {
+                                                pageNum = i + 1;
+                                            } else if (currentPage <= 3) {
+                                                pageNum = i + 1;
+                                            } else if (currentPage >= totalPages - 2) {
+                                                pageNum = totalPages - 4 + i;
+                                            } else {
+                                                pageNum = currentPage - 2 + i;
+                                            }
+                                            return (
+                                                <Button
+                                                    key={pageNum}
+                                                    variant={currentPage === pageNum ? "default" : "outline"}
+                                                    size="sm"
+                                                    onClick={() => loadProducts(pageNum)}
+                                                >
+                                                    {pageNum}
+                                                </Button>
+                                            );
+                                        })}
                                     </div>
-                                )
-                            })()
-                        ))}
-                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => loadProducts(Math.min(currentPage + 1, totalPages))}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        Next
+                                        <ChevronRightIcon className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </>
                 )}
             </CardContent>
 
