@@ -870,7 +870,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             })}
                             <TableRow className="bg-muted/30 font-semibold">
                                 <TableCell>Totals</TableCell>
-                                <TableCell className="text-right">{totals.quantity.toLocaleString()}</TableCell>
+                                <TableCell className="text-right"></TableCell>
                                 <TableCell className="text-right">
                                     <div className="space-y-1">
                                         <div className="text-xs">Unit: {Math.floor(totals.baseTotal / totals.quantity).toLocaleString()}</div>

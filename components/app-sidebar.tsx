@@ -125,8 +125,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <button
                 onClick={handlePin}
                 className={`h-8 w-8 rounded-md transition-colors flex items-center justify-center ${isPinned
-                    ? "bg-green-100 text-green-700 hover:bg-green-200"
-                    : "hover:bg-accent hover:text-accent-foreground"
+                  ? "bg-green-100 text-green-700 hover:bg-green-200"
+                  : "hover:bg-accent hover:text-accent-foreground"
                   }`}
                 title={isPinned ? "Unpin sidebar" : "Pin sidebar"}
               >
@@ -142,12 +142,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent
         onClickCapture={(event) => {
-          if (!isMobile) {
+          if (!isMobile || isPinned) {
             return
           }
 
           const target = event.target
-          if (target instanceof Element && target.closest("a[href]") && !isPinned) {
+          if (target instanceof Element && target.closest("a[href]")) {
+            setOpenMobile(false)
+          }
+        }}
+        onClick={() => {
+          if (isMobile && !isPinned) {
             setOpenMobile(false)
           }
         }}
