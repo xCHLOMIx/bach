@@ -45,7 +45,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { convertInternationalExpenseToRwf } from "@/lib/costs"
 import { cn, formatRWF } from "@/lib/utils"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
-import { CheckIcon, CopyIcon, PackageSearchIcon, SearchIcon, ChevronUpIcon, ChevronDownIcon, Trash2Icon, Columns3Icon } from "lucide-react"
+import { CheckIcon, CopyIcon, PackageSearchIcon, SearchIcon, ChevronUpIcon, ChevronDownIcon, Trash2Icon, Columns3Icon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 
 const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "AED"] as const
@@ -846,18 +846,29 @@ export function BatchesPage() {
             </CardHeader>
 
             <div className="mb-4 flex flex-wrap items-center gap-2">
-                <div className="relative w-full sm:w-64">
+                <div className="relative w-full sm:w-96">
                     <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                         value={batchSearch || ""}
                         onChange={(event) => setBatchSearch(event.target.value)}
                         placeholder="Search batches..."
-                        className="pr-18 pl-9"
+                        className="h-12 pr-18 pl-9"
                     />
-                    <KbdGroup className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex">
-                        <Kbd>Ctrl</Kbd>
-                        <Kbd>F</Kbd>
-                    </KbdGroup>
+                    {batchSearch ? (
+                        <button
+                            type="button"
+                            onClick={() => setBatchSearch("")}
+                            className="absolute right-1 top-1 bottom-1 flex w-10 items-center justify-center rounded-md bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700"
+                            aria-label="Clear search"
+                        >
+                            <XIcon className="h-4 w-4" />
+                        </button>
+                    ) : (
+                        <KbdGroup className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex">
+                            <Kbd>Ctrl</Kbd>
+                            <Kbd>F</Kbd>
+                        </KbdGroup>
+                    )}
                 </div>
                 <div className="flex w-full items-center gap-2 sm:w-auto">
                     <h3 className="text-sm text-muted-foreground">Total</h3>
@@ -872,7 +883,7 @@ export function BatchesPage() {
                 <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end sm:ml-auto">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button size="sm" variant="outline">
+                            <Button size="sm" variant="outline" className="h-12 px-4">
                                 <Columns3Icon className="h-4 w-4" />
                                 Columns
                                 <ChevronDownIcon className="h-4 w-4" />
@@ -894,6 +905,7 @@ export function BatchesPage() {
                             <Button
                                 size="sm"
                                 variant="destructive"
+                                className="h-12 px-4"
                                 onClick={openBulkDeleteBatchesConfirm}
                                 disabled={isBulkDeleting || isBulkDeleteInfoLoading}
                                 loading={isBulkDeleting || isBulkDeleteInfoLoading}
@@ -905,6 +917,7 @@ export function BatchesPage() {
                             <Button
                                 size="sm"
                                 variant="outline"
+                                className="h-12 px-4"
                                 onClick={() => setSelectedBatchIds(new Set())}
                                 disabled={isBulkDeleting}
                             >

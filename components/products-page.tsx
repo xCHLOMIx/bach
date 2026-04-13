@@ -94,6 +94,8 @@ type Product = {
 type ProductTableColumnKey =
     | "image"
     | "name"
+    | "batch"
+    | "added"
     | "onHand"
     | "buyingPrice"
     | "sellingPrice"
@@ -106,6 +108,8 @@ type ProductSortDirection = "asc" | "desc"
 const DEFAULT_PRODUCT_COLUMN_ORDER: ProductTableColumnKey[] = [
     "image",
     "name",
+    "batch",
+    "added",
     "onHand",
     "buyingPrice",
     "landedPrice",
@@ -159,6 +163,8 @@ export function ProductsPage() {
     const [visibleColumns, setVisibleColumns] = React.useState<Record<ProductTableColumnKey, boolean>>({
         image: true,
         name: true,
+        batch: true,
+        added: true,
         onHand: true,
         buyingPrice: true,
         sellingPrice: true,
@@ -172,6 +178,7 @@ export function ProductsPage() {
     const [errors, setErrors] = React.useState<Record<string, string>>({})
     const [isSubmitting, setIsSubmitting] = React.useState(false)
     const [productSearch, setProductSearch] = React.useState("")
+    const [productSearchInput, setProductSearchInput] = React.useState("")
 
     const [productName, setProductName] = React.useState("")
     const [categoryId, setCategoryId] = React.useState("")
@@ -253,7 +260,7 @@ export function ProductsPage() {
     const [filterBatches, setFilterBatches] = React.useState<Set<string>>(new Set())
     const [currentPage, setCurrentPage] = React.useState(1)
     const [totalCount, setTotalCount] = React.useState(0)
-    const itemsPerPage = 20
+    const itemsPerPage = 60
     const totalPages = Math.ceil(totalCount / itemsPerPage)
 
     const openImagePreview = React.useCallback((images: string[], index: number) => {
@@ -443,6 +450,10 @@ export function ProductsPage() {
         switch (column) {
             case "name":
                 return "name"
+            case "batch":
+                return "batchId"
+            case "added":
+                return "createdAt"
             case "onHand":
                 return "quantityRemaining"
             case "buyingPrice":
@@ -459,13 +470,13 @@ export function ProductsPage() {
         }
     }, [])
 
-    const loadProducts = React.useCallback(async (page: number = 1) => {
+    const loadProducts = React.useCallback(async (page: number = 1, searchValue?: string) => {
         setIsLoading(true)
         try {
             const params = new URLSearchParams()
             params.set("page", page.toString())
             params.set("limit", itemsPerPage.toString())
-            params.set("search", productSearch)
+            params.set("search", searchValue ?? productSearch)
 
             if (filterPriceMin) params.set("priceMin", stripCommas(filterPriceMin))
             if (filterPriceMax) params.set("priceMax", stripCommas(filterPriceMax))
@@ -585,19 +596,15 @@ export function ProductsPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    // Trigger debounced reload when search or sort changes.
+    // Trigger reload when sort changes.
     React.useEffect(() => {
         if (!hasHydratedSearchSortRef.current) {
             hasHydratedSearchSortRef.current = true
             return
         }
 
-        const timeoutId = window.setTimeout(() => {
-            void loadProducts(1)
-        }, 250)
-
-        return () => window.clearTimeout(timeoutId)
-    }, [productSearch, sortColumn, sortDirection, loadProducts])
+        void loadProducts(1)
+    }, [sortColumn, sortDirection, loadProducts])
 
     React.useEffect(() => {
         const savedViewMode = window.localStorage.getItem(PRODUCTS_VIEW_MODE_STORAGE_KEY)
@@ -618,6 +625,8 @@ export function ProductsPage() {
                 ...current,
                 image: typeof parsed.image === "boolean" ? parsed.image : current.image,
                 name: typeof parsed.name === "boolean" ? parsed.name : current.name,
+                batch: typeof parsed.batch === "boolean" ? parsed.batch : current.batch,
+                added: typeof parsed.added === "boolean" ? parsed.added : current.added,
                 onHand: typeof parsed.onHand === "boolean" ? parsed.onHand : current.onHand,
                 buyingPrice: typeof parsed.buyingPrice === "boolean" ? parsed.buyingPrice : current.buyingPrice,
                 sellingPrice: typeof parsed.sellingPrice === "boolean" ? parsed.sellingPrice : current.sellingPrice,
@@ -689,6 +698,8 @@ export function ProductsPage() {
 
             const sortableColumns: ProductSortColumn[] = [
                 "name",
+                "batch",
+                "added",
                 "onHand",
                 "buyingPrice",
                 "sellingPrice",
@@ -698,6 +709,7 @@ export function ProductsPage() {
 
             if (typeof parsed.productSearch === "string") {
                 setProductSearch(parsed.productSearch)
+                setProductSearchInput(parsed.productSearch)
             }
             if (parsed.sortColumn && sortableColumns.includes(parsed.sortColumn)) {
                 setSortColumn(parsed.sortColumn)
@@ -1374,6 +1386,8 @@ export function ProductsPage() {
     const columnLabels: Record<ProductTableColumnKey, string> = {
         image: "Image",
         name: "Name",
+        batch: "Batch",
+        added: "Added",
         onHand: "On Hand",
         buyingPrice: "Purchase",
         sellingPrice: "Selling Price",
@@ -1466,6 +1480,28 @@ export function ProductsPage() {
                             {product.name}
                         </span>
                     </Link>
+                </TableCell>
+            )
+        }
+
+        if (columnKey === "batch") {
+            return (
+                <TableCell className="p-0">
+                    <div className="block p-2">{product.batchId?.batchName ?? "Unassigned"}</div>
+                </TableCell>
+            )
+        }
+
+        if (columnKey === "added") {
+            return (
+                <TableCell className="p-0">
+                    <div className="block p-2">
+                        {new Date(product.createdAt).toLocaleDateString(undefined, {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                        })}
+                    </div>
                 </TableCell>
             )
         }
@@ -1651,6 +1687,12 @@ export function ProductsPage() {
         </div>
     )
 
+    const applyProductSearch = React.useCallback((rawValue: string) => {
+        const nextSearch = rawValue.trim()
+        setProductSearch(nextSearch)
+        void loadProducts(1, nextSearch)
+    }, [loadProducts])
+
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
             <CardHeader className="flex items-center justify-between gap-3">
@@ -1727,38 +1769,32 @@ export function ProductsPage() {
                             </Table>
                         </div>
                     </div>
-                ) : products.length === 0 ? (
-                    <Empty className="mt-16">
-                        <EmptyHeader>
-                            <div className="bg-border/40 mb-4 rounded-lg p-3">
-                                <PackageSearchIcon className="size-10" />
-                            </div>
-                            <EmptyTitle>No products yet</EmptyTitle>
-                            <EmptyDescription>
-                                There are no products in inventory right now. Create your first product to start tracking stock and sales.
-                            </EmptyDescription>
-                        </EmptyHeader>
-                        <EmptyContent className="flex-row justify-center gap-2">
-                            <Button onClick={openAddProductSheet}>Add your first product</Button>
-                        </EmptyContent>
-                    </Empty>
                 ) : viewMode === "list" ? (
                     <>
                         <div className="mb-4 flex flex-wrap items-center gap-2">
-                            <div className="relative w-full sm:w-64">
+                            <div className="relative w-full sm:w-96">
                                 <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     ref={productSearchInputRef}
-                                    value={productSearch}
-                                    onChange={(event) => setProductSearch(event.target.value)}
+                                    value={productSearchInput}
+                                    onChange={(event) => setProductSearchInput(event.target.value)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") {
+                                            event.preventDefault()
+                                            applyProductSearch(productSearchInput)
+                                        }
+                                    }}
                                     placeholder="Search products"
-                                    className="pr-18 pl-9"
+                                    className="h-12 pr-18 pl-9"
                                 />
-                                {productSearch ? (
+                                {productSearchInput ? (
                                     <button
                                         type="button"
-                                        onClick={() => setProductSearch("")}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                        onClick={() => {
+                                            setProductSearchInput("")
+                                            applyProductSearch("")
+                                        }}
+                                        className="absolute right-1 top-1 bottom-1 flex w-10 items-center justify-center rounded-md bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700"
                                     >
                                         <XIcon className="h-4 w-4" />
                                     </button>
@@ -1784,6 +1820,7 @@ export function ProductsPage() {
                                     <Button
                                         size="sm"
                                         variant="ghost"
+                                        className="h-12 px-4"
                                         onClick={() => {
                                             setFilterPriceMin("")
                                             setFilterPriceMax("")
@@ -1796,7 +1833,7 @@ export function ProductsPage() {
                                 )}
                                 <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
                                     <SheetTrigger asChild>
-                                        <Button size="sm" variant="outline">
+                                        <Button size="sm" variant="outline" className="h-12 px-4">
                                             Filter
                                         </Button>
                                     </SheetTrigger>
@@ -1902,6 +1939,7 @@ export function ProductsPage() {
                                                     setFilterCategories(new Set())
                                                     setFilterBatches(new Set())
                                                     setProductSearch("")
+                                                    setProductSearchInput("")
                                                 }}
                                             >
                                                 Clear All
@@ -1918,7 +1956,7 @@ export function ProductsPage() {
 
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button size="sm" variant="outline">
+                                        <Button size="sm" variant="outline" className="h-12 px-4">
                                             <Columns3Icon className="h-4 w-4" />
                                             Columns
                                             <ChevronDownIcon className="h-4 w-4" />
@@ -1929,6 +1967,8 @@ export function ProductsPage() {
                                         <DropdownMenuSeparator />
                                         <DropdownMenuCheckboxItem checked={visibleColumns.image} onCheckedChange={(value) => handleColumnVisibilityChange("image", Boolean(value))}>Image</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.name} onCheckedChange={(value) => handleColumnVisibilityChange("name", Boolean(value))}>Name</DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem checked={visibleColumns.batch} onCheckedChange={(value) => handleColumnVisibilityChange("batch", Boolean(value))}>Batch</DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem checked={visibleColumns.added} onCheckedChange={(value) => handleColumnVisibilityChange("added", Boolean(value))}>Added</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.onHand} onCheckedChange={(value) => handleColumnVisibilityChange("onHand", Boolean(value))}>On Hand</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.buyingPrice} onCheckedChange={(value) => handleColumnVisibilityChange("buyingPrice", Boolean(value))}>Purchase</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.sellingPrice} onCheckedChange={(value) => handleColumnVisibilityChange("sellingPrice", Boolean(value))}>Selling Price</DropdownMenuCheckboxItem>
@@ -1942,6 +1982,7 @@ export function ProductsPage() {
                                         <Button
                                             size="sm"
                                             variant="outline"
+                                            className="h-12 px-4"
                                             disabled={selectedProducts.filter((product) => product.quantityRemaining > 0).length === 0}
                                             onClick={() => {
                                                 if (selectedProducts.length === 0) {
@@ -1956,13 +1997,14 @@ export function ProductsPage() {
                                         <Button
                                             size="sm"
                                             variant="destructive"
+                                            className="h-12 px-4"
                                             disabled={selectedProducts.length === 0}
                                             onClick={handleDeleteSelectedProduct}
                                         >
                                             <Trash2Icon className="h-4 w-4" />
                                             Delete Selected
                                         </Button>
-                                        <Button size="sm" variant="outline" onClick={() => setSelectedProductIds(new Set())}>Clear Selection</Button>
+                                        <Button size="sm" variant="outline" className="h-12 px-4" onClick={() => setSelectedProductIds(new Set())}>Clear Selection</Button>
                                     </>
                                 ) : null}
                             </div>
@@ -2286,12 +2328,24 @@ export function ProductsPage() {
 
                             {saleStep === "product" ? (
                                 <>
-                                    <Input
-                                        placeholder="Search products..."
-                                        value={saleProductSearch}
-                                        onChange={(event) => setSaleProductSearch(event.target.value)}
-                                        className="mb-4"
-                                    />
+                                    <div className="relative mb-4">
+                                        <Input
+                                            placeholder="Search products..."
+                                            value={saleProductSearch}
+                                            onChange={(event) => setSaleProductSearch(event.target.value)}
+                                            className="h-12 pr-14"
+                                        />
+                                        {saleProductSearch ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setSaleProductSearch("")}
+                                                className="absolute right-1 top-1 bottom-1 flex w-10 items-center justify-center rounded-md bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700"
+                                                aria-label="Clear search"
+                                            >
+                                                <XIcon className="h-4 w-4" />
+                                            </button>
+                                        ) : null}
+                                    </div>
 
                                     <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
                                         {saleFilteredProducts.length === 0 ? (

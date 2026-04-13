@@ -22,7 +22,7 @@ import { calculateBatchProductLandedCosts, convertInternationalExpenseToRwf } fr
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 import { getAllIntendedSellingPrices } from "@/lib/intended-pricing"
 import { cn } from "@/lib/utils"
-import { CheckIcon, ChevronLeft, CopyIcon, PackageOpen, SearchIcon } from "lucide-react"
+import { CheckIcon, ChevronLeft, CopyIcon, PackageOpen, SearchIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 
 const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "AED"] as const
@@ -649,19 +649,30 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         return (
             <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                    <div className="relative w-full sm:w-64">
+                    <div className="relative w-full sm:w-96">
                         <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             ref={productSearchInputRef}
                             value={productSearch}
                             onChange={(event) => setProductSearch(event.target.value)}
                             placeholder="Search products"
-                            className="pr-18 pl-9"
+                            className="h-12 pr-18 pl-9"
                         />
-                        <KbdGroup className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex">
-                            <Kbd>Ctrl</Kbd>
-                            <Kbd>F</Kbd>
-                        </KbdGroup>
+                        {productSearch ? (
+                            <button
+                                type="button"
+                                onClick={() => setProductSearch("")}
+                                className="absolute right-1 top-1 bottom-1 flex w-10 items-center justify-center rounded-md bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700"
+                                aria-label="Clear search"
+                            >
+                                <XIcon className="h-4 w-4" />
+                            </button>
+                        ) : (
+                            <KbdGroup className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex">
+                                <Kbd>Ctrl</Kbd>
+                                <Kbd>F</Kbd>
+                            </KbdGroup>
+                        )}
                     </div>
                     <AddProductSheet onProductCreated={handleProductCreated} />
                 </div>

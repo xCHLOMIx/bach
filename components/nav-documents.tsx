@@ -8,7 +8,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { Skeleton } from "@/components/ui/skeleton"
-import Image from "next/image"
+import { Boxes } from "lucide-react"
 
 export function NavDocuments({
   items,
@@ -17,13 +17,12 @@ export function NavDocuments({
   items?: {
     name: string
     url: string
-    image?: string
   }[]
   isLoading?: boolean
 }) {
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Recent products</SidebarGroupLabel>
+      <SidebarGroupLabel>Recent batches</SidebarGroupLabel>
       <SidebarMenu>
         {isLoading ? (
           // Skeleton loading state
@@ -42,19 +41,9 @@ export function NavDocuments({
             <SidebarMenuItem key={item.name} className="mt-1 first:mt-0">
               <SidebarMenuButton asChild>
                 <a href={item.url} className="flex items-center gap-3">
-                  {item.image ? (
-                    <Image
-                      src={item.image}
-                      alt={item.name}
-                      width={32}
-                      height={32}
-                      className="size-6 rounded object-cover"
-                    />
-                  ) : (
-                    <div className="h-8 w-8 rounded bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground">
-                      {item.name.replace(/\s+/g, "").slice(0, 2).toUpperCase()}
-                    </div>
-                  )}
+                  <div className="h-8 w-8 rounded bg-muted flex items-center justify-center text-muted-foreground">
+                    <Boxes className="h-4 w-4" />
+                  </div>
                   <span className="truncate">{item.name}</span>
                 </a>
               </SidebarMenuButton>
@@ -62,7 +51,7 @@ export function NavDocuments({
           ))
         ) : (
           <div className="text-center py-6 text-sm text-muted-foreground">
-            <p>No products yet</p>
+            <p>No batches yet</p>
           </div>
         )}
       </SidebarMenu>

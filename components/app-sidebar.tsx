@@ -17,10 +17,9 @@ import {
 import { Box, Boxes, ChartBarIcon, LayoutDashboardIcon, ListIcon, PinIcon, PinOffIcon } from "lucide-react"
 import Image from "next/image"
 
-type ProductApiItem = {
+type BatchApiItem = {
   _id: string
-  name: string
-  images?: string[]
+  batchName: string
 }
 
 const data = {
@@ -59,8 +58,8 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const [recentProducts, setRecentProducts] = React.useState<ProductApiItem[]>([])
-  const [isLoadingRecentProducts, setIsLoadingRecentProducts] = React.useState(true)
+  const [recentBatches, setRecentBatches] = React.useState<BatchApiItem[]>([])
+  const [isLoadingRecentBatches, setIsLoadingRecentBatches] = React.useState(true)
   const [isPinned, setIsPinned] = React.useState(false)
   const [hasMounted, setHasMounted] = React.useState(false)
   const { isMobile, setOpenMobile, setOpen } = useSidebar()
@@ -110,36 +109,35 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   React.useEffect(() => {
     let active = true
 
-    const loadRecentProducts = async () => {
+    const loadRecentBatches = async () => {
       try {
-        const response = await fetch("/api/products")
+        const response = await fetch("/api/batches")
         if (!response.ok || !active) return
 
         const json = await response.json()
         if (!active) return
 
-        const products = (json.products ?? []) as ProductApiItem[]
-        setRecentProducts(products)
+        const batches = (json.batches ?? []) as BatchApiItem[]
+        setRecentBatches(batches)
       } catch (error) {
-        console.error("Failed to load recent products:", error)
+        console.error("Failed to load recent batches:", error)
       } finally {
         if (active) {
-          setIsLoadingRecentProducts(false)
+          setIsLoadingRecentBatches(false)
         }
       }
     }
 
-    loadRecentProducts()
+    loadRecentBatches()
 
     return () => {
       active = false
     }
   }, [])
 
-  const visibleRecentProducts = recentProducts.slice(0, 4).map((product) => ({
-    name: product.name,
-    url: `/app/products/${product._id}`,
-    image: product.images?.[0] ?? "",
+  const visibleRecentBatches = recentBatches.slice(0, 4).map((batch) => ({
+    name: batch.batchName,
+    url: `/app/batches/${batch._id}`,
   }))
   const handlePin = () => {
     const nextPinned = !isPinned
@@ -192,8 +190,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <NavMain items={data.navMain} isPinned={isPinned} />
         <NavDocuments
-          items={visibleRecentProducts}
-          isLoading={isLoadingRecentProducts}
+          items={visibleRecentBatches}
+          isLoading={isLoadingRecentBatches}
         />
       </SidebarContent>
       <SidebarFooter>

@@ -435,13 +435,23 @@ export function SalesPage() {
                             </div>
                             {step === "product" ? (
                                 <>
-                                    <div className="">
+                                    <div className="relative mb-4">
                                         <Input
                                             placeholder="Search products..."
                                             value={productSearch}
                                             onChange={(e) => setProductSearch(e.target.value)}
-                                            className="mb-4"
+                                            className="h-12 pr-14"
                                         />
+                                        {productSearch ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setProductSearch("")}
+                                                className="absolute right-1 top-1 bottom-1 flex w-10 items-center justify-center rounded-md bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700"
+                                                aria-label="Clear search"
+                                            >
+                                                <XIcon className="h-4 w-4" />
+                                            </button>
+                                        ) : null}
                                     </div>
 
                                     <div className="mb-3 flex items-center justify-between text-sm">
