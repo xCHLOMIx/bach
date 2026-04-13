@@ -789,7 +789,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableRow>
                                 <TableHead>Product</TableHead>
                                 <TableHead className="text-right">Quantity</TableHead>
-                                <TableHead className="text-right">Purchase</TableHead>
+                                <TableHead className="text-right">Vendor</TableHead>
                                 <TableHead className="text-right">Import Charges</TableHead>
                                 <TableHead className="text-right">Weight %</TableHead>
                                 <TableHead className="text-right">Selling</TableHead>
@@ -870,33 +870,18 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             })}
                             <TableRow className="bg-muted/30 font-semibold">
                                 <TableCell>Totals</TableCell>
-                                <TableCell className="text-right"></TableCell>
+                                <TableCell className="text-right">{totals.quantity.toLocaleString()}</TableCell>
                                 <TableCell className="text-right">
                                     <div className="space-y-1">
                                         <div className="text-xs">Unit: {Math.floor(totals.baseTotal / totals.quantity).toLocaleString()}</div>
                                         <div>All: {Math.floor(totals.baseTotal).toLocaleString()}</div>
                                     </div>
                                 </TableCell>
-                                <TableCell className="text-right">{Math.floor(totals.shippingShare).toLocaleString()}</TableCell>
+                                <TableCell className="text-right"></TableCell>
                                 <TableCell className="text-right">{`${totals.weightPercentage.toFixed(2)}%`}</TableCell>
-                                <TableCell className="text-right">
-                                    <div className="space-y-1">
-                                        <div className="text-xs">Unit: {Math.floor(totals.sellingTotal / totals.quantity).toLocaleString()}</div>
-                                        <div>All: {Math.floor(totals.sellingTotal).toLocaleString()}</div>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <div className="space-y-1">
-                                        <div className="text-xs">Unit: {Math.floor(totals.finalTotal / totals.quantity).toLocaleString()}</div>
-                                        <div>All: {Math.floor(totals.finalTotal).toLocaleString()}</div>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <div className="space-y-1">
-                                        <div className="text-xs">Unit: {Math.floor((totals.sellingTotal / totals.quantity) - (totals.finalTotal / totals.quantity)).toLocaleString()}</div>
-                                        <div>All: {Math.floor(totals.sellingTotal - totals.finalTotal).toLocaleString()}</div>
-                                    </div>
-                                </TableCell>
+                                <TableCell className="text-right"></TableCell>
+                                <TableCell className="text-right"></TableCell>
+                                <TableCell className="text-right"></TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
@@ -913,7 +898,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         <TableRow>
                             <TableHead>Product</TableHead>
                             <TableHead className="text-right">Quantity</TableHead>
-                            <TableHead className="text-right">Purchase</TableHead>
+                            <TableHead className="text-right">Vendor</TableHead>
                             <TableHead className="text-right">Import Charges</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
                             <TableHead className="text-right">Selling</TableHead>
