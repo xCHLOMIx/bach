@@ -356,6 +356,58 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         await navigator.clipboard.writeText(form.trackingId.trim())
     }, [form.trackingId])
 
+    const mergeProducts = React.useCallback((baseProducts: Product[], assignedProducts: Product[]) => {
+        const mergedMap = new Map<string, Product>()
+
+        for (const product of baseProducts) {
+            mergedMap.set(product._id, product)
+        }
+
+        for (const product of assignedProducts) {
+            mergedMap.set(product._id, product)
+        }
+
+        return Array.from(mergedMap.values())
+    }, [])
+
+    const fetchAssignedBatchProducts = React.useCallback(async () => {
+        const assignedProductsRes = await fetch(`/api/batches/${batchId}/products`)
+        if (!assignedProductsRes.ok) {
+            return [] as Product[]
+        }
+
+        const assignedProductsData = await assignedProductsRes.json()
+        return ((assignedProductsData.products ?? []) as Product[])
+    }, [batchId])
+
+    const fetchAllProducts = React.useCallback(async () => {
+        const pageSize = 200
+        let page = 1
+        let totalCount = Number.POSITIVE_INFINITY
+        const allProducts: Product[] = []
+
+        while (allProducts.length < totalCount) {
+            const response = await fetch(`/api/products?page=${page}&limit=${pageSize}`)
+            if (!response.ok) {
+                break
+            }
+
+            const data = await response.json()
+            const pageProducts = (data.products ?? []) as Product[]
+            totalCount = Number(data.totalCount ?? pageProducts.length)
+
+            allProducts.push(...pageProducts)
+
+            if (pageProducts.length === 0) {
+                break
+            }
+
+            page += 1
+        }
+
+        return allProducts
+    }, [])
+
     const allocationPreviewByProductId = React.useMemo(() => {
         const calculated = calculateBatchProductLandedCosts(
             selectedProducts.map((product) => ({
@@ -388,16 +440,15 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     }, [selectedProducts, parsedCosts])
 
     const refreshProductsOnly = React.useCallback(async () => {
-        const productsRes = await fetch("/api/products")
-        if (!productsRes.ok) {
-            return [] as Product[]
-        }
+        const [allProducts, assignedProducts] = await Promise.all([
+            fetchAllProducts(),
+            fetchAssignedBatchProducts(),
+        ])
 
-        const productsData = await productsRes.json()
-        const nextProducts = (productsData.products ?? []) as Product[]
-        setProducts(nextProducts)
-        return nextProducts
-    }, [])
+        const mergedProducts = mergeProducts(allProducts, assignedProducts)
+        setProducts(mergedProducts)
+        return mergedProducts
+    }, [fetchAllProducts, fetchAssignedBatchProducts, mergeProducts])
 
     React.useEffect(() => {
         const load = async () => {
@@ -405,10 +456,10 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             setLoadError("")
 
             try {
-                const [batchesRes, productsRes, assignedProductsRes] = await Promise.all([
+                const [batchesRes, allProducts, assignedProducts] = await Promise.all([
                     fetch("/api/batches"),
-                    fetch("/api/products"),
-                    fetch(`/api/batches/${batchId}/products`),
+                    fetchAllProducts(),
+                    fetchAssignedBatchProducts(),
                 ])
 
                 if (!batchesRes.ok) {
@@ -429,35 +480,14 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                 setForm(formatBatchForm(currentBatch))
                 setInitialForm(formatBatchForm(currentBatch))
 
-                let loadedProducts: Product[] = []
-                if (productsRes.ok) {
-                    const productsData = await productsRes.json()
-                    loadedProducts = (productsData.products ?? []) as Product[]
-                    setProducts(loadedProducts)
-                }
+                const mergedProducts = mergeProducts(allProducts, assignedProducts)
+                setProducts(mergedProducts)
 
                 let nextSelectedProductIds: string[] = []
-                if (assignedProductsRes.ok) {
-                    const assignedProductsData = await assignedProductsRes.json()
-                    const assignedProducts = ((assignedProductsData.products ?? []) as Product[])
+                if (assignedProducts.length > 0) {
                     nextSelectedProductIds = assignedProducts.map((product) => product._id)
-                    // Also update products with assigned products to ensure we have all of them
-                    if (assignedProducts.length > 0) {
-                        setProducts((prev) => {
-                            const merged = [...prev]
-                            assignedProducts.forEach((assignedProduct) => {
-                                const existingIndex = merged.findIndex((p) => p._id === assignedProduct._id)
-                                if (existingIndex !== -1) {
-                                    merged[existingIndex] = assignedProduct
-                                } else {
-                                    merged.push(assignedProduct)
-                                }
-                            })
-                            return merged
-                        })
-                    }
-                } else if (loadedProducts.length > 0) {
-                    nextSelectedProductIds = loadedProducts
+                } else if (mergedProducts.length > 0) {
+                    nextSelectedProductIds = mergedProducts
                         .filter((product) => product.batchId?._id === batchId)
                         .map((product) => product._id)
                 }
@@ -470,7 +500,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         }
 
         load()
-    }, [batchId])
+    }, [batchId, fetchAllProducts, fetchAssignedBatchProducts, mergeProducts])
 
     const handleProductCreated = React.useCallback(async () => {
         const nextProducts = await refreshProductsOnly()
@@ -1509,6 +1539,16 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             No expense details above 0.
                         </div>
                     )}
+                    <div className="w-max rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Entries</p>
+                        <p className="mt-2 text-sm font-medium text-foreground">{selectedProducts.length.toLocaleString()}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Distinct products in batch</p>
+                    </div>
+                    <div className="w-max rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Entries</p>
+                        <p className="mt-2 text-sm font-medium text-foreground">{selectedProducts.length.toLocaleString()}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Distinct products in batch</p>
+                    </div>
                     <div className="w-max rounded-md border p-3">
                         <div className="flex items-center justify-between gap-2">
                             <p className="text-xs text-muted-foreground">Tracking number</p>

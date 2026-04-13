@@ -76,7 +76,7 @@ export async function GET(
     return errorResponse({ batchId: "Invalid batch id" }, 400)
   }
 
-  const products = await ProductModel.find({ batchId: id })
+  const products = await ProductModel.find({ batchId: id, userId: user._id })
     .populate("categoryId", "name")
     .sort({ createdAt: -1 })
     .lean()
@@ -98,7 +98,7 @@ export async function POST(
     return errorResponse({ batchId: "Invalid batch id" }, 400)
   }
 
-  const batch = await BatchModel.findById(id).lean()
+  const batch = await BatchModel.findOne({ _id: id, userId: user._id }).lean()
   if (!batch) {
     return errorResponse({ batchId: "Batch not found" }, 404)
   }
@@ -116,7 +116,7 @@ export async function POST(
     }
   }
 
-  const productsToAssign = await ProductModel.find({ _id: { $in: productIds } })
+  const productsToAssign = await ProductModel.find({ _id: { $in: productIds }, userId: user._id })
     .select("batchId")
     .lean()
   const previousBatchIds = new Set(
@@ -126,7 +126,7 @@ export async function POST(
   )
 
   await ProductModel.updateMany(
-    { _id: { $in: productIds } },
+    { _id: { $in: productIds }, userId: user._id },
     { $set: { batchId: new Types.ObjectId(id) } }
   )
 
@@ -138,7 +138,7 @@ export async function POST(
     }
   }
 
-  const products = await ProductModel.find({ batchId: id })
+  const products = await ProductModel.find({ batchId: id, userId: user._id })
     .populate("categoryId", "name")
     .sort({ createdAt: -1 })
     .lean()
@@ -160,7 +160,7 @@ export async function PUT(
     return errorResponse({ batchId: "Invalid batch id" }, 400)
   }
 
-  const batch = await BatchModel.findById(id).lean()
+  const batch = await BatchModel.findOne({ _id: id, userId: user._id }).lean()
   if (!batch) {
     return errorResponse({ batchId: "Batch not found" }, 404)
   }
@@ -180,7 +180,7 @@ export async function PUT(
 
   const desiredProductIdSet = new Set(productIds)
 
-  const currentBatchProducts = await ProductModel.find({ batchId: id })
+  const currentBatchProducts = await ProductModel.find({ batchId: id, userId: user._id })
     .select("_id")
     .lean()
 
@@ -189,7 +189,7 @@ export async function PUT(
     (productId) => !desiredProductIdSet.has(productId)
   )
 
-  const productsToAssign = await ProductModel.find({ _id: { $in: productIds } })
+  const productsToAssign = await ProductModel.find({ _id: { $in: productIds }, userId: user._id })
     .select("batchId")
     .lean()
   const previousBatchIds = new Set(
@@ -200,14 +200,14 @@ export async function PUT(
 
   if (productIds.length > 0) {
     await ProductModel.updateMany(
-      { _id: { $in: productIds } },
+      { _id: { $in: productIds }, userId: user._id },
       { $set: { batchId: new Types.ObjectId(id) } }
     )
   }
 
   if (idsToUnassign.length > 0) {
     await ProductModel.updateMany(
-      { _id: { $in: idsToUnassign } },
+      { _id: { $in: idsToUnassign }, userId: user._id },
       { $set: { batchId: null } }
     )
     await resetUnassignedProductsCosts(idsToUnassign)
@@ -219,7 +219,7 @@ export async function PUT(
     await recalculateBatchProducts(previousBatchId)
   }
 
-  const products = await ProductModel.find({ batchId: id })
+  const products = await ProductModel.find({ batchId: id, userId: user._id })
     .populate("categoryId", "name")
     .sort({ createdAt: -1 })
     .lean()

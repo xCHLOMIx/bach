@@ -67,6 +67,7 @@ const NO_CATEGORY_VALUE = "__none__"
 const PRODUCTS_VIEW_MODE_STORAGE_KEY = "products:view-mode"
 const PRODUCTS_VISIBLE_COLUMNS_STORAGE_KEY = "products:visible-columns"
 const PRODUCTS_TABLE_STATE_STORAGE_KEY = "products:table-state"
+const PRODUCTS_COLUMN_ORDER_STORAGE_KEY = "products:column-order"
 
 type Category = { _id: string; name: string }
 type Batch = { _id: string; batchName: string }
@@ -93,6 +94,7 @@ type Product = {
 type ProductTableColumnKey =
     | "image"
     | "name"
+    | "onHand"
     | "buyingPrice"
     | "sellingPrice"
     | "landedPrice"
@@ -104,9 +106,10 @@ type ProductSortDirection = "asc" | "desc"
 const DEFAULT_PRODUCT_COLUMN_ORDER: ProductTableColumnKey[] = [
     "image",
     "name",
+    "onHand",
     "buyingPrice",
-    "sellingPrice",
     "landedPrice",
+    "sellingPrice",
     "profit",
 ]
 
@@ -156,6 +159,7 @@ export function ProductsPage() {
     const [visibleColumns, setVisibleColumns] = React.useState<Record<ProductTableColumnKey, boolean>>({
         image: true,
         name: true,
+        onHand: true,
         buyingPrice: true,
         sellingPrice: true,
         landedPrice: true,
@@ -239,6 +243,7 @@ export function ProductsPage() {
     const isPreviewOpen = previewImages.length > 0
     const editGeneratedObjectUrlsRef = React.useRef<string[]>([])
     const productSearchInputRef = React.useRef<HTMLInputElement | null>(null)
+    const hasHydratedSearchSortRef = React.useRef(false)
 
     // Filter and pagination state
     const [isFilterSheetOpen, setIsFilterSheetOpen] = React.useState(false)
@@ -434,6 +439,26 @@ export function ProductsPage() {
         return formatDecimalWithCommas(`${beforeDot}${afterDot}`)
     }
 
+    const getApiSortColumn = React.useCallback((column: ProductSortColumn) => {
+        switch (column) {
+            case "name":
+                return "name"
+            case "onHand":
+                return "quantityRemaining"
+            case "buyingPrice":
+                return "purchasePriceRWF"
+            case "sellingPrice":
+                return "intendedSellingPrice"
+            case "landedPrice":
+                return "landedCost"
+            case "profit":
+                // Profit is derived client-side in current implementation.
+                return "name"
+            default:
+                return "name"
+        }
+    }, [])
+
     const loadProducts = React.useCallback(async (page: number = 1) => {
         setIsLoading(true)
         try {
@@ -447,7 +472,7 @@ export function ProductsPage() {
             if (filterCategories.size > 0) params.set("categories", Array.from(filterCategories).join(","))
             if (filterBatches.size > 0) params.set("batches", Array.from(filterBatches).join(","))
 
-            params.set("sortColumn", sortColumn)
+            params.set("sortColumn", getApiSortColumn(sortColumn))
             params.set("sortDirection", sortDirection)
 
             const productsResponse = await fetch(`/api/products?${params.toString()}`)
@@ -461,7 +486,7 @@ export function ProductsPage() {
         } finally {
             setIsLoading(false)
         }
-    }, [productSearch, filterPriceMin, filterPriceMax, filterCategories, filterBatches, sortColumn, sortDirection, itemsPerPage])
+    }, [productSearch, filterPriceMin, filterPriceMax, filterCategories, filterBatches, sortColumn, sortDirection, itemsPerPage, getApiSortColumn])
 
     // Apply filters with current state values - plain function, not memoized
     const applyFilters = async () => {
@@ -477,7 +502,7 @@ export function ProductsPage() {
             if (filterCategories.size > 0) params.set("categories", Array.from(filterCategories).join(","))
             if (filterBatches.size > 0) params.set("batches", Array.from(filterBatches).join(","))
 
-            params.set("sortColumn", sortColumn)
+            params.set("sortColumn", getApiSortColumn(sortColumn))
             params.set("sortDirection", sortDirection)
 
             const productsResponse = await fetch(`/api/products?${params.toString()}`)
@@ -560,13 +585,19 @@ export function ProductsPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    // Trigger reload when search or sort changes (not on filter state changes)
+    // Trigger debounced reload when search or sort changes.
     React.useEffect(() => {
-        if (currentPage !== 1) {
-            loadProducts(1)
+        if (!hasHydratedSearchSortRef.current) {
+            hasHydratedSearchSortRef.current = true
+            return
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [productSearch, sortColumn, sortDirection])
+
+        const timeoutId = window.setTimeout(() => {
+            void loadProducts(1)
+        }, 250)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [productSearch, sortColumn, sortDirection, loadProducts])
 
     React.useEffect(() => {
         const savedViewMode = window.localStorage.getItem(PRODUCTS_VIEW_MODE_STORAGE_KEY)
@@ -587,6 +618,7 @@ export function ProductsPage() {
                 ...current,
                 image: typeof parsed.image === "boolean" ? parsed.image : current.image,
                 name: typeof parsed.name === "boolean" ? parsed.name : current.name,
+                onHand: typeof parsed.onHand === "boolean" ? parsed.onHand : current.onHand,
                 buyingPrice: typeof parsed.buyingPrice === "boolean" ? parsed.buyingPrice : current.buyingPrice,
                 sellingPrice: typeof parsed.sellingPrice === "boolean" ? parsed.sellingPrice : current.sellingPrice,
                 landedPrice: typeof parsed.landedPrice === "boolean" ? parsed.landedPrice : current.landedPrice,
@@ -606,6 +638,43 @@ export function ProductsPage() {
     }, [visibleColumns])
 
     React.useEffect(() => {
+        const savedColumnOrderRaw = window.localStorage.getItem(PRODUCTS_COLUMN_ORDER_STORAGE_KEY)
+        if (!savedColumnOrderRaw) {
+            return
+        }
+
+        try {
+            const parsed = JSON.parse(savedColumnOrderRaw)
+            if (!Array.isArray(parsed)) {
+                return
+            }
+
+            const validKeys = parsed.filter((key): key is ProductTableColumnKey =>
+                DEFAULT_PRODUCT_COLUMN_ORDER.includes(key as ProductTableColumnKey)
+            )
+
+            if (validKeys.length === 0) {
+                return
+            }
+
+            const mergedOrder = validKeys.includes("onHand")
+                ? [
+                    ...validKeys,
+                    ...DEFAULT_PRODUCT_COLUMN_ORDER.filter((key) => !validKeys.includes(key)),
+                ]
+                : [...DEFAULT_PRODUCT_COLUMN_ORDER]
+
+            setColumnOrder(mergedOrder)
+        } catch {
+            // Ignore invalid saved preferences.
+        }
+    }, [])
+
+    React.useEffect(() => {
+        window.localStorage.setItem(PRODUCTS_COLUMN_ORDER_STORAGE_KEY, JSON.stringify(columnOrder))
+    }, [columnOrder])
+
+    React.useEffect(() => {
         const savedTableStateRaw = window.localStorage.getItem(PRODUCTS_TABLE_STATE_STORAGE_KEY)
         if (!savedTableStateRaw) {
             return
@@ -620,6 +689,7 @@ export function ProductsPage() {
 
             const sortableColumns: ProductSortColumn[] = [
                 "name",
+                "onHand",
                 "buyingPrice",
                 "sellingPrice",
                 "landedPrice",
@@ -1249,38 +1319,17 @@ export function ProductsPage() {
         product.name.toLowerCase().includes(saleProductSearch.toLowerCase())
     )
 
-    // Sort products based on current sort column and direction
+    // Server already sorts all columns except derived profit.
     const sortedFilteredProducts = React.useMemo(() => {
+        if (sortColumn !== "profit") {
+            return products
+        }
+
         const sorted = [...products]
 
         sorted.sort((a, b) => {
-            let aValue: any
-            let bValue: any
-
-            switch (sortColumn) {
-                case "name":
-                    aValue = a.name.toLowerCase()
-                    bValue = b.name.toLowerCase()
-                    break
-                case "buyingPrice":
-                    aValue = a.purchasePriceRWF
-                    bValue = b.purchasePriceRWF
-                    break
-                case "sellingPrice":
-                    aValue = typeof a.intendedSellingPrice === "number" ? a.intendedSellingPrice : Number.NEGATIVE_INFINITY
-                    bValue = typeof b.intendedSellingPrice === "number" ? b.intendedSellingPrice : Number.NEGATIVE_INFINITY
-                    break
-                case "landedPrice":
-                    aValue = a.landedCost
-                    bValue = b.landedCost
-                    break
-                case "profit":
-                    aValue = typeof a.intendedSellingPrice === "number" ? a.intendedSellingPrice - a.landedCost : Number.NEGATIVE_INFINITY
-                    bValue = typeof b.intendedSellingPrice === "number" ? b.intendedSellingPrice - b.landedCost : Number.NEGATIVE_INFINITY
-                    break
-                default:
-                    return 0
-            }
+            const aValue = typeof a.intendedSellingPrice === "number" ? a.intendedSellingPrice - a.landedCost : Number.NEGATIVE_INFINITY
+            const bValue = typeof b.intendedSellingPrice === "number" ? b.intendedSellingPrice - b.landedCost : Number.NEGATIVE_INFINITY
 
             if (aValue < bValue) return sortDirection === "asc" ? -1 : 1
             if (aValue > bValue) return sortDirection === "asc" ? 1 : -1
@@ -1325,6 +1374,7 @@ export function ProductsPage() {
     const columnLabels: Record<ProductTableColumnKey, string> = {
         image: "Image",
         name: "Name",
+        onHand: "On Hand",
         buyingPrice: "Purchase",
         sellingPrice: "Selling Price",
         landedPrice: "Landed Costs",
@@ -1416,6 +1466,14 @@ export function ProductsPage() {
                             {product.name}
                         </span>
                     </Link>
+                </TableCell>
+            )
+        }
+
+        if (columnKey === "onHand") {
+            return (
+                <TableCell className="p-0">
+                    <div className="block p-2 font-medium">{product.quantityRemaining.toLocaleString()}</div>
                 </TableCell>
             )
         }
@@ -1644,9 +1702,10 @@ export function ProductsPage() {
                                     <TableRow>
                                         <TableHead>Image</TableHead>
                                         <TableHead>Name</TableHead>
+                                        <TableHead>On Hand</TableHead>
                                         <TableHead>Purchase</TableHead>
-                                        <TableHead>Selling Price</TableHead>
                                         <TableHead>Landed Costs</TableHead>
+                                        <TableHead>Selling Price</TableHead>
                                         <TableHead>Profit</TableHead>
                                         <TableHead>Actions</TableHead>
                                     </TableRow>
@@ -1656,6 +1715,7 @@ export function ProductsPage() {
                                         <TableRow key={`products-loading-${index}`}>
                                             <TableCell><Skeleton className="h-10 w-10 rounded-md" /></TableCell>
                                             <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                                            <TableCell><Skeleton className="h-8 w-16" /></TableCell>
                                             <TableCell><Skeleton className="h-8 w-24" /></TableCell>
                                             <TableCell><Skeleton className="h-8 w-24" /></TableCell>
                                             <TableCell><Skeleton className="h-8 w-24" /></TableCell>
@@ -1869,6 +1929,7 @@ export function ProductsPage() {
                                         <DropdownMenuSeparator />
                                         <DropdownMenuCheckboxItem checked={visibleColumns.image} onCheckedChange={(value) => handleColumnVisibilityChange("image", Boolean(value))}>Image</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.name} onCheckedChange={(value) => handleColumnVisibilityChange("name", Boolean(value))}>Name</DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem checked={visibleColumns.onHand} onCheckedChange={(value) => handleColumnVisibilityChange("onHand", Boolean(value))}>On Hand</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.buyingPrice} onCheckedChange={(value) => handleColumnVisibilityChange("buyingPrice", Boolean(value))}>Purchase</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.sellingPrice} onCheckedChange={(value) => handleColumnVisibilityChange("sellingPrice", Boolean(value))}>Selling Price</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.landedPrice} onCheckedChange={(value) => handleColumnVisibilityChange("landedPrice", Boolean(value))}>Landed Costs</DropdownMenuCheckboxItem>
