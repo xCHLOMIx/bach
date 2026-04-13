@@ -444,8 +444,6 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                     // Also update products with assigned products to ensure we have all of them
                     if (assignedProducts.length > 0) {
                         setProducts((prev) => {
-                            // Merge assigned products with existing products, preferring assigned data
-                            const assignedMap = new Map(assignedProducts.map((p) => [p._id, p]))
                             const merged = [...prev]
                             assignedProducts.forEach((assignedProduct) => {
                                 const existingIndex = merged.findIndex((p) => p._id === assignedProduct._id)
