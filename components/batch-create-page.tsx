@@ -333,7 +333,7 @@ export function BatchCreatePage() {
     // Memoize calculated row data to avoid recalculation on every parent re-render
     const { tableRowsData, totals } = React.useMemo(() => {
         if (selectedProducts.length === 0) {
-            return { tableRowsData: [], totals: { quantity: 0, baseTotal: 0, weightPercentage: 0, shippingShare: 0, finalTotal: 0 } }
+            return { tableRowsData: [], totals: { quantity: 0, baseTotal: 0, weightPercentage: 0, shippingShare: 0, finalTotal: 0, totalSellingPrice: 0, totalProfit: 0 } }
         }
 
         const rowsData = selectedProducts.map((product) => {
@@ -366,6 +366,9 @@ export function BatchCreatePage() {
                 const finalUnit = preview ? preview.landedCost : baseUnitPrice
                 const finalTotal = finalUnit * product.quantityInitial
                 const shippingShare = Math.max(0, finalTotal - baseTotal)
+                const intendedSellingPrice = intendedSellingPricesByProductId[product._id]
+                const totalSellingPrice = typeof intendedSellingPrice === "number" ? intendedSellingPrice * product.quantityInitial : 0
+                const totalProfit = typeof intendedSellingPrice === "number" ? totalSellingPrice - finalTotal : 0
 
                 return {
                     quantity: acc.quantity + product.quantityInitial,
@@ -373,9 +376,11 @@ export function BatchCreatePage() {
                     weightPercentage: acc.weightPercentage + (preview?.weightPercentage ?? 0),
                     shippingShare: acc.shippingShare + shippingShare,
                     finalTotal: acc.finalTotal + finalTotal,
+                    totalSellingPrice: acc.totalSellingPrice + totalSellingPrice,
+                    totalProfit: acc.totalProfit + totalProfit,
                 }
             },
-            { quantity: 0, baseTotal: 0, weightPercentage: 0, shippingShare: 0, finalTotal: 0 }
+            { quantity: 0, baseTotal: 0, weightPercentage: 0, shippingShare: 0, finalTotal: 0, totalSellingPrice: 0, totalProfit: 0 }
         )
 
         return { tableRowsData: rowsData, totals: calculatedTotals }
@@ -682,46 +687,70 @@ export function BatchCreatePage() {
                         <TableRow>
                             <TableHead>Product</TableHead>
                             <TableHead className="text-right">Quantity</TableHead>
-                            <TableHead className="text-right">Vendor Price (RWF)</TableHead>
-                            <TableHead className="text-right">Vendor Total (RWF)</TableHead>
-                            <TableHead className="text-right">Import Charges (RWF)</TableHead>
+                            <TableHead className="text-right">Purchase</TableHead>
+                            <TableHead className="text-right">Import Charges</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
-                            <TableHead className="text-right">Selling Price (RWF)</TableHead>
-                            <TableHead className="text-right">Total Landed Costs (RWF)</TableHead>
+                            <TableHead className="text-right">Selling Price</TableHead>
+                            <TableHead className="text-right">Landed Cost</TableHead>
+                            <TableHead className="text-right">Profit</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {tableRowsData.map((row) => (
-                            <TableRow key={row._id}>
-                                <TableCell className="truncate max-w-xs font-medium">{row.name}</TableCell>
-                                <TableCell className="text-right">{row.quantity.toLocaleString()}</TableCell>
-                                <TableCell className="text-right">{row.baseUnitPrice.toLocaleString()}</TableCell>
-                                <TableCell className="text-right">{row.productTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                                <TableCell className="text-right">
-                                    {row.importCharges.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    {row.weightPercentage > 0 ? `${row.weightPercentage.toFixed(2)}%` : "-"}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    {typeof row.intendedSellingPrice === "number"
-                                        ? row.intendedSellingPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })
-                                        : "-"}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    {row.finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                        {tableRowsData.map((row) => {
+                            const unitSellingPrice = typeof row.intendedSellingPrice === "number" ? row.intendedSellingPrice : row.finalTotal / row.quantity
+                            const totalSellingPrice = typeof row.intendedSellingPrice === "number" ? row.intendedSellingPrice * row.quantity : row.finalTotal
+                            const unitLandedCost = row.finalTotal / row.quantity
+                            const unitProfit = unitSellingPrice - unitLandedCost
+                            const totalProfit = totalSellingPrice - row.finalTotal
+
+                            return (
+                                <TableRow key={row._id}>
+                                    <TableCell className="truncate max-w-xs font-medium">{row.name}</TableCell>
+                                    <TableCell className="text-right">{row.quantity.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="text-sm">Unit: {row.baseUnitPrice.toLocaleString()}</div>
+                                        <div className="text-xs text-muted-foreground">All: {row.productTotal.toLocaleString()}</div>
+                                    </TableCell>
+                                    <TableCell className="text-right">{row.importCharges.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right">
+                                        {row.weightPercentage > 0 ? `${row.weightPercentage.toFixed(0)}%` : "-"}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {typeof row.intendedSellingPrice === "number" ? (
+                                            <>
+                                                <div className="text-sm">Unit: {row.intendedSellingPrice.toLocaleString()}</div>
+                                                <div className="text-xs text-muted-foreground">All: {(row.intendedSellingPrice * row.quantity).toLocaleString()}</div>
+                                            </>
+                                        ) : (
+                                            "-"
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="text-sm">Unit: {unitLandedCost.toLocaleString()}</div>
+                                        <div className="text-xs text-muted-foreground">All: {row.finalTotal.toLocaleString()}</div>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {typeof row.intendedSellingPrice === "number" ? (
+                                            <>
+                                                <div className="text-sm">Unit: {unitProfit.toLocaleString()}</div>
+                                                <div className="text-xs text-muted-foreground">All: {totalProfit.toLocaleString()}</div>
+                                            </>
+                                        ) : (
+                                            "-"
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        })}
                         <TableRow className="bg-muted/30 font-semibold">
-                            <TableCell>Totals</TableCell>
+                            <TableCell>TOTAL</TableCell>
                             <TableCell className="text-right">{totals.quantity.toLocaleString()}</TableCell>
-                            <TableCell className="text-right">-</TableCell>
-                            <TableCell className="text-right">{totals.baseTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                            <TableCell className="text-right">{totals.shippingShare.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                            <TableCell className="text-right">{`${totals.weightPercentage.toFixed(2)}%`}</TableCell>
-                            <TableCell className="text-right">-</TableCell>
-                            <TableCell className="text-right">{totals.finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-right">{totals.baseTotal.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">{totals.shippingShare.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">100%</TableCell>
+                            <TableCell className="text-right">{totals.totalSellingPrice > 0 ? totals.totalSellingPrice.toLocaleString() : "-"}</TableCell>
+                            <TableCell className="text-right">{totals.finalTotal.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">{totals.totalProfit > 0 ? totals.totalProfit.toLocaleString() : "-"}</TableCell>
                         </TableRow>
                     </TableBody>
                 </Table>
@@ -736,12 +765,12 @@ export function BatchCreatePage() {
                     <TableRow>
                         <TableHead>Product</TableHead>
                         <TableHead className="text-right">Quantity</TableHead>
-                        <TableHead className="text-right">Vendor Price (RWF)</TableHead>
-                        <TableHead className="text-right">Vendor Total (RWF)</TableHead>
-                        <TableHead className="text-right">Import Charges (RWF)</TableHead>
+                        <TableHead className="text-right">Purchase</TableHead>
+                        <TableHead className="text-right">Import Charges</TableHead>
                         <TableHead className="text-right">Weight %</TableHead>
-                        <TableHead className="text-right">Selling Price (RWF)</TableHead>
-                        <TableHead className="text-right">Total Landed Costs (RWF)</TableHead>
+                        <TableHead className="text-right">Selling Price</TableHead>
+                        <TableHead className="text-right">Landed Cost</TableHead>
+                        <TableHead className="text-right">Profit</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>

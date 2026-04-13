@@ -765,6 +765,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                 const sellingTotal = typeof intendedSellingPrice === "number"
                     ? intendedSellingPrice * product.quantityInitial
                     : 0
+                const profit = typeof intendedSellingPrice === "number"
+                    ? sellingTotal - finalTotal
+                    : 0
 
                 return {
                     quantity: acc.quantity + product.quantityInitial,
@@ -773,9 +776,10 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                     shippingShare: acc.shippingShare + shippingShare,
                     finalTotal: acc.finalTotal + finalTotal,
                     sellingTotal: acc.sellingTotal + sellingTotal,
+                    totalProfit: acc.totalProfit + profit,
                 }
             },
-            { quantity: 0, baseTotal: 0, weightPercentage: 0, shippingShare: 0, finalTotal: 0, sellingTotal: 0 }
+            { quantity: 0, baseTotal: 0, weightPercentage: 0, shippingShare: 0, finalTotal: 0, sellingTotal: 0, totalProfit: 0 }
         )
 
         const totalImportCharges = totals.shippingShare
@@ -789,11 +793,11 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableRow>
                                 <TableHead>Product</TableHead>
                                 <TableHead className="text-right">Quantity</TableHead>
-                                <TableHead className="text-right">Vendor</TableHead>
+                                <TableHead className="text-right">Purchase</TableHead>
                                 <TableHead className="text-right">Import Charges</TableHead>
                                 <TableHead className="text-right">Weight %</TableHead>
-                                <TableHead className="text-right">Selling</TableHead>
-                                <TableHead className="text-right">Landed</TableHead>
+                                <TableHead className="text-right">Selling Price</TableHead>
+                                <TableHead className="text-right">Landed Cost</TableHead>
                                 <TableHead className="text-right">Profit</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -869,19 +873,14 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                 )
                             })}
                             <TableRow className="bg-muted/30 font-semibold">
-                                <TableCell>Totals</TableCell>
+                                <TableCell>TOTAL</TableCell>
                                 <TableCell className="text-right">{totals.quantity.toLocaleString()}</TableCell>
-                                <TableCell className="text-right">
-                                    <div className="space-y-1">
-                                        <div className="text-xs">Unit: {Math.floor(totals.baseTotal / totals.quantity).toLocaleString()}</div>
-                                        <div>All: {Math.floor(totals.baseTotal).toLocaleString()}</div>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-right"></TableCell>
-                                <TableCell className="text-right">{`${totals.weightPercentage.toFixed(2)}%`}</TableCell>
-                                <TableCell className="text-right"></TableCell>
-                                <TableCell className="text-right"></TableCell>
-                                <TableCell className="text-right"></TableCell>
+                                <TableCell className="text-right">{Math.floor(totals.baseTotal).toLocaleString()}</TableCell>
+                                <TableCell className="text-right">{Math.floor(totals.shippingShare).toLocaleString()}</TableCell>
+                                <TableCell className="text-right">100%</TableCell>
+                                <TableCell className="text-right">{totals.sellingTotal > 0 ? Math.floor(totals.sellingTotal).toLocaleString() : "-"}</TableCell>
+                                <TableCell className="text-right">{Math.floor(totals.finalTotal).toLocaleString()}</TableCell>
+                                <TableCell className="text-right">{totals.totalProfit > 0 ? Math.floor(totals.totalProfit).toLocaleString() : "-"}</TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
@@ -898,11 +897,11 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         <TableRow>
                             <TableHead>Product</TableHead>
                             <TableHead className="text-right">Quantity</TableHead>
-                            <TableHead className="text-right">Vendor</TableHead>
+                            <TableHead className="text-right">Purchase</TableHead>
                             <TableHead className="text-right">Import Charges</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
-                            <TableHead className="text-right">Selling</TableHead>
-                            <TableHead className="text-right">Landed</TableHead>
+                            <TableHead className="text-right">Selling Price</TableHead>
+                            <TableHead className="text-right">Landed Cost</TableHead>
                             <TableHead className="text-right">Profit</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -1418,7 +1417,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <p className="mt-2 text-sm font-medium text-foreground">{form.trackingId || "Not set"}</p>
                         </div>
                         <div className="w-max rounded-md border p-3">
-                            <p className="text-xs text-muted-foreground">Vendor Total</p>
+                            <p className="text-xs text-muted-foreground">Buying Total</p>
                             <p className="mt-2 text-sm font-medium text-foreground">
                                 {Math.floor(
                                     selectedProducts.reduce((sum, product) => {
@@ -1513,7 +1512,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         <p className="mt-2 text-sm font-medium text-foreground">{form.trackingId || "Not set"}</p>
                     </div>
                     <div className="w-max rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Vendor Total</p>
+                        <p className="text-xs text-muted-foreground">Buying Total</p>
                         <p className="mt-2 text-sm font-medium text-foreground">
                             {Math.floor(
                                 selectedProducts.reduce((sum, product) => {
