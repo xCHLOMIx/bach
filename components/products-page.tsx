@@ -1262,9 +1262,60 @@ export function ProductsPage() {
         product.name.toLowerCase().includes(saleProductSearch.toLowerCase())
     )
 
-    // Server is now handling filtering and sorting, so just use products directly
-    const sortedFilteredProducts = products
-    const paginatedProducts = products
+    // Sort products based on current sort column and direction
+    const sortedFilteredProducts = React.useMemo(() => {
+        const sorted = [...products]
+
+        sorted.sort((a, b) => {
+            let aValue: any
+            let bValue: any
+
+            switch (sortColumn) {
+                case "name":
+                    aValue = a.name.toLowerCase()
+                    bValue = b.name.toLowerCase()
+                    break
+                case "category":
+                    aValue = (a.categoryId?.name ?? "").toLowerCase()
+                    bValue = (b.categoryId?.name ?? "").toLowerCase()
+                    break
+                case "addedAt":
+                    aValue = new Date(a.createdAt).getTime()
+                    bValue = new Date(b.createdAt).getTime()
+                    break
+                case "batch":
+                    aValue = (a.batchId?.batchName ?? "").toLowerCase()
+                    bValue = (b.batchId?.batchName ?? "").toLowerCase()
+                    break
+                case "onHand":
+                    aValue = a.quantityRemaining
+                    bValue = b.quantityRemaining
+                    break
+                case "buyingPrice":
+                    aValue = a.purchasePriceRWF
+                    bValue = b.purchasePriceRWF
+                    break
+                case "landedPrice":
+                    aValue = a.landedCost
+                    bValue = b.landedCost
+                    break
+                case "totalLandedCost":
+                    aValue = a.landedCost * a.quantityRemaining
+                    bValue = b.landedCost * b.quantityRemaining
+                    break
+                default:
+                    return 0
+            }
+
+            if (aValue < bValue) return sortDirection === "asc" ? -1 : 1
+            if (aValue > bValue) return sortDirection === "asc" ? 1 : -1
+            return 0
+        })
+
+        return sorted
+    }, [products, sortColumn, sortDirection])
+
+    const paginatedProducts = sortedFilteredProducts
     const selectedProducts = products.filter((product) => selectedProductIds.has(product._id))
     const singleSelectedProduct = selectedProducts.length === 1 ? selectedProducts[0] : null
     const intendedSellingPricesByProductId = React.useMemo(() => getAllIntendedSellingPrices(products), [products])

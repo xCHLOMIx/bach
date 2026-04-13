@@ -439,7 +439,25 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                 let nextSelectedProductIds: string[] = []
                 if (assignedProductsRes.ok) {
                     const assignedProductsData = await assignedProductsRes.json()
-                    nextSelectedProductIds = ((assignedProductsData.products ?? []) as Product[]).map((product) => product._id)
+                    const assignedProducts = ((assignedProductsData.products ?? []) as Product[])
+                    nextSelectedProductIds = assignedProducts.map((product) => product._id)
+                    // Also update products with assigned products to ensure we have all of them
+                    if (assignedProducts.length > 0) {
+                        setProducts((prev) => {
+                            // Merge assigned products with existing products, preferring assigned data
+                            const assignedMap = new Map(assignedProducts.map((p) => [p._id, p]))
+                            const merged = [...prev]
+                            assignedProducts.forEach((assignedProduct) => {
+                                const existingIndex = merged.findIndex((p) => p._id === assignedProduct._id)
+                                if (existingIndex !== -1) {
+                                    merged[existingIndex] = assignedProduct
+                                } else {
+                                    merged.push(assignedProduct)
+                                }
+                            })
+                            return merged
+                        })
+                    }
                 } else if (loadedProducts.length > 0) {
                     nextSelectedProductIds = loadedProducts
                         .filter((product) => product.batchId?._id === batchId)
