@@ -82,6 +82,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
   }, [isPinned, hasMounted])
 
+  React.useEffect(() => {
+    if (!hasMounted) {
+      return
+    }
+
+    if (isPinned) {
+      setOpen(true)
+    }
+  }, [hasMounted, isPinned, setOpen])
+
   // Close sidebar when clicking outside if unpinned
   React.useEffect(() => {
     if (isPinned) return
@@ -132,9 +142,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     image: product.images?.[0] ?? "",
   }))
   const handlePin = () => {
-    setIsPinned(!isPinned)
-    if (!isPinned && isMobile) {
+    const nextPinned = !isPinned
+    setIsPinned(nextPinned)
+
+    if (nextPinned) {
       setOpen(true)
+    }
+
+    if (nextPinned && isMobile) {
+      setOpenMobile(true)
     }
   }
 

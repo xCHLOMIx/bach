@@ -1,6 +1,7 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getServerAuthPayload } from "@/lib/server-auth";
@@ -11,13 +12,17 @@ export default async function RootLayout({
     children: React.ReactNode;
 }>) {
     const payload = await getServerAuthPayload();
+    const cookieStore = await cookies();
+    const sidebarStateCookie = cookieStore.get("sidebar_state")?.value;
+    const sidebarDefaultOpen = sidebarStateCookie === "true";
+
     if (!payload?.userId) {
         redirect("/signin");
     }
 
     return (
         <SidebarProvider
-            defaultOpen={false}
+            defaultOpen={sidebarDefaultOpen}
             style={
                 {
                     "--sidebar-width": "calc(var(--spacing) * 72)",
