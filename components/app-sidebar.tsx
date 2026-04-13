@@ -62,7 +62,40 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [recentProducts, setRecentProducts] = React.useState<ProductApiItem[]>([])
   const [isLoadingRecentProducts, setIsLoadingRecentProducts] = React.useState(true)
   const [isPinned, setIsPinned] = React.useState(false)
+  const [hasMounted, setHasMounted] = React.useState(false)
   const { isMobile, setOpenMobile, setOpen } = useSidebar()
+  const sidebarRef = React.useRef<HTMLDivElement>(null)
+
+  // Load pin state from localStorage on mount
+  React.useEffect(() => {
+    const savedPinned = localStorage.getItem('sidebar-pinned')
+    if (savedPinned !== null) {
+      setIsPinned(JSON.parse(savedPinned))
+    }
+    setHasMounted(true)
+  }, [])
+
+  // Persist pin state to localStorage
+  React.useEffect(() => {
+    if (hasMounted) {
+      localStorage.setItem('sidebar-pinned', JSON.stringify(isPinned))
+    }
+  }, [isPinned, hasMounted])
+
+  // Close sidebar when clicking outside if unpinned
+  React.useEffect(() => {
+    if (isPinned) return
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (sidebarRef.current && !sidebarRef.current.contains(target)) {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [isPinned, setOpen])
 
   React.useEffect(() => {
     let active = true
@@ -106,7 +139,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar collapsible="offcanvas" ref={sidebarRef} {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -140,23 +173,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent
-        onClickCapture={(event) => {
-          if (!isMobile || isPinned) {
-            return
-          }
-
-          const target = event.target
-          if (target instanceof Element && target.closest("a[href]")) {
-            setOpenMobile(false)
-          }
-        }}
-        onClick={() => {
-          if (isMobile && !isPinned) {
-            setOpenMobile(false)
-          }
-        }}
-      >
+      <SidebarContent>
         <NavMain items={data.navMain} isPinned={isPinned} />
         <NavDocuments
           items={visibleRecentProducts}
