@@ -21,6 +21,13 @@ const productSchema = new Schema(
   { timestamps: true }
 )
 
+// Indexes for common queries
+productSchema.index({ userId: 1, createdAt: -1 })
+productSchema.index({ userId: 1, categoryId: 1 })
+productSchema.index({ userId: 1, batchId: 1 })
+productSchema.index({ userId: 1, landedCost: 1 })
+productSchema.index({ userId: 1, name: "text" })
+
 export type ProductDocument = InferSchemaType<typeof productSchema> & {
   _id: string
 }

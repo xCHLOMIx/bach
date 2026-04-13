@@ -27,6 +27,9 @@ const batchSchema = new Schema(
   { timestamps: true }
 )
 
+// Indexes for common queries
+batchSchema.index({ userId: 1, createdAt: -1 })
+
 export type BatchDocument = InferSchemaType<typeof batchSchema> & { _id: string }
 
 const existingBatchModel = models.Batch

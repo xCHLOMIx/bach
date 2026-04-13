@@ -4,6 +4,7 @@ import { connectToDatabase } from "@/lib/db"
 import { errorResponse, successResponse, type FieldErrors } from "@/lib/api"
 import { getAuthorizedUser } from "@/lib/auth-guard"
 import { CategoryModel } from "@/models/Category"
+import { getOrCompute, clearCacheByPrefix } from "@/lib/cache"
 
 export async function GET(request: NextRequest) {
   await connectToDatabase()
@@ -11,7 +12,13 @@ export async function GET(request: NextRequest) {
   const user = await getAuthorizedUser(request)
   if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
 
-  const categories = await CategoryModel.find({ userId: user._id }).sort({ createdAt: -1 }).lean()
+  // Cache categories for 5 minutes (categories don't change frequently)
+  const categories = await getOrCompute(
+    `categories:${user._id}`,
+    () => CategoryModel.find({ userId: user._id }).sort({ createdAt: -1 }).lean(),
+    300
+  )
+  
   return successResponse({ categories })
 }
 
@@ -37,5 +44,9 @@ export async function POST(request: NextRequest) {
   }
 
   const category = await CategoryModel.create({ userId: user._id, name })
+  
+  // Invalidate cache when new category is created
+  clearCacheByPrefix(`categories:${user._id}`)
+  
   return successResponse({ category }, 201)
 }

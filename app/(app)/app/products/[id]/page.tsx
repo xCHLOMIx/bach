@@ -55,6 +55,7 @@ type Product = {
   intendedSellingPrice?: number | null
   externalLink?: string
   images: string[]
+  soldQuantity?: number
   createdAt: string
 }
 
@@ -468,7 +469,7 @@ export default function ProductDetailsPage() {
       return 0
     }
 
-    return product.quantityInitial - product.quantityRemaining
+    return typeof product.soldQuantity === "number" ? product.soldQuantity : 0
   }, [product])
 
   const intendedSellingPrice = useMemo(() => {

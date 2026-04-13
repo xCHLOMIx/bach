@@ -82,16 +82,48 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return errorResponse({ id: "Invalid product ID" }, 400)
   }
 
-  const product = await ProductModel.findOne({ _id: productId, userId: user._id })
-    .populate("categoryId", "name")
-    .populate("batchId", "batchName")
-    .lean()
+  const [product, soldAggregation] = await Promise.all([
+    ProductModel.findOne({ _id: productId, userId: user._id })
+      .populate("categoryId", "name")
+      .populate("batchId", "batchName")
+      .lean(),
+    SaleModel.aggregate<{ totalSold: number }>([
+      {
+        $match: {
+          userId: user._id,
+          productId: new Types.ObjectId(productId),
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalSold: { $sum: "$quantity" },
+        },
+      },
+    ]),
+  ])
 
   if (!product) {
     return errorResponse({ id: "Product not found" }, 404)
   }
 
-  return successResponse({ product })
+  const soldQuantity = soldAggregation[0]?.totalSold ?? 0
+  const reconciledQuantityRemaining = Math.max(0, product.quantityInitial - soldQuantity)
+
+  if (product.quantityRemaining !== reconciledQuantityRemaining) {
+    await ProductModel.updateOne(
+      { _id: productId, userId: user._id },
+      { $set: { quantityRemaining: reconciledQuantityRemaining } }
+    )
+  }
+
+  return successResponse({
+    product: {
+      ...product,
+      quantityRemaining: reconciledQuantityRemaining,
+      soldQuantity,
+    },
+  })
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -202,9 +234,41 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const previousBatchId = existingProduct.batchId ? String(existingProduct.batchId) : null
     let nextBatchId = previousBatchId
 
+    let soldQuantity = 0
+    if (quantityInitial !== undefined) {
+      const soldAggregation = await SaleModel.aggregate<{ totalSold: number }>([
+        {
+          $match: {
+            userId: user._id,
+            productId: new Types.ObjectId(productId),
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalSold: { $sum: "$quantity" },
+          },
+        },
+      ])
+
+      soldQuantity = soldAggregation[0]?.totalSold ?? 0
+
+      if (quantityInitial < soldQuantity) {
+        return errorResponse(
+          {
+            quantityInitial: `Initial stock cannot be less than total sold (${soldQuantity})`,
+          },
+          400
+        )
+      }
+    }
+
     if (name !== undefined) updateData.name = name
     if (categoryId !== undefined) updateData.categoryId = categoryId || null
-    if (quantityInitial !== undefined) updateData.quantityInitial = quantityInitial
+    if (quantityInitial !== undefined) {
+      updateData.quantityInitial = quantityInitial
+      updateData.quantityRemaining = Math.max(0, quantityInitial - soldQuantity)
+    }
     if (externalLink !== undefined) updateData.externalLink = externalLink
     if (intendedSellingPrice !== undefined) updateData.intendedSellingPrice = intendedSellingPrice
     if (batchId !== undefined) {

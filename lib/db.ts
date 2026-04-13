@@ -38,7 +38,15 @@ export async function connectToDatabase() {
   }
 
   if (!cache.promise) {
-    cache.promise = mongoose.connect(mongoUri())
+    cache.promise = mongoose.connect(mongoUri(), {
+      maxPoolSize: 10,
+      minPoolSize: 5,
+      maxIdleTimeMS: 45000,
+      socketTimeoutMS: 30000,
+      serverSelectionTimeoutMS: 5000,
+      retryWrites: true,
+      directConnection: false,
+    })
   }
 
   cache.conn = await cache.promise

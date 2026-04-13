@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   reactCompiler: true,
   images: {
     remotePatterns: [
@@ -10,6 +9,11 @@ const nextConfig: NextConfig = {
         hostname: "res.cloudinary.com",
       },
     ],
+  },
+  compress: true, // Enable gzip compression
+  productionBrowserSourceMaps: false, // Reduce bundle size in production
+  experimental: {
+    optimizePackageImports: ["recharts", "lucide-react"], // Tree-shake unused exports
   },
 };
 

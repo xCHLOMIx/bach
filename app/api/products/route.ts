@@ -69,15 +69,18 @@ export async function GET(request: NextRequest) {
   const sortObj: any = {}
   sortObj[sortColumn] = sortDirection === "asc" ? 1 : -1
 
-  // Execute query with pagination
-  const totalCount = await ProductModel.countDocuments(filter)
-  const products = await ProductModel.find(filter)
-    .populate("categoryId", "name")
-    .populate("batchId", "batchName")
-    .sort(sortObj)
-    .skip((page - 1) * limit)
-    .limit(limit)
-    .lean()
+  // Execute count and find in parallel (much faster than sequential)
+  const [totalCount, products] = await Promise.all([
+    ProductModel.countDocuments(filter),
+    ProductModel.find(filter)
+      .populate("categoryId", "name")
+      .populate("batchId", "batchName")
+      .sort(sortObj)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+      .exec(),
+  ])
 
   return successResponse({ products, totalCount })
 }
@@ -171,10 +174,6 @@ export async function POST(request: NextRequest) {
     images: uploadedUrls,
   })
 
-  const hydratedProduct = await ProductModel.findById(product._id)
-    .populate("categoryId", "name")
-    .populate("batchId", "batchName")
-    .lean()
-
-  return successResponse({ product: hydratedProduct }, 201)
+  // Return without populate - client has the data they just sent
+  return successResponse({ product }, 201)
 }
