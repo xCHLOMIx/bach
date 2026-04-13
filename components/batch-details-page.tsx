@@ -789,14 +789,14 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableRow>
                                 <TableHead>Product</TableHead>
                                 <TableHead className="text-right">Quantity</TableHead>
-                                <TableHead className="text-right">Vendor Price (RWF)</TableHead>
-                                <TableHead className="text-right">Vendor Total (RWF)</TableHead>
-                                <TableHead className="text-right">Import Charges (RWF)</TableHead>
+                                <TableHead className="text-right">Vendor Price</TableHead>
+                                <TableHead className="text-right">Vendor Total</TableHead>
+                                <TableHead className="text-right">Import Charges</TableHead>
                                 <TableHead className="text-right">Weight %</TableHead>
-                                <TableHead className="text-right">Selling Price (RWF)</TableHead>
-                                <TableHead className="text-right">Selling Total (RWF)</TableHead>
-                                <TableHead className="text-right">Landed Cost / Unit (RWF)</TableHead>
-                                <TableHead className="text-right">Total Landed Cost (RWF)</TableHead>
+                                <TableHead className="text-right">Selling (Unit)</TableHead>
+                                <TableHead className="text-right">Selling (All)</TableHead>
+                                <TableHead className="text-right">Landed Cost</TableHead>
+                                <TableHead className="text-right">Landed Total</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -813,29 +813,29 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                     <TableRow key={product._id}>
                                         <TableCell className="truncate max-w-xs font-medium">{product.name}</TableCell>
                                         <TableCell className="text-right">{product.quantityInitial.toLocaleString()}</TableCell>
-                                        <TableCell className="text-right">{baseUnitPrice.toLocaleString()}</TableCell>
-                                        <TableCell className="text-right">{productTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right">{Math.floor(baseUnitPrice).toLocaleString()}</TableCell>
+                                        <TableCell className="text-right">{Math.floor(productTotal).toLocaleString()}</TableCell>
                                         <TableCell className="text-right">
-                                            {importCharges.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                            {Math.floor(importCharges).toLocaleString()}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             {preview ? `${preview.weightPercentage.toFixed(2)}%` : "-"}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             {typeof intendedSellingPrice === "number"
-                                                ? intendedSellingPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                                                ? Math.floor(intendedSellingPrice).toLocaleString()
                                                 : "-"}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             {typeof intendedSellingPrice === "number"
-                                                ? (intendedSellingPrice * product.quantityInitial).toLocaleString(undefined, { maximumFractionDigits: 2 })
+                                                ? Math.floor(intendedSellingPrice * product.quantityInitial).toLocaleString()
                                                 : "-"}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            {finalUnit.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                            {Math.floor(finalUnit).toLocaleString()}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                            {Math.floor(finalTotal).toLocaleString()}
                                         </TableCell>
                                     </TableRow>
                                 )
@@ -844,13 +844,13 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                 <TableCell>Totals</TableCell>
                                 <TableCell className="text-right">{totals.quantity.toLocaleString()}</TableCell>
                                 <TableCell className="text-right">-</TableCell>
-                                <TableCell className="text-right">{totals.baseTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                                <TableCell className="text-right">{totals.shippingShare.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                <TableCell className="text-right">{Math.floor(totals.baseTotal).toLocaleString()}</TableCell>
+                                <TableCell className="text-right">{Math.floor(totals.shippingShare).toLocaleString()}</TableCell>
                                 <TableCell className="text-right">{`${totals.weightPercentage.toFixed(2)}%`}</TableCell>
                                 <TableCell className="text-right">-</TableCell>
-                                <TableCell className="text-right">{totals.sellingTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                <TableCell className="text-right">{Math.floor(totals.sellingTotal).toLocaleString()}</TableCell>
                                 <TableCell className="text-right">-</TableCell>
-                                <TableCell className="text-right">{totals.finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                <TableCell className="text-right">{Math.floor(totals.finalTotal).toLocaleString()}</TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
@@ -867,14 +867,14 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         <TableRow>
                             <TableHead>Product</TableHead>
                             <TableHead className="text-right">Quantity</TableHead>
-                            <TableHead className="text-right">Vendor Price (RWF)</TableHead>
-                            <TableHead className="text-right">Vendor Total (RWF)</TableHead>
-                            <TableHead className="text-right">Import Charges (RWF)</TableHead>
+                            <TableHead className="text-right">Vendor Price</TableHead>
+                            <TableHead className="text-right">Vendor Total</TableHead>
+                            <TableHead className="text-right">Import Charges</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
-                            <TableHead className="text-right">Selling Price (RWF)</TableHead>
-                            <TableHead className="text-right">Selling Total (RWF)</TableHead>
-                            <TableHead className="text-right">Landed Costs (RWF)</TableHead>
-                            <TableHead className="text-right">Landed Total (RWF)</TableHead>
+                            <TableHead className="text-right">Selling (Unit)</TableHead>
+                            <TableHead className="text-right">Selling (All)</TableHead>
+                            <TableHead className="text-right">Landed Costs</TableHead>
+                            <TableHead className="text-right">Landed Total</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -912,7 +912,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                     </div>
                     <Skeleton className="h-10 w-28 rounded-md" />
                 </CardHeader>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-4 lg:grid-cols-5">
                     {[0, 1, 2].map((index) => (
                         <div key={`batch-card-loading-${index}`} className="rounded-md border p-3">
                             <Skeleton className="h-3 w-24" />
@@ -969,37 +969,37 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             ),
         },
         {
-            label: "Collection fee (RWF)",
+            label: "Collection fee",
             amount: Number(stripCommas(form.collectionFee) || 0),
             value: Number(stripCommas(form.collectionFee) || 0).toLocaleString(),
         },
         {
-            label: "Customs duties (RWF)",
+            label: "Customs duties",
             amount: Number(stripCommas(form.customsDuties) || 0),
             value: Number(stripCommas(form.customsDuties) || 0).toLocaleString(),
         },
         {
-            label: "Declaration (RWF)",
+            label: "Declaration",
             amount: Number(stripCommas(form.declaration) || 0),
             value: Number(stripCommas(form.declaration) || 0).toLocaleString(),
         },
         {
-            label: "Arrival notification (RWF)",
+            label: "Arrival notification",
             amount: Number(stripCommas(form.arrivalNotif) || 0),
             value: Number(stripCommas(form.arrivalNotif) || 0).toLocaleString(),
         },
         {
-            label: "Warehouse storage (RWF)",
+            label: "Warehouse storage",
             amount: Number(stripCommas(form.warehouseStorage) || 0),
             value: Number(stripCommas(form.warehouseStorage) || 0).toLocaleString(),
         },
         {
-            label: "Local transport (RWF)",
+            label: "Local transport",
             amount: Number(stripCommas(form.localTransport) || 0),
             value: Number(stripCommas(form.localTransport) || 0).toLocaleString(),
         },
         {
-            label: "Miscellaneous (RWF)",
+            label: "Miscellaneous",
             amount: Number(stripCommas(form.miscellaneous) || 0),
             value: Number(stripCommas(form.miscellaneous) || 0).toLocaleString(),
         },
@@ -1238,7 +1238,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                     </div>
 
                     <div className="space-y-3 rounded-lg border p-3">
-                        <p className="text-sm font-semibold">Local Expenses (RWF)</p>
+                        <p className="text-sm font-semibold">Local Expenses</p>
                         <div className="space-y-2">
                             <p className="text-xs font-medium text-muted-foreground">Pickup method</p>
                             <div className="inline-flex rounded-md border bg-muted/20 p-1">
@@ -1262,7 +1262,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         {form.pickupMethod === "easy" ? (
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <div className="grid gap-1.5">
-                                    <label htmlFor="collection-fee" className="text-sm font-medium">Collection Fee (RWF)</label>
+                                    <label htmlFor="collection-fee" className="text-sm font-medium">Collection Fee</label>
                                     <Input
                                         id="collection-fee"
                                         type="text"
@@ -1275,7 +1275,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                     {renderFieldError("collectionFee")}
                                 </div>
                                 <div className="grid gap-1.5">
-                                    <label htmlFor="local-transport-easy" className="text-sm font-medium">Transport (RWF)</label>
+                                    <label htmlFor="local-transport-easy" className="text-sm font-medium">Transport</label>
                                     <Input
                                         id="local-transport-easy"
                                         type="text"
@@ -1371,29 +1371,104 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             </div>
                         )}
                     </div>
+
+                    <div className="flex flex-wrap gap-3">
+                        <div className="w-max rounded-md border p-3">
+                            <div className="flex items-center justify-between gap-2">
+                                <p className="text-xs text-muted-foreground">Tracking number</p>
+                                {form.trackingId ? (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={copyTrackingNumber}
+                                        aria-label="Copy tracking number"
+                                    >
+                                        <CopyIcon className="h-4 w-4" />
+                                    </Button>
+                                ) : null}
+                            </div>
+                            <p className="mt-2 text-sm font-medium text-foreground">{form.trackingId || "Not set"}</p>
+                        </div>
+                        <div className="w-max rounded-md border p-3">
+                            <p className="text-xs text-muted-foreground">Vendor Total</p>
+                            <p className="mt-2 text-sm font-medium text-foreground">
+                                {Math.floor(
+                                    selectedProducts.reduce((sum, product) => {
+                                        const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
+                                        return sum + (baseUnitPrice * product.quantityInitial)
+                                    }, 0)
+                                ).toLocaleString()} RWF
+                            </p>
+                        </div>
+                        <div className="w-max rounded-md border p-3">
+                            <p className="text-xs text-muted-foreground">Total Import Charges</p>
+                            <p className="mt-2 text-sm font-medium text-foreground">
+                                {Math.floor(selectedProducts
+                                    .reduce((sum, product) => {
+                                        const preview = allocationPreviewByProductId.get(product._id)
+                                        const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
+                                        const baseTotal = baseUnitPrice * product.quantityInitial
+                                        const finalUnit = preview ? preview.landedCost : baseUnitPrice
+                                        const finalTotal = finalUnit * product.quantityInitial
+                                        return sum + Math.max(0, finalTotal - baseTotal)
+                                    }, 0))
+                                    .toLocaleString()} RWF
+                            </p>
+                        </div>
+                        <div className="w-max rounded-md border p-3">
+                            <p className="text-xs text-muted-foreground">Landed Total</p>
+                            <p className="mt-2 text-sm font-medium text-foreground">
+                                {Math.floor(
+                                    selectedProducts.reduce((sum, product) => {
+                                        const preview = allocationPreviewByProductId.get(product._id)
+                                        const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
+                                        const finalUnit = preview ? preview.landedCost : baseUnitPrice
+                                        return sum + (finalUnit * product.quantityInitial)
+                                    }, 0)
+                                ).toLocaleString()} RWF
+                            </p>
+                        </div>
+                        <div className="w-max rounded-md border p-3">
+                            <p className="text-xs text-muted-foreground">Selling (All)</p>
+                            <p className="mt-2 text-sm font-medium text-foreground">
+                                {Math.floor(
+                                    selectedProducts.reduce((sum, product) => {
+                                        const intendedSellingPrice = intendedSellingPricesByProductId[product._id]
+                                        if (typeof intendedSellingPrice !== "number") {
+                                            return sum
+                                        }
+
+                                        return sum + (intendedSellingPrice * product.quantityInitial)
+                                    }, 0)
+                                ).toLocaleString()} RWF
+                            </p>
+                        </div>
+                    </div>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="flex flex-wrap gap-3">
                     {detailItems.length > 0 ? detailItems.map((item) => (
-                        <div key={item.label} className="rounded-md border p-3">
+                        <div key={item.label} className="w-max rounded-md border p-3">
                             <p className="text-xs text-muted-foreground">{item.label}</p>
                             {typeof item.estimateRwf === "number" && item.estimateRwf > 0 ? (
                                 <>
                                     <p className="mt-2 text-sm font-medium text-foreground">
-                                        ≈{item.estimateRwf.toLocaleString(undefined, { maximumFractionDigits: 2 })} RWF
+                                        ≈{Math.floor(item.estimateRwf).toLocaleString()} RWF
                                     </p>
                                     <p className="mt-1 text-xs font-semibold text-muted-foreground">{item.value}</p>
                                 </>
                             ) : (
-                                <p className="text-sm font-medium">{item.value}</p>
+                                <p className="text-sm font-medium">{item.value} RWF</p>
                             )}
                         </div>
                     )) : (
-                        <div className="rounded-md border p-3 text-sm text-muted-foreground md:col-span-2">
+                        <div className="w-max rounded-md border p-3 text-sm text-muted-foreground">
                             No expense details above 0.
                         </div>
                     )}
-                    <div className="rounded-md border p-3">
+                    <div className="w-max rounded-md border p-3">
                         <div className="flex items-center justify-between gap-2">
                             <p className="text-xs text-muted-foreground">Tracking number</p>
                             {form.trackingId ? (
@@ -1411,11 +1486,22 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         </div>
                         <p className="mt-2 text-sm font-medium text-foreground">{form.trackingId || "Not set"}</p>
                     </div>
-                    <div className="rounded-md border p-3">
+                    <div className="w-max rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Vendor Total</p>
+                        <p className="mt-2 text-sm font-medium text-foreground">
+                            {Math.floor(
+                                selectedProducts.reduce((sum, product) => {
+                                    const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
+                                    return sum + (baseUnitPrice * product.quantityInitial)
+                                }, 0)
+                            ).toLocaleString()} RWF
+                        </p>
+                    </div>
+                    <div className="w-max rounded-md border p-3">
                         <p className="text-xs text-muted-foreground">Total Import Charges</p>
                         <p className="mt-2 text-sm font-medium text-foreground">
-                            {selectedProducts
-                                .reduce((sum, product) => {
+                            {Math.floor(
+                                selectedProducts.reduce((sum, product) => {
                                     const preview = allocationPreviewByProductId.get(product._id)
                                     const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
                                     const baseTotal = baseUnitPrice * product.quantityInitial
@@ -1423,27 +1509,27 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                     const finalTotal = finalUnit * product.quantityInitial
                                     return sum + Math.max(0, finalTotal - baseTotal)
                                 }, 0)
-                                .toLocaleString(undefined, { maximumFractionDigits: 2 })} RWF
+                            ).toLocaleString()} RWF
                         </p>
                     </div>
-                    <div className="rounded-md border p-3">
+                    <div className="w-max rounded-md border p-3">
                         <p className="text-xs text-muted-foreground">Landed Total</p>
                         <p className="mt-2 text-sm font-medium text-foreground">
-                            {selectedProducts
-                                .reduce((sum, product) => {
+                            {Math.floor(
+                                selectedProducts.reduce((sum, product) => {
                                     const preview = allocationPreviewByProductId.get(product._id)
                                     const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
                                     const finalUnit = preview ? preview.landedCost : baseUnitPrice
                                     return sum + (finalUnit * product.quantityInitial)
                                 }, 0)
-                                .toLocaleString(undefined, { maximumFractionDigits: 2 })} RWF
+                            ).toLocaleString()} RWF
                         </p>
                     </div>
-                    <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Selling Total</p>
+                    <div className="w-max rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">Selling (All)</p>
                         <p className="mt-2 text-sm font-medium text-foreground">
-                            {selectedProducts
-                                .reduce((sum, product) => {
+                            {Math.floor(
+                                selectedProducts.reduce((sum, product) => {
                                     const intendedSellingPrice = intendedSellingPricesByProductId[product._id]
                                     if (typeof intendedSellingPrice !== "number") {
                                         return sum
@@ -1451,7 +1537,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
 
                                     return sum + (intendedSellingPrice * product.quantityInitial)
                                 }, 0)
-                                .toLocaleString(undefined, { maximumFractionDigits: 2 })} RWF
+                            ).toLocaleString()} RWF
                         </p>
                     </div>
                 </div>
