@@ -789,14 +789,14 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableRow>
                                 <TableHead>Product</TableHead>
                                 <TableHead className="text-right">Quantity</TableHead>
-                                <TableHead className="text-right">Vendor Price</TableHead>
-                                <TableHead className="text-right">Vendor Total</TableHead>
+                                <TableHead className="text-right">Purchase (Unit)</TableHead>
+                                <TableHead className="text-right">Purchase (All)</TableHead>
                                 <TableHead className="text-right">Import Charges</TableHead>
                                 <TableHead className="text-right">Weight %</TableHead>
                                 <TableHead className="text-right">Selling (Unit)</TableHead>
                                 <TableHead className="text-right">Selling (All)</TableHead>
-                                <TableHead className="text-right">Landed Cost</TableHead>
-                                <TableHead className="text-right">Landed Total</TableHead>
+                                <TableHead className="text-right">Landed (Unit)</TableHead>
+                                <TableHead className="text-right">Landed (All)</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -867,14 +867,14 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         <TableRow>
                             <TableHead>Product</TableHead>
                             <TableHead className="text-right">Quantity</TableHead>
-                            <TableHead className="text-right">Vendor Price</TableHead>
-                            <TableHead className="text-right">Vendor Total</TableHead>
+                            <TableHead className="text-right">Purchase (Unit)</TableHead>
+                            <TableHead className="text-right">Purchase (All)</TableHead>
                             <TableHead className="text-right">Import Charges</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
                             <TableHead className="text-right">Selling (Unit)</TableHead>
                             <TableHead className="text-right">Selling (All)</TableHead>
-                            <TableHead className="text-right">Landed Costs</TableHead>
-                            <TableHead className="text-right">Landed Total</TableHead>
+                            <TableHead className="text-right">Landed (Unit)</TableHead>
+                            <TableHead className="text-right">Landed (All)</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1418,7 +1418,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             </p>
                         </div>
                         <div className="w-max rounded-md border p-3">
-                            <p className="text-xs text-muted-foreground">Landed Total</p>
+                            <p className="text-xs text-muted-foreground">Landed (All)</p>
                             <p className="mt-2 text-sm font-medium text-foreground">
                                 {Math.floor(
                                     selectedProducts.reduce((sum, product) => {
@@ -1513,7 +1513,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         </p>
                     </div>
                     <div className="w-max rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Landed Total</p>
+                        <p className="text-xs text-muted-foreground">Landed (All)</p>
                         <p className="mt-2 text-sm font-medium text-foreground">
                             {Math.floor(
                                 selectedProducts.reduce((sum, product) => {
