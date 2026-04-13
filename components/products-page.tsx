@@ -93,13 +93,10 @@ type Product = {
 type ProductTableColumnKey =
     | "image"
     | "name"
-    | "category"
-    | "addedAt"
-    | "batch"
-    | "onHand"
     | "buyingPrice"
+    | "sellingPrice"
     | "landedPrice"
-    | "totalLandedCost"
+    | "profit"
 
 type ProductSortColumn = Exclude<ProductTableColumnKey, "image">
 type ProductSortDirection = "asc" | "desc"
@@ -107,13 +104,10 @@ type ProductSortDirection = "asc" | "desc"
 const DEFAULT_PRODUCT_COLUMN_ORDER: ProductTableColumnKey[] = [
     "image",
     "name",
-    "category",
-    "addedAt",
-    "batch",
-    "onHand",
     "buyingPrice",
+    "sellingPrice",
     "landedPrice",
-    "totalLandedCost",
+    "profit",
 ]
 
 type BulkSaleRow = {
@@ -162,13 +156,10 @@ export function ProductsPage() {
     const [visibleColumns, setVisibleColumns] = React.useState<Record<ProductTableColumnKey, boolean>>({
         image: true,
         name: true,
-        category: true,
-        addedAt: true,
-        batch: true,
-        onHand: true,
         buyingPrice: true,
+        sellingPrice: true,
         landedPrice: true,
-        totalLandedCost: true,
+        profit: true,
     })
     const [columnOrder, setColumnOrder] = React.useState<ProductTableColumnKey[]>(DEFAULT_PRODUCT_COLUMN_ORDER)
     const [draggedColumn, setDraggedColumn] = React.useState<ProductTableColumnKey | null>(null)
@@ -596,12 +587,10 @@ export function ProductsPage() {
                 ...current,
                 image: typeof parsed.image === "boolean" ? parsed.image : current.image,
                 name: typeof parsed.name === "boolean" ? parsed.name : current.name,
-                addedAt: typeof parsed.addedAt === "boolean" ? parsed.addedAt : current.addedAt,
-                batch: typeof parsed.batch === "boolean" ? parsed.batch : current.batch,
-                onHand: typeof parsed.onHand === "boolean" ? parsed.onHand : current.onHand,
                 buyingPrice: typeof parsed.buyingPrice === "boolean" ? parsed.buyingPrice : current.buyingPrice,
+                sellingPrice: typeof parsed.sellingPrice === "boolean" ? parsed.sellingPrice : current.sellingPrice,
                 landedPrice: typeof parsed.landedPrice === "boolean" ? parsed.landedPrice : current.landedPrice,
-                totalLandedCost: typeof parsed.totalLandedCost === "boolean" ? parsed.totalLandedCost : current.totalLandedCost,
+                profit: typeof parsed.profit === "boolean" ? parsed.profit : current.profit,
             }))
         } catch {
             // Ignore invalid saved preferences.
@@ -631,12 +620,10 @@ export function ProductsPage() {
 
             const sortableColumns: ProductSortColumn[] = [
                 "name",
-                "addedAt",
-                "batch",
-                "onHand",
                 "buyingPrice",
+                "sellingPrice",
                 "landedPrice",
-                "totalLandedCost",
+                "profit",
             ]
 
             if (typeof parsed.productSearch === "string") {
@@ -1275,33 +1262,21 @@ export function ProductsPage() {
                     aValue = a.name.toLowerCase()
                     bValue = b.name.toLowerCase()
                     break
-                case "category":
-                    aValue = (a.categoryId?.name ?? "").toLowerCase()
-                    bValue = (b.categoryId?.name ?? "").toLowerCase()
-                    break
-                case "addedAt":
-                    aValue = new Date(a.createdAt).getTime()
-                    bValue = new Date(b.createdAt).getTime()
-                    break
-                case "batch":
-                    aValue = (a.batchId?.batchName ?? "").toLowerCase()
-                    bValue = (b.batchId?.batchName ?? "").toLowerCase()
-                    break
-                case "onHand":
-                    aValue = a.quantityRemaining
-                    bValue = b.quantityRemaining
-                    break
                 case "buyingPrice":
                     aValue = a.purchasePriceRWF
                     bValue = b.purchasePriceRWF
+                    break
+                case "sellingPrice":
+                    aValue = typeof a.intendedSellingPrice === "number" ? a.intendedSellingPrice : Number.NEGATIVE_INFINITY
+                    bValue = typeof b.intendedSellingPrice === "number" ? b.intendedSellingPrice : Number.NEGATIVE_INFINITY
                     break
                 case "landedPrice":
                     aValue = a.landedCost
                     bValue = b.landedCost
                     break
-                case "totalLandedCost":
-                    aValue = a.landedCost * a.quantityRemaining
-                    bValue = b.landedCost * b.quantityRemaining
+                case "profit":
+                    aValue = typeof a.intendedSellingPrice === "number" ? a.intendedSellingPrice - a.landedCost : Number.NEGATIVE_INFINITY
+                    bValue = typeof b.intendedSellingPrice === "number" ? b.intendedSellingPrice - b.landedCost : Number.NEGATIVE_INFINITY
                     break
                 default:
                     return 0
@@ -1350,13 +1325,10 @@ export function ProductsPage() {
     const columnLabels: Record<ProductTableColumnKey, string> = {
         image: "Image",
         name: "Name",
-        category: "Category",
-        addedAt: "Added",
-        batch: "Batch",
-        onHand: "On Hand",
-        buyingPrice: "Buying Price (RWF)",
-        landedPrice: "Landed Costs (RWF)",
-        totalLandedCost: "Landed Total (RWF)",
+        buyingPrice: "Purchase",
+        sellingPrice: "Selling Price",
+        landedPrice: "Landed Costs",
+        profit: "Profit",
     }
 
     const handleColumnDrop = React.useCallback((targetColumn: ProductTableColumnKey) => {
@@ -1392,7 +1364,7 @@ export function ProductsPage() {
                 return currentColumn
             }
 
-            setSortDirection(columnKey === "addedAt" ? "desc" : "asc")
+            setSortDirection("asc")
             return columnKey
         })
     }, [])
@@ -1402,6 +1374,18 @@ export function ProductsPage() {
         const intendedProfitPerUnit = typeof intendedSellingPrice === "number"
             ? intendedSellingPrice - product.landedCost
             : undefined
+        const renderUnitAllValue = (unitValue: number, totalValue: number) => {
+            if (product.quantityInitial === 1) {
+                return <div className="font-medium">{Math.floor(unitValue).toLocaleString()}</div>
+            }
+
+            return (
+                <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">Unit: {Math.floor(unitValue).toLocaleString()}</div>
+                    <div className="font-medium">All: {Math.floor(totalValue).toLocaleString()}</div>
+                </div>
+            )
+        }
 
         if (columnKey === "image") {
             return (
@@ -1436,63 +1420,23 @@ export function ProductsPage() {
             )
         }
 
-        if (columnKey === "category") {
-            return (
-                <TableCell className="p-0">
-                    <div className="block p-2">
-                        <span
-                            className="block w-11/12 overflow-hidden text-ellipsis whitespace-nowrap"
-                            title={product.categoryId?.name ?? "No Category"}
-                        >
-                            {product.categoryId?.name ?? "No Category"}
-                        </span>
-                    </div>
-                </TableCell>
-            )
-        }
-
-        if (columnKey === "addedAt") {
-            return (
-                <TableCell className="p-0">
-                    <div className="block p-2">
-                        {new Date(product.createdAt).toLocaleString()}
-                    </div>
-                </TableCell>
-            )
-        }
-
-        if (columnKey === "batch") {
-            return (
-                <TableCell className="p-0">
-                    <div className="block p-2">
-                        <span
-                            className="block w-11/12 overflow-hidden text-ellipsis whitespace-nowrap"
-                            title={product.batchId?.batchName ?? "Unassigned"}
-                        >
-                            {product.batchId?.batchName ?? "Unassigned"}
-                        </span>
-                    </div>
-                </TableCell>
-            )
-        }
-
-        if (columnKey === "onHand") {
-            return (
-                <TableCell className="p-0">
-                    <div className="block p-2">
-                        <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
-                            {product.quantityRemaining}
-                        </Badge>
-                    </div>
-                </TableCell>
-            )
-        }
-
         if (columnKey === "buyingPrice") {
             return (
                 <TableCell className="p-0">
                     <div className="block p-2">
-                        {product.purchasePriceRWF.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {renderUnitAllValue(product.purchasePriceRWF, product.purchasePriceRWF * product.quantityInitial)}
+                    </div>
+                </TableCell>
+            )
+        }
+
+        if (columnKey === "sellingPrice") {
+            return (
+                <TableCell className="p-0">
+                    <div className="block p-2">
+                        {typeof intendedSellingPrice === "number"
+                            ? renderUnitAllValue(intendedSellingPrice, intendedSellingPrice * product.quantityInitial)
+                            : "-"}
                     </div>
                 </TableCell>
             )
@@ -1501,32 +1445,26 @@ export function ProductsPage() {
         if (columnKey === "landedPrice") {
             return (
                 <TableCell className="p-0">
-                    <div className="block space-y-1 p-2">
-                        <p>
-                            {product.landedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                            Selling: {typeof intendedSellingPrice === "number"
-                                ? intendedSellingPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                : "-"}
-                        </p>
-                        <p className={cn("text-xs", typeof intendedProfitPerUnit === "number" && intendedProfitPerUnit >= 0 ? "text-emerald-600" : "text-destructive")}>
-                            Profit: {typeof intendedProfitPerUnit === "number"
-                                ? intendedProfitPerUnit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                : "-"}
-                        </p>
+                    <div className="block p-2">
+                        {renderUnitAllValue(product.landedCost, product.landedCost * product.quantityInitial)}
                     </div>
                 </TableCell>
             )
         }
 
-        return (
-            <TableCell className="p-0">
-                <div className="block p-2">
-                    {(product.landedCost * product.quantityRemaining).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-            </TableCell>
-        )
+        if (columnKey === "profit") {
+            return (
+                <TableCell className="p-0">
+                    <div className={cn("block p-2", typeof intendedProfitPerUnit === "number" && intendedProfitPerUnit < 0 ? "text-destructive" : "")}>
+                        {typeof intendedProfitPerUnit === "number"
+                            ? renderUnitAllValue(intendedProfitPerUnit, intendedProfitPerUnit * product.quantityInitial)
+                            : "-"}
+                    </div>
+                </TableCell>
+            )
+        }
+
+        return null
     }, [intendedSellingPricesByProductId])
 
     const handleDeleteSelectedProduct = React.useCallback(() => {
@@ -1706,11 +1644,10 @@ export function ProductsPage() {
                                     <TableRow>
                                         <TableHead>Image</TableHead>
                                         <TableHead>Name</TableHead>
-                                        <TableHead>Category</TableHead>
-                                        <TableHead>Batch</TableHead>
-                                        <TableHead>On Hand</TableHead>
-                                        <TableHead>Buying Price (RWF)</TableHead>
-                                        <TableHead>Landed Costs (RWF)</TableHead>
+                                        <TableHead>Purchase</TableHead>
+                                        <TableHead>Selling Price</TableHead>
+                                        <TableHead>Landed Costs</TableHead>
+                                        <TableHead>Profit</TableHead>
                                         <TableHead>Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -1719,11 +1656,10 @@ export function ProductsPage() {
                                         <TableRow key={`products-loading-${index}`}>
                                             <TableCell><Skeleton className="h-10 w-10 rounded-md" /></TableCell>
                                             <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                                            <TableCell><Skeleton className="h-6 w-14 rounded-full" /></TableCell>
-                                            <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                                            <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
                                             <TableCell><Skeleton className="h-8 w-28 rounded-md" /></TableCell>
                                         </TableRow>
                                     ))}
@@ -1933,13 +1869,10 @@ export function ProductsPage() {
                                         <DropdownMenuSeparator />
                                         <DropdownMenuCheckboxItem checked={visibleColumns.image} onCheckedChange={(value) => handleColumnVisibilityChange("image", Boolean(value))}>Image</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.name} onCheckedChange={(value) => handleColumnVisibilityChange("name", Boolean(value))}>Name</DropdownMenuCheckboxItem>
-                                        <DropdownMenuCheckboxItem checked={visibleColumns.category} onCheckedChange={(value) => handleColumnVisibilityChange("category", Boolean(value))}>Category</DropdownMenuCheckboxItem>
-                                        <DropdownMenuCheckboxItem checked={visibleColumns.addedAt} onCheckedChange={(value) => handleColumnVisibilityChange("addedAt", Boolean(value))}>Added</DropdownMenuCheckboxItem>
-                                        <DropdownMenuCheckboxItem checked={visibleColumns.batch} onCheckedChange={(value) => handleColumnVisibilityChange("batch", Boolean(value))}>Batch</DropdownMenuCheckboxItem>
-                                        <DropdownMenuCheckboxItem checked={visibleColumns.onHand} onCheckedChange={(value) => handleColumnVisibilityChange("onHand", Boolean(value))}>On Hand</DropdownMenuCheckboxItem>
-                                        <DropdownMenuCheckboxItem checked={visibleColumns.buyingPrice} onCheckedChange={(value) => handleColumnVisibilityChange("buyingPrice", Boolean(value))}>Buying Price</DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem checked={visibleColumns.buyingPrice} onCheckedChange={(value) => handleColumnVisibilityChange("buyingPrice", Boolean(value))}>Purchase</DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem checked={visibleColumns.sellingPrice} onCheckedChange={(value) => handleColumnVisibilityChange("sellingPrice", Boolean(value))}>Selling Price</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.landedPrice} onCheckedChange={(value) => handleColumnVisibilityChange("landedPrice", Boolean(value))}>Landed Costs</DropdownMenuCheckboxItem>
-                                        <DropdownMenuCheckboxItem checked={visibleColumns.totalLandedCost} onCheckedChange={(value) => handleColumnVisibilityChange("totalLandedCost", Boolean(value))}>Landed Total Cost</DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem checked={visibleColumns.profit} onCheckedChange={(value) => handleColumnVisibilityChange("profit", Boolean(value))}>Profit</DropdownMenuCheckboxItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
 
