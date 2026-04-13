@@ -40,11 +40,11 @@ export function NavDocuments({
           (items || []).map((item) => (
             <SidebarMenuItem key={item.name} className="mt-1 first:mt-0">
               <SidebarMenuButton asChild>
-                <a href={item.url} className="flex items-center gap-3">
+                <a href={item.url} className="flex min-w-0 items-center gap-3">
                   <div className="h-8 w-8 rounded bg-muted flex items-center justify-center text-muted-foreground">
                     <Boxes className="h-4 w-4" />
                   </div>
-                  <span className="truncate">{item.name}</span>
+                  <span className="min-w-0 flex-1 truncate" title={item.name}>{item.name}</span>
                 </a>
               </SidebarMenuButton>
             </SidebarMenuItem>

@@ -64,6 +64,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [hasMounted, setHasMounted] = React.useState(false)
   const { isMobile, setOpenMobile, setOpen } = useSidebar()
   const sidebarRef = React.useRef<HTMLDivElement>(null)
+  const hasSyncedPinnedStateRef = React.useRef(false)
 
   // Load pin state from localStorage on mount
   React.useEffect(() => {
@@ -87,7 +88,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
 
     if (isPinned) {
-      setOpen(true)
+      if (!hasSyncedPinnedStateRef.current) {
+        setOpen(true)
+        hasSyncedPinnedStateRef.current = true
+      }
+    } else {
+      hasSyncedPinnedStateRef.current = false
     }
   }, [hasMounted, isPinned, setOpen])
 

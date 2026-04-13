@@ -27,6 +27,28 @@ import { toast } from "sonner"
 
 const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "AED"] as const
 const PRODUCTS_PER_PAGE = 10
+const BATCH_PRODUCT_COLUMN_ORDER_STORAGE_KEY = "batch-details:column-order"
+
+type BatchProductTableColumnKey =
+    | "product"
+    | "quantity"
+    | "purchase"
+    | "importCharges"
+    | "weight"
+    | "sellingPrice"
+    | "landedCost"
+    | "profit"
+
+const DEFAULT_BATCH_PRODUCT_COLUMN_ORDER: BatchProductTableColumnKey[] = [
+    "product",
+    "quantity",
+    "purchase",
+    "importCharges",
+    "weight",
+    "sellingPrice",
+    "landedCost",
+    "profit",
+]
 
 type Batch = {
     _id: string
@@ -123,10 +145,58 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     const [isEditing, setIsEditing] = React.useState(false)
     const [productSearch, setProductSearch] = React.useState("")
     const [productPage, setProductPage] = React.useState(1)
+    const [columnOrder, setColumnOrder] = React.useState<BatchProductTableColumnKey[]>(DEFAULT_BATCH_PRODUCT_COLUMN_ORDER)
+    const [draggedColumn, setDraggedColumn] = React.useState<BatchProductTableColumnKey | null>(null)
     const productSearchInputRef = React.useRef<HTMLInputElement | null>(null)
     const submitIntentRef = React.useRef(false)
 
+    React.useEffect(() => {
+        const savedColumnOrderRaw = window.localStorage.getItem(BATCH_PRODUCT_COLUMN_ORDER_STORAGE_KEY)
+        if (!savedColumnOrderRaw) {
+            return
+        }
+
+        try {
+            const parsed = JSON.parse(savedColumnOrderRaw)
+            if (!Array.isArray(parsed)) {
+                return
+            }
+
+            const validKeys = parsed.filter((key): key is BatchProductTableColumnKey =>
+                DEFAULT_BATCH_PRODUCT_COLUMN_ORDER.includes(key as BatchProductTableColumnKey)
+            )
+
+            if (validKeys.length === 0) {
+                return
+            }
+
+            const mergedOrder = [
+                ...validKeys,
+                ...DEFAULT_BATCH_PRODUCT_COLUMN_ORDER.filter((key) => !validKeys.includes(key)),
+            ]
+
+            setColumnOrder(mergedOrder)
+        } catch {
+            // Ignore invalid saved preferences.
+        }
+    }, [])
+
+    React.useEffect(() => {
+        window.localStorage.setItem(BATCH_PRODUCT_COLUMN_ORDER_STORAGE_KEY, JSON.stringify(columnOrder))
+    }, [columnOrder])
+
     const stripCommas = (value: string) => value.replace(/,/g, "")
+
+    const moveItem = React.useCallback(<T,>(items: T[], fromIndex: number, toIndex: number) => {
+        if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= items.length || toIndex >= items.length) {
+            return items
+        }
+
+        const next = [...items]
+        const [moved] = next.splice(fromIndex, 1)
+        next.splice(toIndex, 0, moved)
+        return next
+    }, [])
 
     const formatDecimalWithCommas = (value: string) => {
         if (!value) {
@@ -197,6 +267,26 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         return new Map(allBatches.map((batch) => [batch._id, batch.batchName]))
     }, [allBatches])
 
+    const handleColumnDrop = React.useCallback((targetColumn: BatchProductTableColumnKey) => {
+        if (!draggedColumn || draggedColumn === targetColumn) {
+            return
+        }
+
+        setColumnOrder((current) => {
+            const next = [...current]
+            const fromIndex = next.indexOf(draggedColumn)
+            const toIndex = next.indexOf(targetColumn)
+
+            if (fromIndex === -1 || toIndex === -1) {
+                return current
+            }
+
+            return moveItem(next, fromIndex, toIndex)
+        })
+
+        setDraggedColumn(null)
+    }, [draggedColumn, moveItem])
+
     const hasAnyExpenseAmount = React.useCallback(
         (nextForm: typeof initialBatchForm) => {
             return expenseFieldKeys.some((key) => Number(stripCommas(nextForm[key]) || 0) > 0)
@@ -205,6 +295,17 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     )
 
     const canSave = hasAnyExpenseAmount(form)
+
+    const columnLabels: Record<BatchProductTableColumnKey, string> = {
+        product: "Product",
+        quantity: "Quantity",
+        purchase: "Purchase",
+        importCharges: "Import Charges",
+        weight: "Weight %",
+        sellingPrice: "Selling Price",
+        landedCost: "Landed Cost",
+        profit: "Profit",
+    }
 
     const normalizedFormSignature = React.useMemo(() => {
         return JSON.stringify({
@@ -842,20 +943,150 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         const totalImportCharges = totals.shippingShare
         const totalLandedPrice = totals.finalTotal
 
+        const renderBatchProductCell = (product: Product, columnKey: BatchProductTableColumnKey, preview: ReturnType<typeof allocationPreviewByProductId.get>, baseUnitPrice: number, productTotal: number, finalUnit: number, finalTotal: number, importCharges: number, intendedSellingPrice: number | undefined) => {
+            if (columnKey === "product") {
+                return <TableCell className="truncate max-w-xs font-medium">{product.name}</TableCell>
+            }
+
+            if (columnKey === "quantity") {
+                return <TableCell className="text-right">{product.quantityInitial.toLocaleString()}</TableCell>
+            }
+
+            if (columnKey === "purchase") {
+                return (
+                    <TableCell className="text-right">
+                        {product.quantityInitial === 1 ? (
+                            <div className="font-medium">{Math.floor(baseUnitPrice).toLocaleString()}</div>
+                        ) : (
+                            <div className="space-y-1">
+                                <div className="text-xs text-muted-foreground">Unit: {Math.floor(baseUnitPrice).toLocaleString()}</div>
+                                <div className="font-medium">All: {Math.floor(productTotal).toLocaleString()}</div>
+                            </div>
+                        )}
+                    </TableCell>
+                )
+            }
+
+            if (columnKey === "importCharges") {
+                return <TableCell className="text-right">{Math.floor(importCharges).toLocaleString()}</TableCell>
+            }
+
+            if (columnKey === "weight") {
+                return <TableCell className="text-right">{preview ? `${preview.weightPercentage.toFixed(2)}%` : "-"}</TableCell>
+            }
+
+            if (columnKey === "sellingPrice") {
+                return (
+                    <TableCell className="text-right">
+                        {typeof intendedSellingPrice === "number" ? (
+                            product.quantityInitial === 1 ? (
+                                <div className="font-medium">{Math.floor(intendedSellingPrice).toLocaleString()}</div>
+                            ) : (
+                                <div className="space-y-1">
+                                    <div className="text-xs text-muted-foreground">Unit: {Math.floor(intendedSellingPrice).toLocaleString()}</div>
+                                    <div className="font-medium">All: {Math.floor(intendedSellingPrice * product.quantityInitial).toLocaleString()}</div>
+                                </div>
+                            )
+                        ) : (
+                            "-"
+                        )}
+                    </TableCell>
+                )
+            }
+
+            if (columnKey === "landedCost") {
+                return (
+                    <TableCell className="text-right">
+                        {product.quantityInitial === 1 ? (
+                            <div className="font-medium">{Math.floor(finalUnit).toLocaleString()}</div>
+                        ) : (
+                            <div className="space-y-1">
+                                <div className="text-xs text-muted-foreground">Unit: {Math.floor(finalUnit).toLocaleString()}</div>
+                                <div className="font-medium">All: {Math.floor(finalTotal).toLocaleString()}</div>
+                            </div>
+                        )}
+                    </TableCell>
+                )
+            }
+
+            if (columnKey === "profit") {
+                return (
+                    <TableCell className="text-right">
+                        {typeof intendedSellingPrice === "number" ? (
+                            product.quantityInitial === 1 ? (
+                                <div className="font-medium">{Math.floor(intendedSellingPrice - finalUnit).toLocaleString()}</div>
+                            ) : (
+                                <div className="space-y-1">
+                                    <div className="text-xs text-muted-foreground">Unit: {Math.floor(intendedSellingPrice - finalUnit).toLocaleString()}</div>
+                                    <div className="font-medium">All: {Math.floor((intendedSellingPrice * product.quantityInitial) - finalTotal).toLocaleString()}</div>
+                                </div>
+                            )
+                        ) : (
+                            "-"
+                        )}
+                    </TableCell>
+                )
+            }
+
+            return null
+        }
+
+        const renderBatchTotalCell = (columnKey: BatchProductTableColumnKey) => {
+            if (columnKey === "product") {
+                return <TableCell>TOTAL</TableCell>
+            }
+
+            if (columnKey === "quantity") {
+                return <TableCell className="text-right">{totals.quantity.toLocaleString()}</TableCell>
+            }
+
+            if (columnKey === "purchase") {
+                return <TableCell className="text-right">{Math.floor(totals.baseTotal).toLocaleString()}</TableCell>
+            }
+
+            if (columnKey === "importCharges") {
+                return <TableCell className="text-right">{Math.floor(totals.shippingShare).toLocaleString()}</TableCell>
+            }
+
+            if (columnKey === "weight") {
+                return <TableCell className="text-right">100%</TableCell>
+            }
+
+            if (columnKey === "sellingPrice") {
+                return <TableCell className="text-right">{totals.sellingTotal > 0 ? Math.floor(totals.sellingTotal).toLocaleString() : "-"}</TableCell>
+            }
+
+            if (columnKey === "landedCost") {
+                return <TableCell className="text-right">{Math.floor(totals.finalTotal).toLocaleString()}</TableCell>
+            }
+
+            if (columnKey === "profit") {
+                return <TableCell className="text-right">{totals.totalProfit > 0 ? Math.floor(totals.totalProfit).toLocaleString() : "-"}</TableCell>
+            }
+
+            return null
+        }
+
         return (
             <div className="overflow-hidden rounded-md border">
                 <div className="overflow-x-auto">
                     <Table className="min-w-275">
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Product</TableHead>
-                                <TableHead className="text-right">Quantity</TableHead>
-                                <TableHead className="text-right">Purchase</TableHead>
-                                <TableHead className="text-right">Import Charges</TableHead>
-                                <TableHead className="text-right">Weight %</TableHead>
-                                <TableHead className="text-right">Selling Price</TableHead>
-                                <TableHead className="text-right">Landed Cost</TableHead>
-                                <TableHead className="text-right">Profit</TableHead>
+                                {columnOrder.map((columnKey) => (
+                                    <TableHead
+                                        key={columnKey}
+                                        draggable
+                                        onDragStart={() => setDraggedColumn(columnKey)}
+                                        onDragEnd={() => setDraggedColumn(null)}
+                                        onDragOver={(event) => event.preventDefault()}
+                                        onDrop={() => handleColumnDrop(columnKey)}
+                                        className="cursor-move select-none"
+                                        title="Drag to reorder columns"
+                                    >
+                                        <span>{columnLabels[columnKey]}</span>
+                                    </TableHead>
+                                ))}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -870,74 +1101,20 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
 
                                 return (
                                     <TableRow key={product._id}>
-                                        <TableCell className="truncate max-w-xs font-medium">{index + 1}. {product.name}</TableCell>
-                                        <TableCell className="text-right">{product.quantityInitial.toLocaleString()}</TableCell>
-                                        <TableCell className="text-right">
-                                            {product.quantityInitial === 1 ? (
-                                                <div className="font-medium">{Math.floor(baseUnitPrice).toLocaleString()}</div>
-                                            ) : (
-                                                <div className="space-y-1">
-                                                    <div className="text-xs text-muted-foreground">Unit: {Math.floor(baseUnitPrice).toLocaleString()}</div>
-                                                    <div className="font-medium">All: {Math.floor(productTotal).toLocaleString()}</div>
-                                                </div>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {Math.floor(importCharges).toLocaleString()}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {preview ? `${preview.weightPercentage.toFixed(2)}%` : "-"}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {typeof intendedSellingPrice === "number" ? (
-                                                product.quantityInitial === 1 ? (
-                                                    <div className="font-medium">{Math.floor(intendedSellingPrice).toLocaleString()}</div>
-                                                ) : (
-                                                    <div className="space-y-1">
-                                                        <div className="text-xs text-muted-foreground">Unit: {Math.floor(intendedSellingPrice).toLocaleString()}</div>
-                                                        <div className="font-medium">All: {Math.floor(intendedSellingPrice * product.quantityInitial).toLocaleString()}</div>
-                                                    </div>
-                                                )
-                                            ) : (
-                                                "-"
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {product.quantityInitial === 1 ? (
-                                                <div className="font-medium">{Math.floor(finalUnit).toLocaleString()}</div>
-                                            ) : (
-                                                <div className="space-y-1">
-                                                    <div className="text-xs text-muted-foreground">Unit: {Math.floor(finalUnit).toLocaleString()}</div>
-                                                    <div className="font-medium">All: {Math.floor(finalTotal).toLocaleString()}</div>
-                                                </div>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {typeof intendedSellingPrice === "number" ? (
-                                                product.quantityInitial === 1 ? (
-                                                    <div className="font-medium">{Math.floor(intendedSellingPrice - finalUnit).toLocaleString()}</div>
-                                                ) : (
-                                                    <div className="space-y-1">
-                                                        <div className="text-xs text-muted-foreground">Unit: {Math.floor(intendedSellingPrice - finalUnit).toLocaleString()}</div>
-                                                        <div className="font-medium">All: {Math.floor((intendedSellingPrice * product.quantityInitial) - finalTotal).toLocaleString()}</div>
-                                                    </div>
-                                                )
-                                            ) : (
-                                                "-"
-                                            )}
-                                        </TableCell>
+                                        {columnOrder.map((columnKey) => (
+                                            <React.Fragment key={`${product._id}-${columnKey}`}>
+                                                {renderBatchProductCell(product, columnKey, preview, baseUnitPrice, productTotal, finalUnit, finalTotal, importCharges, intendedSellingPrice)}
+                                            </React.Fragment>
+                                        ))}
                                     </TableRow>
                                 )
                             })}
                             <TableRow className="bg-muted/30 font-semibold">
-                                <TableCell>TOTAL</TableCell>
-                                <TableCell className="text-right">{totals.quantity.toLocaleString()}</TableCell>
-                                <TableCell className="text-right">{Math.floor(totals.baseTotal).toLocaleString()}</TableCell>
-                                <TableCell className="text-right">{Math.floor(totals.shippingShare).toLocaleString()}</TableCell>
-                                <TableCell className="text-right">100%</TableCell>
-                                <TableCell className="text-right">{totals.sellingTotal > 0 ? Math.floor(totals.sellingTotal).toLocaleString() : "-"}</TableCell>
-                                <TableCell className="text-right">{Math.floor(totals.finalTotal).toLocaleString()}</TableCell>
-                                <TableCell className="text-right">{totals.totalProfit > 0 ? Math.floor(totals.totalProfit).toLocaleString() : "-"}</TableCell>
+                                {columnOrder.map((columnKey) => (
+                                    <React.Fragment key={`total-${columnKey}`}>
+                                        {renderBatchTotalCell(columnKey)}
+                                    </React.Fragment>
+                                ))}
                             </TableRow>
                         </TableBody>
                     </Table>
