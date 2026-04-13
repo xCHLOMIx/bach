@@ -789,14 +789,12 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableRow>
                                 <TableHead>Product</TableHead>
                                 <TableHead className="text-right">Quantity</TableHead>
-                                <TableHead className="text-right">Purchase (Unit)</TableHead>
-                                <TableHead className="text-right">Purchase (All)</TableHead>
+                                <TableHead className="text-right">Purchase</TableHead>
                                 <TableHead className="text-right">Import Charges</TableHead>
                                 <TableHead className="text-right">Weight %</TableHead>
-                                <TableHead className="text-right">Selling (Unit)</TableHead>
-                                <TableHead className="text-right">Selling (All)</TableHead>
-                                <TableHead className="text-right">Landed (Unit)</TableHead>
-                                <TableHead className="text-right">Landed (All)</TableHead>
+                                <TableHead className="text-right">Selling</TableHead>
+                                <TableHead className="text-right">Landed</TableHead>
+                                <TableHead className="text-right">Profit</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -813,8 +811,16 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                     <TableRow key={product._id}>
                                         <TableCell className="truncate max-w-xs font-medium">{product.name}</TableCell>
                                         <TableCell className="text-right">{product.quantityInitial.toLocaleString()}</TableCell>
-                                        <TableCell className="text-right">{Math.floor(baseUnitPrice).toLocaleString()}</TableCell>
-                                        <TableCell className="text-right">{Math.floor(productTotal).toLocaleString()}</TableCell>
+                                        <TableCell className="text-right">
+                                            {product.quantityInitial === 1 ? (
+                                                <div className="font-medium">{Math.floor(baseUnitPrice).toLocaleString()}</div>
+                                            ) : (
+                                                <div className="space-y-1">
+                                                    <div className="text-xs text-muted-foreground">Unit: {Math.floor(baseUnitPrice).toLocaleString()}</div>
+                                                    <div className="font-medium">All: {Math.floor(productTotal).toLocaleString()}</div>
+                                                </div>
+                                            )}
+                                        </TableCell>
                                         <TableCell className="text-right">
                                             {Math.floor(importCharges).toLocaleString()}
                                         </TableCell>
@@ -822,20 +828,42 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                             {preview ? `${preview.weightPercentage.toFixed(2)}%` : "-"}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            {typeof intendedSellingPrice === "number"
-                                                ? Math.floor(intendedSellingPrice).toLocaleString()
-                                                : "-"}
+                                            {typeof intendedSellingPrice === "number" ? (
+                                                product.quantityInitial === 1 ? (
+                                                    <div className="font-medium">{Math.floor(intendedSellingPrice).toLocaleString()}</div>
+                                                ) : (
+                                                    <div className="space-y-1">
+                                                        <div className="text-xs text-muted-foreground">Unit: {Math.floor(intendedSellingPrice).toLocaleString()}</div>
+                                                        <div className="font-medium">All: {Math.floor(intendedSellingPrice * product.quantityInitial).toLocaleString()}</div>
+                                                    </div>
+                                                )
+                                            ) : (
+                                                "-"
+                                            )}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            {typeof intendedSellingPrice === "number"
-                                                ? Math.floor(intendedSellingPrice * product.quantityInitial).toLocaleString()
-                                                : "-"}
+                                            {product.quantityInitial === 1 ? (
+                                                <div className="font-medium">{Math.floor(finalUnit).toLocaleString()}</div>
+                                            ) : (
+                                                <div className="space-y-1">
+                                                    <div className="text-xs text-muted-foreground">Unit: {Math.floor(finalUnit).toLocaleString()}</div>
+                                                    <div className="font-medium">All: {Math.floor(finalTotal).toLocaleString()}</div>
+                                                </div>
+                                            )}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            {Math.floor(finalUnit).toLocaleString()}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {Math.floor(finalTotal).toLocaleString()}
+                                            {typeof intendedSellingPrice === "number" ? (
+                                                product.quantityInitial === 1 ? (
+                                                    <div className="font-medium">{Math.floor(intendedSellingPrice - finalUnit).toLocaleString()}</div>
+                                                ) : (
+                                                    <div className="space-y-1">
+                                                        <div className="text-xs text-muted-foreground">Unit: {Math.floor(intendedSellingPrice - finalUnit).toLocaleString()}</div>
+                                                        <div className="font-medium">All: {Math.floor((intendedSellingPrice * product.quantityInitial) - finalTotal).toLocaleString()}</div>
+                                                    </div>
+                                                )
+                                            ) : (
+                                                "-"
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 )
@@ -843,14 +871,32 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableRow className="bg-muted/30 font-semibold">
                                 <TableCell>Totals</TableCell>
                                 <TableCell className="text-right">{totals.quantity.toLocaleString()}</TableCell>
-                                <TableCell className="text-right">-</TableCell>
-                                <TableCell className="text-right">{Math.floor(totals.baseTotal).toLocaleString()}</TableCell>
+                                <TableCell className="text-right">
+                                    <div className="space-y-1">
+                                        <div className="text-xs">Unit: {Math.floor(totals.baseTotal / totals.quantity).toLocaleString()}</div>
+                                        <div>All: {Math.floor(totals.baseTotal).toLocaleString()}</div>
+                                    </div>
+                                </TableCell>
                                 <TableCell className="text-right">{Math.floor(totals.shippingShare).toLocaleString()}</TableCell>
                                 <TableCell className="text-right">{`${totals.weightPercentage.toFixed(2)}%`}</TableCell>
-                                <TableCell className="text-right">-</TableCell>
-                                <TableCell className="text-right">{Math.floor(totals.sellingTotal).toLocaleString()}</TableCell>
-                                <TableCell className="text-right">-</TableCell>
-                                <TableCell className="text-right">{Math.floor(totals.finalTotal).toLocaleString()}</TableCell>
+                                <TableCell className="text-right">
+                                    <div className="space-y-1">
+                                        <div className="text-xs">Unit: {Math.floor(totals.sellingTotal / totals.quantity).toLocaleString()}</div>
+                                        <div>All: {Math.floor(totals.sellingTotal).toLocaleString()}</div>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <div className="space-y-1">
+                                        <div className="text-xs">Unit: {Math.floor(totals.finalTotal / totals.quantity).toLocaleString()}</div>
+                                        <div>All: {Math.floor(totals.finalTotal).toLocaleString()}</div>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <div className="space-y-1">
+                                        <div className="text-xs">Unit: {Math.floor((totals.sellingTotal / totals.quantity) - (totals.finalTotal / totals.quantity)).toLocaleString()}</div>
+                                        <div>All: {Math.floor(totals.sellingTotal - totals.finalTotal).toLocaleString()}</div>
+                                    </div>
+                                </TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
@@ -867,14 +913,12 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         <TableRow>
                             <TableHead>Product</TableHead>
                             <TableHead className="text-right">Quantity</TableHead>
-                            <TableHead className="text-right">Purchase (Unit)</TableHead>
-                            <TableHead className="text-right">Purchase (All)</TableHead>
+                            <TableHead className="text-right">Purchase</TableHead>
                             <TableHead className="text-right">Import Charges</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
-                            <TableHead className="text-right">Selling (Unit)</TableHead>
-                            <TableHead className="text-right">Selling (All)</TableHead>
-                            <TableHead className="text-right">Landed (Unit)</TableHead>
-                            <TableHead className="text-right">Landed (All)</TableHead>
+                            <TableHead className="text-right">Selling</TableHead>
+                            <TableHead className="text-right">Landed</TableHead>
+                            <TableHead className="text-right">Profit</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -882,14 +926,11 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <TableRow key={`batch-details-loading-${index}`}>
                                 <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                                 <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-12" /></TableCell>
-                                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
-                                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
+                                <TableCell className="text-right"><Skeleton className="ml-auto h-8 w-24" /></TableCell>
                                 <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-14" /></TableCell>
                                 <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
-                                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
-                                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
-                                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
-                                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
+                                <TableCell className="text-right"><Skeleton className="ml-auto h-8 w-20" /></TableCell>
+                                <TableCell className="text-right"><Skeleton className="ml-auto h-8 w-20" /></TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
