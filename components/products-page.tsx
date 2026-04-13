@@ -1356,7 +1356,7 @@ export function ProductsPage() {
         onHand: "On Hand",
         buyingPrice: "Buying Price (RWF)",
         landedPrice: "Landed Costs (RWF)",
-        totalLandedCost: "Total Landed Cost (RWF)",
+        totalLandedCost: "Landed Total (RWF)",
     }
 
     const handleColumnDrop = React.useCallback((targetColumn: ProductTableColumnKey) => {
@@ -1939,7 +1939,7 @@ export function ProductsPage() {
                                         <DropdownMenuCheckboxItem checked={visibleColumns.onHand} onCheckedChange={(value) => handleColumnVisibilityChange("onHand", Boolean(value))}>On Hand</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.buyingPrice} onCheckedChange={(value) => handleColumnVisibilityChange("buyingPrice", Boolean(value))}>Buying Price</DropdownMenuCheckboxItem>
                                         <DropdownMenuCheckboxItem checked={visibleColumns.landedPrice} onCheckedChange={(value) => handleColumnVisibilityChange("landedPrice", Boolean(value))}>Landed Costs</DropdownMenuCheckboxItem>
-                                        <DropdownMenuCheckboxItem checked={visibleColumns.totalLandedCost} onCheckedChange={(value) => handleColumnVisibilityChange("totalLandedCost", Boolean(value))}>Total Landed Cost</DropdownMenuCheckboxItem>
+                                        <DropdownMenuCheckboxItem checked={visibleColumns.totalLandedCost} onCheckedChange={(value) => handleColumnVisibilityChange("totalLandedCost", Boolean(value))}>Landed Total Cost</DropdownMenuCheckboxItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
 
@@ -2201,7 +2201,7 @@ export function ProductsPage() {
                                                     : "-"}
                                             </div>
                                             <div className="mt-1 text-xs text-muted-foreground">
-                                                Total Landed Cost (RWF): {(product.landedCost * product.quantityRemaining).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                Landed Total (RWF): {(product.landedCost * product.quantityRemaining).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </div>
                                             <div className="mt-4" onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</div>
                                         </div>
@@ -2404,7 +2404,7 @@ export function ProductsPage() {
                                                 Landed cost per unit: <span className="font-semibold text-foreground">{(saleSelectedProduct?.landedCost ?? 0).toLocaleString()} RWF</span>
                                             </p>
                                             <p className="text-sm text-muted-foreground">
-                                                Total landed cost: <span className="font-semibold text-foreground">{saleTotalLandedCost.toLocaleString()} RWF</span>
+                                                Landed Total: <span className="font-semibold text-foreground">{saleTotalLandedCost.toLocaleString()} RWF</span>
                                             </p>
                                         </div>
 
@@ -2511,10 +2511,10 @@ export function ProductsPage() {
 
                                                     <div className="mt-3 rounded-md bg-muted p-2 text-xs text-muted-foreground">
                                                         <p>
-                                                            Total landed cost: <span className="font-semibold text-foreground">{totalLandedCost.toLocaleString()} RWF</span>
+                                                            Landed Total: <span className="font-semibold text-foreground">{totalLandedCost.toLocaleString()} RWF</span>
                                                         </p>
                                                         <p>
-                                                            Total value: <span className="font-semibold text-foreground">{totalSellingValue.toLocaleString()} RWF</span>
+                                                            Selling Total: <span className="font-semibold text-foreground">{totalSellingValue.toLocaleString()} RWF</span>
                                                         </p>
                                                         <p>
                                                             {totalProfit >= 0 ? "Profit" : "Loss"}: <span className={totalProfit >= 0 ? "font-bold text-primary" : "font-bold text-destructive"}>{Math.abs(totalProfit).toLocaleString()} RWF</span>

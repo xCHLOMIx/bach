@@ -1435,7 +1435,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <p className="mt-2 text-sm font-medium text-foreground">{form.trackingId || "Not set"}</p>
                         </div>
                         <div className="w-max rounded-md border p-3">
-                            <p className="text-xs text-muted-foreground">Buying Total</p>
+                            <p className="text-xs text-muted-foreground">Purchase total</p>
                             <p className="mt-2 text-sm font-medium text-foreground">
                                 {Math.floor(
                                     selectedProducts.reduce((sum, product) => {
@@ -1530,7 +1530,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         <p className="mt-2 text-sm font-medium text-foreground">{form.trackingId || "Not set"}</p>
                     </div>
                     <div className="w-max rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Buying Total</p>
+                        <p className="text-xs text-muted-foreground">Purchase total</p>
                         <p className="mt-2 text-sm font-medium text-foreground">
                             {Math.floor(
                                 selectedProducts.reduce((sum, product) => {
@@ -1556,7 +1556,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         </p>
                     </div>
                     <div className="w-max rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Landed (All)</p>
+                        <p className="text-xs text-muted-foreground">Landed Total</p>
                         <p className="mt-2 text-sm font-medium text-foreground">
                             {Math.floor(
                                 selectedProducts.reduce((sum, product) => {
@@ -1569,7 +1569,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         </p>
                     </div>
                     <div className="w-max rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">Selling (All)</p>
+                        <p className="text-xs text-muted-foreground">Selling total</p>
                         <p className="mt-2 text-sm font-medium text-foreground">
                             {Math.floor(
                                 selectedProducts.reduce((sum, product) => {

@@ -615,7 +615,7 @@ export function SalesPage() {
                                                     </div>
 
                                                     <div className="mt-3 rounded-md bg-muted p-2 text-xs text-muted-foreground">
-                                                        <p>Total landed cost: <span className="font-semibold text-foreground">{formatRWF(totalLandedCost)} RWF</span></p>
+                                                        <p>Landed Total: <span className="font-semibold text-foreground">{formatRWF(totalLandedCost)} RWF</span></p>
                                                         <p>Total value: <span className="font-semibold text-foreground">{formatRWF(totalSellingValue)} RWF</span></p>
                                                         <p>
                                                             {totalProfit >= 0 ? "Profit" : "Loss"}: <span className={totalProfit >= 0 ? "font-semibold text-primary" : "font-semibold text-destructive"}>{formatRWF(Math.abs(totalProfit))} RWF</span>
