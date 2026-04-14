@@ -18,26 +18,10 @@ import {
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Field, FieldError, FieldLabel } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
+import { ProductEditSheet } from "@/components/product-edit-sheet"
 import { Skeleton } from "@/components/ui/skeleton"
-import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 
-const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"]
+type Category = { _id: string; name: string }
 
 type Product = {
   _id: string
@@ -113,6 +97,7 @@ export default function ProductDetailsPage() {
 
   const [product, setProduct] = useState<Product | null>(null)
   const [batches, setBatches] = useState<Batch[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -210,8 +195,9 @@ export default function ProductDetailsPage() {
       setIsLoading(true)
       setError(null)
 
-      const [productResponse, batchesResponse] = await Promise.all([
+      const [productResponse, categoriesResponse, batchesResponse] = await Promise.all([
         fetch(`/api/products/${productId}`),
+        fetch("/api/categories"),
         fetch("/api/batches"),
       ])
 
@@ -222,6 +208,11 @@ export default function ProductDetailsPage() {
       const productData = await productResponse.json()
       setProduct(productData.product)
       setCurrentImageIndex(0)
+
+      if (categoriesResponse.ok) {
+        const categoryData = await categoriesResponse.json()
+        setCategories(categoryData.categories ?? [])
+      }
 
       if (batchesResponse.ok) {
         const batchData = await batchesResponse.json()
@@ -301,21 +292,7 @@ export default function ProductDetailsPage() {
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [closeImagePreview, handleNextImage, handlePrevImage, isPreviewOpen, showNextPreviewImage, showPreviousPreviewImage])
 
-  const openEditProductSheet = useCallback((currentProduct: Product) => {
-    setEditProductId(currentProduct._id)
-    setEditProductName(currentProduct.name)
-    setEditQuantityInitial(String(currentProduct.quantityInitial))
-    setEditUnitPriceForeign(formatDecimalWithCommas(String(currentProduct.unitPriceForeign)))
-    setEditIntendedSellingPrice(formatDecimalWithCommas(String(currentProduct.intendedSellingPrice ?? "")))
-    setEditExternalLink(currentProduct.externalLink ?? "")
-    setEditSourceCurrency(currentProduct.sourceCurrency)
-    setEditExchangeRate(formatDecimalWithCommas(String(currentProduct.exchangeRate ?? 1)))
-    setEditBatchId(currentProduct.batchId?._id ?? "")
-    setEditProductImages(currentProduct.images ?? [])
-    setEditNewImages([])
-    setEditNewImagePreviews([])
-    setEditDeletedImageIndices(new Set())
-    setEditErrors({})
+  const openEditProductSheet = useCallback(() => {
     setIsEditProductSheetOpen(true)
   }, [])
 
@@ -774,7 +751,7 @@ export default function ProductDetailsPage() {
                   type="button"
                   variant="outline"
                   className="flex-1 rounded-xl"
-                  onClick={() => openEditProductSheet(product)}
+                  onClick={openEditProductSheet}
                 >
                   Edit Product
                   <PencilIcon className="ml-2 h-4 w-4" />
@@ -795,327 +772,16 @@ export default function ProductDetailsPage() {
         </section>
       </div>
 
-      <Sheet open={isEditProductSheetOpen} onOpenChange={setIsEditProductSheetOpen}>
-        <SheetContent className="overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle className="truncate">Edit {product.name}</SheetTitle>
-            <SheetDescription>Update product details and batch assignment.</SheetDescription>
-          </SheetHeader>
-          <form className="grid gap-6 p-4" onSubmit={submitEditProduct} onKeyDown={preventImplicitSubmitOnEnter}>
-            {/* Images Section */}
-            <div className="space-y-3 border-b pb-4">
-              <h3 className="font-semibold text-sm">Images</h3>
-
-              {/* Main Image Display (first existing image or first new image) */}
-              <div className="relative h-64 w-full overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center group">
-                {editProductImages[0] && !editDeletedImageIndices.has(0) ? (
-                  <>
-                    <Image
-                      src={editProductImages[0]}
-                      alt="Main product image"
-                      fill
-                      sizes="(max-width: 768px) 100vw, 420px"
-                      className="object-cover"
-                      unoptimized
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newDeleted = new Set(editDeletedImageIndices)
-                        newDeleted.add(0)
-                        setEditDeletedImageIndices(newDeleted)
-                      }}
-                      className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <XIcon className="h-4 w-4" />
-                    </button>
-                  </>
-                ) : editNewImagePreviews[0] ? (
-                  <>
-                    <Image
-                      src={editNewImagePreviews[0]}
-                      alt="New main image"
-                      fill
-                      sizes="(max-width: 768px) 100vw, 420px"
-                      className="object-cover"
-                      unoptimized
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newNewImages = editNewImages.filter((_, i) => i !== 0)
-                        setEditNewImages(newNewImages)
-                      }}
-                      className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <XIcon className="h-4 w-4" />
-                    </button>
-                  </>
-                ) : (
-                  <label className="cursor-pointer flex flex-col items-center gap-2 px-3 text-center w-full h-full justify-center">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70 transition-colors group-hover:border-primary/50">
-                      <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
-                    </div>
-                    <div className="text-sm font-medium text-foreground">Add main image</div>
-                    <div className="text-xs text-muted-foreground">Click to upload</div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0]
-                        if (file) {
-                          setEditNewImages([file, ...editNewImages])
-                        }
-                      }}
-                    />
-                  </label>
-                )}
-              </div>
-
-              {/* Image Grid - Dynamic cells for remaining images */}
-              {(editProductImages.length > 1 || editNewImages.length > 1 ||
-                editProductImages.length + editNewImages.length - editDeletedImageIndices.size < 4) && (
-                  <div className="grid grid-cols-3 gap-2">
-                    {/* Show remaining existing images (up to 3 after main) */}
-                    {editProductImages.slice(1).map((image, sliceIndex) => {
-                      const actualIndex = sliceIndex + 1
-                      if (editDeletedImageIndices.has(actualIndex) || sliceIndex >= 3) return null
-
-                      return (
-                        <div key={`existing-${actualIndex}`} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
-                          <Image
-                            src={image}
-                            alt={`Product image ${actualIndex + 1}`}
-                            fill
-                            sizes="120px"
-                            className="object-cover"
-                            unoptimized
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newDeleted = new Set(editDeletedImageIndices)
-                              newDeleted.add(actualIndex)
-                              setEditDeletedImageIndices(newDeleted)
-                            }}
-                            className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <XIcon className="h-3 w-3" />
-                          </button>
-                        </div>
-                      )
-                    })}
-
-                    {/* Show new images (up to 3 total after considering remaining existing) */}
-                    {editNewImages.map((file, newIndex) => {
-                      const remainingExistingCount = editProductImages.slice(1).filter((_, i) => !editDeletedImageIndices.has(i + 1)).length
-                      if (newIndex >= 3 - remainingExistingCount) return null
-
-                      return (
-                        <div key={`new-${newIndex}`} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
-                          <Image
-                            src={editNewImagePreviews[newIndex]}
-                            alt={`New image ${newIndex + 1}`}
-                            fill
-                            sizes="120px"
-                            className="object-cover"
-                            unoptimized
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newNewImages = editNewImages.filter((_, i) => i !== newIndex)
-                              setEditNewImages(newNewImages)
-                            }}
-                            className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <XIcon className="h-3 w-3" />
-                          </button>
-                        </div>
-                      )
-                    })}
-
-                    {/* Add slot - show only if less than 4 total images */}
-                    {(() => {
-                      const totalExistingAfterDelete = editProductImages.filter((_, i) => !editDeletedImageIndices.has(i)).length
-                      const totalImages = totalExistingAfterDelete + editNewImages.length
-                      const gridCellsNeeded = Math.max(0, totalExistingAfterDelete - 1 + editNewImages.length)
-                      if (totalImages < 4 && gridCellsNeeded < 3) {
-                        return (
-                          <label className="relative aspect-square rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors group">
-                            <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(event) => {
-                                const file = event.target.files?.[0]
-                                if (file) {
-                                  setEditNewImages([...editNewImages, file])
-                                }
-                              }}
-                            />
-                          </label>
-                        )
-                      }
-                    })()}
-                  </div>
-                )}
-            </div>
-
-            <div className="space-y-3 border-b pb-4">
-              <h3 className="text-sm font-semibold">Product Details</h3>
-
-              <Field>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="edit-name">Product name</FieldLabel>
-                  <FieldError className="text-xs text-destructive">{editErrors.name}</FieldError>
-                </div>
-                <Input
-                  id="edit-name"
-                  placeholder="Product name"
-                  value={editProductName}
-                  onChange={(event) => setEditProductName(event.target.value)}
-                />
-              </Field>
-
-              <Field>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="edit-external-link">External link (optional)</FieldLabel>
-                  <FieldError className="text-xs text-destructive">{editErrors.externalLink}</FieldError>
-                </div>
-                <Input
-                  id="edit-external-link"
-                  type="url"
-                  placeholder="https://example.com/product"
-                  value={editExternalLink}
-                  onChange={(event) => setEditExternalLink(event.target.value)}
-                />
-              </Field>
-
-              <Field>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="edit-quantity">Initial stock</FieldLabel>
-                  <FieldError className="text-xs text-destructive">{editErrors.quantityInitial}</FieldError>
-                </div>
-                <Input
-                  id="edit-quantity"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  placeholder="Initial stock"
-                  value={editQuantityInitial}
-                  onChange={(event) => setEditQuantityInitial(toIntegerInput(event.target.value))}
-                />
-              </Field>
-
-              <Field>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="edit-unit-price">Unit price</FieldLabel>
-                  <FieldError className="text-xs text-destructive">{editErrors.unitPriceForeign}</FieldError>
-                </div>
-                <Input
-                  id="edit-unit-price"
-                  type="text"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  placeholder="Unit price in source currency"
-                  value={editUnitPriceForeign}
-                  onChange={(event) => setEditUnitPriceForeign(toDecimalInput(event.target.value))}
-                />
-              </Field>
-
-              <Field>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="edit-intended-selling-price">Selling price (RWF, optional)</FieldLabel>
-                  <FieldError className="text-xs text-destructive">{editErrors.intendedSellingPrice}</FieldError>
-                </div>
-                <Input
-                  id="edit-intended-selling-price"
-                  type="text"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  placeholder="Enter intended selling price"
-                  value={editIntendedSellingPrice}
-                  onChange={(event) => setEditIntendedSellingPrice(toDecimalInput(event.target.value))}
-                />
-              </Field>
-
-              <Field>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="edit-currency">Source currency</FieldLabel>
-                  <FieldError className="text-xs text-destructive">{editErrors.sourceCurrency}</FieldError>
-                </div>
-                <Select value={editSourceCurrency} onValueChange={setEditSourceCurrency}>
-                  <SelectTrigger id="edit-currency">
-                    <SelectValue placeholder="Choose source currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SOURCE_CURRENCY_OPTIONS.map((currency) => (
-                      <SelectItem key={currency} value={currency}>
-                        {currency}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="edit-exchange-rate">Exchange rate to RWF</FieldLabel>
-                  <FieldError className="text-xs text-destructive">{editErrors.exchangeRate}</FieldError>
-                </div>
-                <Input
-                  id="edit-exchange-rate"
-                  type="text"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  placeholder="Exchange rate to RWF"
-                  value={editExchangeRate}
-                  disabled={editSourceCurrency === "RWF"}
-                  onChange={(event) => setEditExchangeRate(toDecimalInput(event.target.value))}
-                />
-              </Field>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold">Batch Settings</h3>
-
-              <Field>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="edit-batch">Batch</FieldLabel>
-                  <FieldError className="text-xs text-destructive">{editErrors.batchId}</FieldError>
-                </div>
-                <div className="flex gap-2">
-                  <Select value={editBatchId} onValueChange={setEditBatchId}>
-                    <SelectTrigger id="edit-batch" className="w-full">
-                      <SelectValue placeholder="Select batch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {batches.map((batch) => (
-                        <SelectItem key={batch._id} value={batch._id}>
-                          {batch.batchName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {editBatchId ? (
-                    <Button type="button" variant="outline" size="sm" onClick={() => setEditBatchId("")}>
-                      Clear
-                    </Button>
-                  ) : null}
-                </div>
-              </Field>
-            </div>
-
-            {editErrors.general ? <p className="text-sm text-destructive">{editErrors.general}</p> : null}
-            <Button type="submit" disabled={isEditSubmitting || !hasEditProductChanges}>
-              {isEditSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Save Changes"}
-            </Button>
-          </form>
-        </SheetContent>
-      </Sheet>
+      <ProductEditSheet
+        open={isEditProductSheetOpen && Boolean(product)}
+        onOpenChange={setIsEditProductSheetOpen}
+        product={product}
+        categories={categories}
+        batches={batches}
+        onSaved={async () => {
+          await loadProduct()
+        }}
+      />
 
       {showDeleteConfirm && deleteConfirmData ? (
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 px-4">

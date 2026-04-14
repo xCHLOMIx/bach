@@ -11,6 +11,8 @@ import {
     SheetTrigger,
 } from "@/components/ui/sheet"
 
+type SheetContentProps = React.ComponentProps<typeof SheetContent>
+
 type ProductSheetFrameProps = {
     open: boolean
     onOpenChange: (open: boolean) => void
@@ -18,10 +20,10 @@ type ProductSheetFrameProps = {
     description?: React.ReactNode
     children: React.ReactNode
     contentClassName?: string
-    side?: "left" | "right" | "top" | "bottom"
+    side?: SheetContentProps["side"]
     triggerButton?: React.ReactNode
-    onInteractOutside?: (event: React.PointerEvent<HTMLDivElement> | React.FocusEvent<HTMLDivElement>) => void
-    onEscapeKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void
+    onInteractOutside?: SheetContentProps["onInteractOutside"]
+    onEscapeKeyDown?: SheetContentProps["onEscapeKeyDown"]
 }
 
 export function ProductSheetFrame({
