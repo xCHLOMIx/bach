@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import {
   ChevronLeft,
   ChevronLeftIcon,
@@ -102,7 +102,14 @@ function DetailTile({
 export default function ProductDetailsPage() {
   const router = useRouter()
   const params = useParams()
+  const searchParams = useSearchParams()
   const productId = params.id as string
+  const requestedReturnTo = searchParams.get("returnTo")?.trim()
+  const returnTo = requestedReturnTo?.startsWith("/app/products") ? requestedReturnTo : "/app/products"
+
+  const goBackToProducts = useCallback(() => {
+    router.push(returnTo)
+  }, [returnTo, router])
 
   const [product, setProduct] = useState<Product | null>(null)
   const [batches, setBatches] = useState<Batch[]>([])
@@ -492,7 +499,7 @@ export default function ProductDetailsPage() {
     return (
       <div className="flex-1 p-4 lg:p-6">
         <div className="mb-6 flex items-center gap-3">
-          <Button variant="outline" className="h-9 w-9 p-0" onClick={() => router.back()}>
+          <Button variant="outline" className="h-9 w-9 p-0" onClick={goBackToProducts}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Skeleton className="h-5 w-32" />
@@ -526,7 +533,7 @@ export default function ProductDetailsPage() {
   if (error || !product) {
     return (
       <div className="flex-1 p-4 lg:p-6">
-        <Button variant="outline" onClick={() => router.back()}>
+        <Button variant="outline" onClick={goBackToProducts}>
           <ChevronLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
@@ -540,7 +547,7 @@ export default function ProductDetailsPage() {
   return (
     <div className="flex-1 p-4 lg:p-6">
       <div className="mb-6 flex items-center gap-3">
-        <Button variant="outline" className="h-9 w-9 p-0" onClick={() => router.back()}>
+        <Button variant="outline" className="h-9 w-9 p-0" onClick={goBackToProducts}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <p className="text-sm font-medium text-muted-foreground">Back to Products</p>

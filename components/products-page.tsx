@@ -29,6 +29,7 @@ import {
     SheetTitle,
     SheetTrigger,
 } from "@/components/ui/sheet"
+import { ProductSheetFrame } from "@/components/product-sheet-frame"
 import {
     Empty,
     EmptyContent,
@@ -68,6 +69,19 @@ const PRODUCTS_VIEW_MODE_STORAGE_KEY = "products:view-mode"
 const PRODUCTS_VISIBLE_COLUMNS_STORAGE_KEY = "products:visible-columns"
 const PRODUCTS_TABLE_STATE_STORAGE_KEY = "products:table-state"
 const PRODUCTS_COLUMN_ORDER_STORAGE_KEY = "products:column-order"
+
+function getProductsRouteStateFromLocation() {
+    if (typeof window === "undefined") {
+        return { search: "", page: 1 }
+    }
+
+    const params = new URLSearchParams(window.location.search)
+    const search = params.get("search")?.trim() ?? ""
+    const parsedPage = Number(params.get("page") ?? "1")
+    const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1
+
+    return { search, page }
+}
 
 type Category = { _id: string; name: string }
 type Batch = { _id: string; batchName: string }
@@ -135,6 +149,12 @@ type EditImageItem = {
     file?: File
 }
 
+type LoadProductsOptions = {
+    searchValue?: string
+    sortColumn?: ProductSortColumn
+    sortDirection?: ProductSortDirection
+}
+
 function moveItem<T>(items: T[], fromIndex: number, toIndex: number) {
     if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= items.length || toIndex >= items.length) {
         return items
@@ -177,8 +197,8 @@ export function ProductsPage() {
     const [sortDirection, setSortDirection] = React.useState<ProductSortDirection>("asc")
     const [errors, setErrors] = React.useState<Record<string, string>>({})
     const [isSubmitting, setIsSubmitting] = React.useState(false)
-    const [productSearch, setProductSearch] = React.useState("")
-    const [productSearchInput, setProductSearchInput] = React.useState("")
+    const [productSearch, setProductSearch] = React.useState(() => getProductsRouteStateFromLocation().search)
+    const [productSearchInput, setProductSearchInput] = React.useState(() => getProductsRouteStateFromLocation().search)
 
     const [productName, setProductName] = React.useState("")
     const [categoryId, setCategoryId] = React.useState("")
@@ -251,8 +271,12 @@ export function ProductsPage() {
     const editGeneratedObjectUrlsRef = React.useRef<string[]>([])
     const productSearchInputRef = React.useRef<HTMLInputElement | null>(null)
     const productSearchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+    const productSearchRef = React.useRef("")
+    const hasHydratedProductQueryRef = React.useRef(false)
+    const hasCompletedInitialProductsLoadRef = React.useRef(false)
+    const skipNextSortReloadRef = React.useRef(false)
     const hasHydratedSearchSortRef = React.useRef(false)
-    const isInitialMountRef = React.useRef(true)
+    const hydratedSearchValueRef = React.useRef<string | null>(null)
 
     // Filter and pagination state
     const [isFilterSheetOpen, setIsFilterSheetOpen] = React.useState(false)
@@ -260,7 +284,7 @@ export function ProductsPage() {
     const [filterPriceMax, setFilterPriceMax] = React.useState("")
     const [filterCategories, setFilterCategories] = React.useState<Set<string>>(new Set())
     const [filterBatches, setFilterBatches] = React.useState<Set<string>>(new Set())
-    const [currentPage, setCurrentPage] = React.useState(1)
+    const [currentPage, setCurrentPage] = React.useState(() => getProductsRouteStateFromLocation().page)
     const [totalCount, setTotalCount] = React.useState(0)
     const itemsPerPage = 60
     const totalPages = Math.ceil(totalCount / itemsPerPage)
@@ -472,21 +496,22 @@ export function ProductsPage() {
         }
     }, [])
 
-    const loadProducts = React.useCallback(async (page: number = 1, searchValue?: string) => {
+    const loadProducts = React.useCallback(async (page: number = 1, options?: string | LoadProductsOptions) => {
+        const normalizedOptions = typeof options === "string" ? { searchValue: options } : (options ?? {})
         setIsLoading(true)
         try {
             const params = new URLSearchParams()
             params.set("page", page.toString())
             params.set("limit", itemsPerPage.toString())
-            params.set("search", searchValue ?? productSearch)
+            params.set("search", normalizedOptions.searchValue ?? productSearchRef.current)
 
             if (filterPriceMin) params.set("priceMin", stripCommas(filterPriceMin))
             if (filterPriceMax) params.set("priceMax", stripCommas(filterPriceMax))
             if (filterCategories.size > 0) params.set("categories", Array.from(filterCategories).join(","))
             if (filterBatches.size > 0) params.set("batches", Array.from(filterBatches).join(","))
 
-            params.set("sortColumn", getApiSortColumn(sortColumn))
-            params.set("sortDirection", sortDirection)
+            params.set("sortColumn", getApiSortColumn(normalizedOptions.sortColumn ?? sortColumn))
+            params.set("sortDirection", normalizedOptions.sortDirection ?? sortDirection)
 
             const productsResponse = await fetch(`/api/products?${params.toString()}`)
 
@@ -500,6 +525,29 @@ export function ProductsPage() {
             setIsLoading(false)
         }
     }, [filterPriceMin, filterPriceMax, filterCategories, filterBatches, sortColumn, sortDirection, itemsPerPage, getApiSortColumn])
+
+    const buildProductListReturnTo = React.useCallback(() => {
+        const returnParams = new URLSearchParams()
+
+        if (currentPage > 1) {
+            returnParams.set("page", String(currentPage))
+        }
+
+        const searchValue = productSearchInput.trim()
+        if (searchValue) {
+            returnParams.set("search", searchValue)
+        }
+
+        return `${pathname}${returnParams.toString() ? `?${returnParams.toString()}` : ""}`
+    }, [currentPage, pathname, productSearchInput])
+
+    const buildProductDetailsHref = React.useCallback((productId: string) => {
+        const returnTo = buildProductListReturnTo()
+        const detailParams = new URLSearchParams()
+        detailParams.set("returnTo", returnTo)
+
+        return `/app/products/${productId}?${detailParams.toString()}`
+    }, [buildProductListReturnTo])
 
     // Apply filters with current state values - plain function, not memoized
     const applyFilters = async () => {
@@ -593,13 +641,17 @@ export function ProductsPage() {
         }
     }, [isFilterSheetOpen, ensureFormOptionsLoaded])
 
-    React.useEffect(() => {
-        loadProducts(1)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
-
     // Trigger reload when sort changes.
     React.useEffect(() => {
+        if (!hasCompletedInitialProductsLoadRef.current) {
+            return
+        }
+
+        if (skipNextSortReloadRef.current) {
+            skipNextSortReloadRef.current = false
+            return
+        }
+
         if (!hasHydratedSearchSortRef.current) {
             hasHydratedSearchSortRef.current = true
             return
@@ -649,6 +701,10 @@ export function ProductsPage() {
     }, [visibleColumns])
 
     React.useEffect(() => {
+        productSearchRef.current = productSearch
+    }, [productSearch])
+
+    React.useEffect(() => {
         const savedColumnOrderRaw = window.localStorage.getItem(PRODUCTS_COLUMN_ORDER_STORAGE_KEY)
         if (!savedColumnOrderRaw) {
             return
@@ -686,54 +742,97 @@ export function ProductsPage() {
     }, [columnOrder])
 
     React.useEffect(() => {
-        const savedTableStateRaw = window.localStorage.getItem(PRODUCTS_TABLE_STATE_STORAGE_KEY)
-        if (!savedTableStateRaw) {
+        if (hasHydratedProductQueryRef.current) {
             return
         }
 
-        try {
-            const parsed = JSON.parse(savedTableStateRaw) as {
-                productSearch?: string
-                sortColumn?: ProductSortColumn
-                sortDirection?: ProductSortDirection
-            }
+        hasHydratedProductQueryRef.current = true
 
-            const sortableColumns: ProductSortColumn[] = [
-                "name",
-                "batch",
-                "added",
-                "onHand",
-                "buyingPrice",
-                "sellingPrice",
-                "landedPrice",
-                "profit",
-            ]
+        const sortableColumns: ProductSortColumn[] = [
+            "name",
+            "batch",
+            "added",
+            "onHand",
+            "buyingPrice",
+            "sellingPrice",
+            "landedPrice",
+            "profit",
+        ]
 
-            if (typeof parsed.productSearch === "string") {
-                setProductSearch(parsed.productSearch)
-                setProductSearchInput(parsed.productSearch)
+        const savedTableStateRaw = window.localStorage.getItem(PRODUCTS_TABLE_STATE_STORAGE_KEY)
+        let savedSortColumn: ProductSortColumn | undefined
+        let savedSortDirection: ProductSortDirection | undefined
+
+        if (savedTableStateRaw) {
+            try {
+                const parsed = JSON.parse(savedTableStateRaw) as {
+                    productSearch?: string
+                    sortColumn?: ProductSortColumn
+                    sortDirection?: ProductSortDirection
+                }
+
+                if (parsed.sortColumn && sortableColumns.includes(parsed.sortColumn)) {
+                    savedSortColumn = parsed.sortColumn
+                }
+
+                if (parsed.sortDirection === "asc" || parsed.sortDirection === "desc") {
+                    savedSortDirection = parsed.sortDirection
+                }
+            } catch {
+                // Ignore invalid saved preferences.
             }
-            if (parsed.sortColumn && sortableColumns.includes(parsed.sortColumn)) {
-                setSortColumn(parsed.sortColumn)
-            }
-            if (parsed.sortDirection === "asc" || parsed.sortDirection === "desc") {
-                setSortDirection(parsed.sortDirection)
-            }
-        } catch {
-            // Ignore invalid saved preferences.
         }
-    }, [])
+
+        const routeState = getProductsRouteStateFromLocation()
+        const initialSearch = routeState.search
+        const initialPage = routeState.page
+        const initialSortColumn = savedSortColumn ?? sortColumn
+        const initialSortDirection = savedSortDirection ?? sortDirection
+
+        setProductSearch(initialSearch)
+        setProductSearchInput(initialSearch)
+
+        const hasRouteQuery =
+            typeof window !== "undefined" &&
+            (window.location.search.includes("search=") || window.location.search.includes("page="))
+
+        hydratedSearchValueRef.current = hasRouteQuery ? initialSearch : null
+
+        if (savedSortColumn || savedSortDirection) {
+            skipNextSortReloadRef.current = true
+        }
+
+        if (savedSortColumn) {
+            setSortColumn(savedSortColumn)
+        }
+
+        if (savedSortDirection) {
+            setSortDirection(savedSortDirection)
+        }
+
+        void (async () => {
+            try {
+                await loadProducts(initialPage, {
+                    searchValue: initialSearch,
+                    sortColumn: initialSortColumn,
+                    sortDirection: initialSortDirection,
+                })
+            } finally {
+                hasCompletedInitialProductsLoadRef.current = true
+                hasHydratedSearchSortRef.current = true
+            }
+        })()
+    }, [loadProducts, sortColumn, sortDirection])
 
     React.useEffect(() => {
         window.localStorage.setItem(
             PRODUCTS_TABLE_STATE_STORAGE_KEY,
             JSON.stringify({
-                productSearch,
                 sortColumn,
                 sortDirection,
             })
         )
-    }, [productSearch, sortColumn, sortDirection])
+    }, [sortColumn, sortDirection])
 
     React.useEffect(() => {
         const previews = imageFiles.map((file) => URL.createObjectURL(file))
@@ -1251,7 +1350,7 @@ export function ProductsPage() {
             setEditBatchId("")
             clearEditImages()
             setIsEditProductSheetOpen(false)
-            await loadProducts(1)
+            await loadProducts(currentPage)
         } finally {
             setIsEditSubmitting(false)
         }
@@ -1320,7 +1419,7 @@ export function ProductsPage() {
             setShowDeleteConfirm(false)
             setDeleteConfirmData(null)
             setIsDeleteInfoLoading(false)
-            await loadProducts(1)
+            await loadProducts(currentPage)
         } catch (error) {
             alert("Failed to delete product")
             console.error(error)
@@ -1456,7 +1555,15 @@ export function ProductsPage() {
         if (columnKey === "image") {
             return (
                 <TableCell className="p-0">
-                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50" onClick={(event) => event.stopPropagation()}>
+                    <Link href={buildProductDetailsHref(product._id)} className="block p-2 cursor-pointer hover:bg-muted/50" onClick={(event) => {
+                        event.stopPropagation()
+
+                        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                            return
+                        }
+
+                        window.history.replaceState(window.history.state, "", buildProductListReturnTo())
+                    }}>
                         {product.images?.[0] ? (
                             <img
                                 src={product.images[0]}
@@ -1477,7 +1584,15 @@ export function ProductsPage() {
         if (columnKey === "name") {
             return (
                 <TableCell className="p-0 max-w-xs">
-                    <Link href={`/app/products/${product._id}`} className="block p-2 cursor-pointer hover:bg-muted/50" onClick={(event) => event.stopPropagation()}>
+                    <Link href={buildProductDetailsHref(product._id)} className="block p-2 cursor-pointer hover:bg-muted/50" onClick={(event) => {
+                        event.stopPropagation()
+
+                        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                            return
+                        }
+
+                        window.history.replaceState(window.history.state, "", buildProductListReturnTo())
+                    }}>
                         <span className="block w-11/12 overflow-hidden text-ellipsis whitespace-nowrap" title={product.name}>
                             {product.name}
                         </span>
@@ -1696,8 +1811,11 @@ export function ProductsPage() {
     }, [loadProducts])
 
     React.useEffect(() => {
-        if (isInitialMountRef.current) {
-            isInitialMountRef.current = false
+        if (!hasCompletedInitialProductsLoadRef.current) {
+            return
+        }
+
+        if (hydratedSearchValueRef.current !== null && productSearchInput.trim() === hydratedSearchValueRef.current) {
             return
         }
 
@@ -2204,15 +2322,19 @@ export function ProductsPage() {
                                             className="cursor-pointer rounded-lg border bg-card p-4"
                                             role="link"
                                             tabIndex={0}
-                                            onClick={() => router.push(`/app/products/${product._id}`)}
+                                            onClick={() => {
+                                                window.history.replaceState(window.history.state, "", buildProductListReturnTo())
+                                                router.push(buildProductDetailsHref(product._id))
+                                            }}
                                             onKeyDown={(event) => {
                                                 if (event.key === "Enter" || event.key === " ") {
                                                     event.preventDefault()
-                                                    router.push(`/app/products/${product._id}`)
+                                                    window.history.replaceState(window.history.state, "", buildProductListReturnTo())
+                                                    router.push(buildProductDetailsHref(product._id))
                                                 }
                                             }}
                                         >
-                                            <Link href={`/app/products/${product._id}`} className="block mb-3 overflow-hidden rounded-md border bg-muted">
+                                            <Link href={buildProductDetailsHref(product._id)} className="block mb-3 overflow-hidden rounded-md border bg-muted">
                                                 {product.images?.[0] ? (
                                                     <img
                                                         src={product.images[0]}
@@ -2229,7 +2351,7 @@ export function ProductsPage() {
                                                 )}
                                             </Link>
                                             <div className="mb-1 truncate text-base font-semibold text-card-foreground">
-                                                <Link href={`/app/products/${product._id}`} className="hover:underline">
+                                                <Link href={buildProductDetailsHref(product._id)} className="hover:underline">
                                                     {product.name}
                                                 </Link>
                                             </div>
@@ -2867,389 +2989,382 @@ export function ProductsPage() {
 
             {/* Edit Product Sheet - Rendered Once at Component Level */}
             {editProductId && (
-                <Sheet
+                <ProductSheetFrame
                     open={isEditProductSheetOpen}
                     onOpenChange={handleEditProductSheetOpenChange}
-                >
-                    <SheetContent
-                        className="overflow-y-auto"
-                        onInteractOutside={(event) => {
-                            if (isPreviewOpen) {
-                                const target = event.target
-                                if (!(target instanceof Element) || !target.closest('[data-image-preview="true"]')) {
-                                    event.preventDefault()
-                                }
-                            }
-                        }}
-                        onEscapeKeyDown={(event) => {
-                            if (isPreviewOpen) {
+                    title={<span className="truncate">Edit {currentEditProduct?.name || "Product"}</span>}
+                    description="Update product details and batch assignment."
+                    contentClassName="overflow-y-auto"
+                    onInteractOutside={(event) => {
+                        if (isPreviewOpen) {
+                            const target = event.target
+                            if (!(target instanceof Element) || !target.closest('[data-image-preview="true"]')) {
                                 event.preventDefault()
                             }
-                        }}
-                    >
-                        <SheetHeader>
-                            <SheetTitle className="truncate">Edit {currentEditProduct?.name || "Product"}</SheetTitle>
-                            <SheetDescription>
-                                Update product details and batch assignment.
-                            </SheetDescription>
-                        </SheetHeader>
-                        <form className="grid gap-6 p-4" onSubmit={submitEditProduct} onKeyDown={preventImplicitSubmitOnEnter}>
-                            {/* Images Section */}
-                            <div className="space-y-3 border-b pb-4">
-                                <h3 className="font-semibold text-sm">Images</h3>
+                        }
+                    }}
+                    onEscapeKeyDown={(event) => {
+                        if (isPreviewOpen) {
+                            event.preventDefault()
+                        }
+                    }}
+                >
+                    <form className="grid gap-6 p-4" onSubmit={submitEditProduct} onKeyDown={preventImplicitSubmitOnEnter}>
+                        {/* Images Section */}
+                        <div className="space-y-3 border-b pb-4">
+                            <h3 className="font-semibold text-sm">Images</h3>
 
-                                {/* Main Image Display */}
-                                <div className="relative h-64 w-full overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center group">
-                                    {editImages[0] ? (
-                                        <>
-                                            <img
-                                                src={editImages[0].src}
-                                                alt="Main product image"
-                                                className="h-full w-full cursor-pointer object-cover"
-                                                draggable
-                                                loading="lazy"
-                                                onDragStart={() => setDraggedEditImageId(editImages[0].id)}
-                                                onDragEnd={() => setDraggedEditImageId(null)}
-                                                onDragOver={(event) => event.preventDefault()}
-                                                onDrop={() => reorderEditImages(editImages[0].id)}
-                                                onClick={() => openImagePreview(editImages.map((image) => image.src), 0)}
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => removeEditImage(editImages[0].id)}
-                                                className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <XIcon className="h-4 w-4" />
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <label className="cursor-pointer flex flex-col items-center gap-2 px-3 text-center w-full h-full justify-center">
-                                            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70 transition-colors group-hover:border-primary/50">
-                                                <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
-                                            </div>
-                                            <div className="text-sm font-medium text-foreground">Add main image</div>
-                                            <div className="text-xs text-muted-foreground">Click to upload</div>
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                multiple
-                                                className="hidden"
-                                                onChange={(event) => {
-                                                    const selectedFiles = toSelectedFiles(event)
-                                                    if (selectedFiles.length > 0) {
-                                                        const nextImages = selectedFiles.map((file, index) => {
-                                                            const src = URL.createObjectURL(file)
-                                                            editGeneratedObjectUrlsRef.current.push(src)
-
-                                                            return {
-                                                                id: `new-${Date.now()}-${index}-${file.name}`,
-                                                                type: "new" as const,
-                                                                src,
-                                                                file,
-                                                            }
-                                                        })
-
-                                                        setEditImages((current) => [
-                                                            ...nextImages,
-                                                            ...current,
-                                                        ])
-                                                    }
-
-                                                    event.currentTarget.value = ""
-                                                }}
-                                            />
-                                        </label>
-                                    )}
-                                </div>
-
-                                {editImages.length > 0 && (
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {editImages.slice(1).map((image, index) => {
-                                            const imageIndex = index + 1
-                                            return (
-                                                <div key={image.id} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
-                                                    <img
-                                                        src={image.src}
-                                                        alt={`Product image ${imageIndex + 1}`}
-                                                        className="w-full h-full cursor-pointer object-cover"
-                                                        draggable
-                                                        loading="lazy"
-                                                        onDragStart={() => setDraggedEditImageId(image.id)}
-                                                        onDragEnd={() => setDraggedEditImageId(null)}
-                                                        onDragOver={(event) => event.preventDefault()}
-                                                        onDrop={() => reorderEditImages(image.id)}
-                                                        onClick={() => openImagePreview(editImages.map((entry) => entry.src), imageIndex)}
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeEditImage(image.id)}
-                                                        className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    >
-                                                        <XIcon className="h-3 w-3" />
-                                                    </button>
-                                                </div>
-                                            )
-                                        })}
-
-                                        <label className="relative aspect-square rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors group">
+                            {/* Main Image Display */}
+                            <div className="relative h-64 w-full overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center group">
+                                {editImages[0] ? (
+                                    <>
+                                        <img
+                                            src={editImages[0].src}
+                                            alt="Main product image"
+                                            className="h-full w-full cursor-pointer object-cover"
+                                            draggable
+                                            loading="lazy"
+                                            onDragStart={() => setDraggedEditImageId(editImages[0].id)}
+                                            onDragEnd={() => setDraggedEditImageId(null)}
+                                            onDragOver={(event) => event.preventDefault()}
+                                            onDrop={() => reorderEditImages(editImages[0].id)}
+                                            onClick={() => openImagePreview(editImages.map((image) => image.src), 0)}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => removeEditImage(editImages[0].id)}
+                                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <XIcon className="h-4 w-4" />
+                                        </button>
+                                    </>
+                                ) : (
+                                    <label className="cursor-pointer flex flex-col items-center gap-2 px-3 text-center w-full h-full justify-center">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70 transition-colors group-hover:border-primary/50">
                                             <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                multiple
-                                                className="hidden"
-                                                onChange={(event) => {
-                                                    const selectedFiles = toSelectedFiles(event)
-                                                    if (selectedFiles.length > 0) {
-                                                        const nextImages = selectedFiles.map((file, index) => {
-                                                            const src = URL.createObjectURL(file)
-                                                            editGeneratedObjectUrlsRef.current.push(src)
+                                        </div>
+                                        <div className="text-sm font-medium text-foreground">Add main image</div>
+                                        <div className="text-xs text-muted-foreground">Click to upload</div>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            className="hidden"
+                                            onChange={(event) => {
+                                                const selectedFiles = toSelectedFiles(event)
+                                                if (selectedFiles.length > 0) {
+                                                    const nextImages = selectedFiles.map((file, index) => {
+                                                        const src = URL.createObjectURL(file)
+                                                        editGeneratedObjectUrlsRef.current.push(src)
 
-                                                            return {
-                                                                id: `new-${Date.now()}-${index}-${file.name}`,
-                                                                type: "new" as const,
-                                                                src,
-                                                                file,
-                                                            }
-                                                        })
+                                                        return {
+                                                            id: `new-${Date.now()}-${index}-${file.name}`,
+                                                            type: "new" as const,
+                                                            src,
+                                                            file,
+                                                        }
+                                                    })
 
-                                                        setEditImages((current) => [
-                                                            ...current,
-                                                            ...nextImages,
-                                                        ])
-                                                    }
+                                                    setEditImages((current) => [
+                                                        ...nextImages,
+                                                        ...current,
+                                                    ])
+                                                }
 
-                                                    event.currentTarget.value = ""
-                                                }}
-                                            />
-                                        </label>
-                                    </div>
+                                                event.currentTarget.value = ""
+                                            }}
+                                        />
+                                    </label>
                                 )}
                             </div>
 
-                            {/* Product Details Section */}
-                            <div className="space-y-3 border-b pb-4">
-                                <h3 className="font-semibold text-sm">Product Details</h3>
+                            {editImages.length > 0 && (
+                                <div className="grid grid-cols-3 gap-2">
+                                    {editImages.slice(1).map((image, index) => {
+                                        const imageIndex = index + 1
+                                        return (
+                                            <div key={image.id} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
+                                                <img
+                                                    src={image.src}
+                                                    alt={`Product image ${imageIndex + 1}`}
+                                                    className="w-full h-full cursor-pointer object-cover"
+                                                    draggable
+                                                    loading="lazy"
+                                                    onDragStart={() => setDraggedEditImageId(image.id)}
+                                                    onDragEnd={() => setDraggedEditImageId(null)}
+                                                    onDragOver={(event) => event.preventDefault()}
+                                                    onDrop={() => reorderEditImages(image.id)}
+                                                    onClick={() => openImagePreview(editImages.map((entry) => entry.src), imageIndex)}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeEditImage(image.id)}
+                                                    className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <XIcon className="h-3 w-3" />
+                                                </button>
+                                            </div>
+                                        )
+                                    })}
 
-                                <Field>
-                                    <div className="flex items-center justify-between">
-                                        <FieldLabel htmlFor="edit-name">Product name</FieldLabel>
-                                        <FieldError className="text-destructive text-xs">{editErrors.name}</FieldError>
-                                    </div>
-                                    <Input
-                                        id="edit-name"
-                                        placeholder="Product name"
-                                        value={editProductName}
-                                        onChange={(event) => setEditProductName(event.target.value)}
-                                    />
-                                </Field>
+                                    <label className="relative aspect-square rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors group">
+                                        <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            className="hidden"
+                                            onChange={(event) => {
+                                                const selectedFiles = toSelectedFiles(event)
+                                                if (selectedFiles.length > 0) {
+                                                    const nextImages = selectedFiles.map((file, index) => {
+                                                        const src = URL.createObjectURL(file)
+                                                        editGeneratedObjectUrlsRef.current.push(src)
 
-                                <Field>
-                                    <div className="flex items-center justify-between">
-                                        <FieldLabel htmlFor="edit-external-link">External link (optional)</FieldLabel>
-                                        <FieldError className="text-destructive text-xs">{editErrors.externalLink}</FieldError>
-                                    </div>
-                                    <Input
-                                        id="edit-external-link"
-                                        type="url"
-                                        placeholder="https://example.com/product"
-                                        value={editExternalLink}
-                                        onChange={(event) => setEditExternalLink(event.target.value)}
-                                    />
-                                </Field>
+                                                        return {
+                                                            id: `new-${Date.now()}-${index}-${file.name}`,
+                                                            type: "new" as const,
+                                                            src,
+                                                            file,
+                                                        }
+                                                    })
 
-                                <Field>
-                                    <div className="flex items-center justify-between">
-                                        <FieldLabel htmlFor="edit-category">Category (optional)</FieldLabel>
-                                        <FieldError className="text-destructive text-xs">{editErrors.categoryId}</FieldError>
-                                    </div>
-                                    {isAddingEditCustomCategory ? (
-                                        <div className="flex gap-2">
-                                            <Input
-                                                id="edit-category"
-                                                placeholder="Type new category name"
-                                                value={editCustomCategoryName}
-                                                onChange={(event) => setEditCustomCategoryName(event.target.value)}
-                                            />
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() => {
-                                                    setIsAddingEditCustomCategory(false)
-                                                    setEditCustomCategoryName("")
-                                                    setEditCategoryId("")
-                                                }}
-                                            >
-                                                Cancel
-                                            </Button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-2">
-                                            <Select
-                                                value={editCategoryId || NO_CATEGORY_VALUE}
-                                                onValueChange={(value) => {
-                                                    setIsAddingEditCustomCategory(false)
-                                                    setEditCustomCategoryName("")
-                                                    setEditCategoryId(value === NO_CATEGORY_VALUE ? "" : value)
-                                                }}
-                                            >
-                                                <SelectTrigger id="edit-category" className="w-full">
-                                                    <SelectValue placeholder="Choose category (optional)" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value={NO_CATEGORY_VALUE}>No category</SelectItem>
-                                                    {categories.map((category) => (
-                                                        <SelectItem key={category._id} value={category._id}>
-                                                            {category.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                className="h-8 px-3"
-                                                onClick={() => {
-                                                    setIsAddingEditCustomCategory(true)
-                                                    setEditCategoryId("")
-                                                }}
-                                            >
-                                                Add category
-                                            </Button>
-                                        </div>
-                                    )}
-                                </Field>
+                                                    setEditImages((current) => [
+                                                        ...current,
+                                                        ...nextImages,
+                                                    ])
+                                                }
 
-                                <Field>
-                                    <div className="flex items-center justify-between">
-                                        <FieldLabel htmlFor="edit-quantity">Initial stock</FieldLabel>
-                                        <FieldError className="text-destructive text-xs">{editErrors.quantityInitial}</FieldError>
-                                    </div>
-                                    <Input
-                                        id="edit-quantity"
-                                        type="text"
-                                        inputMode="numeric"
-                                        autoComplete="off"
-                                        placeholder="Enter initial stock"
-                                        value={editQuantityInitial}
-                                        onChange={(event) => setEditQuantityInitial(toIntegerInput(event.target.value))}
-                                    />
-                                </Field>
+                                                event.currentTarget.value = ""
+                                            }}
+                                        />
+                                    </label>
+                                </div>
+                            )}
+                        </div>
 
-                                <Field>
-                                    <div className="flex items-center justify-between">
-                                        <FieldLabel htmlFor="edit-unit-price">Unit price</FieldLabel>
-                                        <FieldError className="text-destructive text-xs">{editErrors.unitPriceForeign}</FieldError>
-                                    </div>
-                                    <Input
-                                        id="edit-unit-price"
-                                        type="text"
-                                        inputMode="decimal"
-                                        autoComplete="off"
-                                        placeholder="Enter unit price"
-                                        value={editUnitPriceForeign}
-                                        onChange={(event) => setEditUnitPriceForeign(toDecimalInput(event.target.value))}
-                                    />
-                                </Field>
+                        {/* Product Details Section */}
+                        <div className="space-y-3 border-b pb-4">
+                            <h3 className="font-semibold text-sm">Product Details</h3>
 
-                                <Field>
-                                    <div className="flex items-center justify-between">
-                                        <FieldLabel htmlFor="edit-intended-selling-price">Selling price (RWF, optional)</FieldLabel>
-                                        <FieldError className="text-destructive text-xs">{editErrors.intendedSellingPrice}</FieldError>
-                                    </div>
-                                    <Input
-                                        id="edit-intended-selling-price"
-                                        type="text"
-                                        inputMode="decimal"
-                                        autoComplete="off"
-                                        placeholder="Enter intended selling price"
-                                        value={editIntendedSellingPrice}
-                                        onChange={(event) => setEditIntendedSellingPrice(toDecimalInput(event.target.value))}
-                                    />
-                                </Field>
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-name">Product name</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.name}</FieldError>
+                                </div>
+                                <Input
+                                    id="edit-name"
+                                    placeholder="Product name"
+                                    value={editProductName}
+                                    onChange={(event) => setEditProductName(event.target.value)}
+                                />
+                            </Field>
 
-                                <Field>
-                                    <div className="flex items-center justify-between">
-                                        <FieldLabel htmlFor="edit-currency">Source currency</FieldLabel>
-                                        <FieldError className="text-destructive text-xs">{editErrors.sourceCurrency}</FieldError>
-                                    </div>
-                                    <Select value={editSourceCurrency} onValueChange={setEditSourceCurrency}>
-                                        <SelectTrigger id="edit-currency">
-                                            <SelectValue placeholder="Choose source currency" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {SOURCE_CURRENCY_OPTIONS.map((currency) => (
-                                                <SelectItem key={currency} value={currency}>
-                                                    {currency}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </Field>
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-external-link">External link (optional)</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.externalLink}</FieldError>
+                                </div>
+                                <Input
+                                    id="edit-external-link"
+                                    type="url"
+                                    placeholder="https://example.com/product"
+                                    value={editExternalLink}
+                                    onChange={(event) => setEditExternalLink(event.target.value)}
+                                />
+                            </Field>
 
-                                <Field>
-                                    <div className="flex items-center justify-between">
-                                        <FieldLabel htmlFor="edit-exchange-rate">Exchange rate to RWF</FieldLabel>
-                                        <FieldError className="text-destructive text-xs">{editErrors.exchangeRate}</FieldError>
-                                    </div>
-                                    <Input
-                                        id="edit-exchange-rate"
-                                        type="text"
-                                        inputMode="decimal"
-                                        autoComplete="off"
-                                        placeholder={editSourceCurrency === "RWF" ? "Auto-set to 1 for RWF" : "Enter exchange rate to RWF"}
-                                        value={editExchangeRate}
-                                        disabled={editSourceCurrency === "RWF"}
-                                        onChange={(event) => setEditExchangeRate(toDecimalInput(event.target.value))}
-                                    />
-                                </Field>
-                            </div>
-
-                            {/* Batch Settings Section */}
-                            <div className="space-y-3">
-                                <h3 className="font-semibold text-sm">Batch Settings</h3>
-
-                                <Field>
-                                    <div className="flex items-center justify-between">
-                                        <FieldLabel htmlFor="edit-batch">Batch</FieldLabel>
-                                        <FieldError className="text-destructive text-xs">{editErrors.batchId}</FieldError>
-                                    </div>
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-category">Category (optional)</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.categoryId}</FieldError>
+                                </div>
+                                {isAddingEditCustomCategory ? (
                                     <div className="flex gap-2">
-                                        <Select value={editBatchId} onValueChange={setEditBatchId}>
-                                            <SelectTrigger id="edit-batch" className="w-full">
-                                                <SelectValue placeholder="Select batch" />
+                                        <Input
+                                            id="edit-category"
+                                            placeholder="Type new category name"
+                                            value={editCustomCategoryName}
+                                            onChange={(event) => setEditCustomCategoryName(event.target.value)}
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setIsAddingEditCustomCategory(false)
+                                                setEditCustomCategoryName("")
+                                                setEditCategoryId("")
+                                            }}
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <Select
+                                            value={editCategoryId || NO_CATEGORY_VALUE}
+                                            onValueChange={(value) => {
+                                                setIsAddingEditCustomCategory(false)
+                                                setEditCustomCategoryName("")
+                                                setEditCategoryId(value === NO_CATEGORY_VALUE ? "" : value)
+                                            }}
+                                        >
+                                            <SelectTrigger id="edit-category" className="w-full">
+                                                <SelectValue placeholder="Choose category (optional)" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {batches.map((batch) => (
-                                                    <SelectItem key={batch._id} value={batch._id}>
-                                                        {batch.batchName}
+                                                <SelectItem value={NO_CATEGORY_VALUE}>No category</SelectItem>
+                                                {categories.map((category) => (
+                                                    <SelectItem key={category._id} value={category._id}>
+                                                        {category.name}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                        {editBatchId && (
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => setEditBatchId("")}
-                                            >
-                                                Clear
-                                            </Button>
-                                        )}
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            className="h-8 px-3"
+                                            onClick={() => {
+                                                setIsAddingEditCustomCategory(true)
+                                                setEditCategoryId("")
+                                            }}
+                                        >
+                                            Add category
+                                        </Button>
                                     </div>
-                                </Field>
-                            </div>
+                                )}
+                            </Field>
 
-                            {editErrors.general ? (
-                                <p className="text-sm text-destructive">{editErrors.general}</p>
-                            ) : null}
-                            <Button type="submit" disabled={!canSubmitEditProduct || !hasEditProductChanges || isEditSubmitting} loading={isEditSubmitting} loadingText="Saving product">
-                                Save Changes
-                            </Button>
-                        </form>
-                    </SheetContent>
-                </Sheet>
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-quantity">Initial stock</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.quantityInitial}</FieldError>
+                                </div>
+                                <Input
+                                    id="edit-quantity"
+                                    type="text"
+                                    inputMode="numeric"
+                                    autoComplete="off"
+                                    placeholder="Enter initial stock"
+                                    value={editQuantityInitial}
+                                    onChange={(event) => setEditQuantityInitial(toIntegerInput(event.target.value))}
+                                />
+                            </Field>
+
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-unit-price">Unit price</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.unitPriceForeign}</FieldError>
+                                </div>
+                                <Input
+                                    id="edit-unit-price"
+                                    type="text"
+                                    inputMode="decimal"
+                                    autoComplete="off"
+                                    placeholder="Enter unit price"
+                                    value={editUnitPriceForeign}
+                                    onChange={(event) => setEditUnitPriceForeign(toDecimalInput(event.target.value))}
+                                />
+                            </Field>
+
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-intended-selling-price">Selling price (RWF, optional)</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.intendedSellingPrice}</FieldError>
+                                </div>
+                                <Input
+                                    id="edit-intended-selling-price"
+                                    type="text"
+                                    inputMode="decimal"
+                                    autoComplete="off"
+                                    placeholder="Enter intended selling price"
+                                    value={editIntendedSellingPrice}
+                                    onChange={(event) => setEditIntendedSellingPrice(toDecimalInput(event.target.value))}
+                                />
+                            </Field>
+
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-currency">Source currency</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.sourceCurrency}</FieldError>
+                                </div>
+                                <Select value={editSourceCurrency} onValueChange={setEditSourceCurrency}>
+                                    <SelectTrigger id="edit-currency">
+                                        <SelectValue placeholder="Choose source currency" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {SOURCE_CURRENCY_OPTIONS.map((currency) => (
+                                            <SelectItem key={currency} value={currency}>
+                                                {currency}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </Field>
+
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-exchange-rate">Exchange rate to RWF</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.exchangeRate}</FieldError>
+                                </div>
+                                <Input
+                                    id="edit-exchange-rate"
+                                    type="text"
+                                    inputMode="decimal"
+                                    autoComplete="off"
+                                    placeholder={editSourceCurrency === "RWF" ? "Auto-set to 1 for RWF" : "Enter exchange rate to RWF"}
+                                    value={editExchangeRate}
+                                    disabled={editSourceCurrency === "RWF"}
+                                    onChange={(event) => setEditExchangeRate(toDecimalInput(event.target.value))}
+                                />
+                            </Field>
+                        </div>
+
+                        {/* Batch Settings Section */}
+                        <div className="space-y-3">
+                            <h3 className="font-semibold text-sm">Batch Settings</h3>
+
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-batch">Batch</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.batchId}</FieldError>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Select value={editBatchId} onValueChange={setEditBatchId}>
+                                        <SelectTrigger id="edit-batch" className="w-full">
+                                            <SelectValue placeholder="Select batch" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {batches.map((batch) => (
+                                                <SelectItem key={batch._id} value={batch._id}>
+                                                    {batch.batchName}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {editBatchId && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setEditBatchId("")}
+                                        >
+                                            Clear
+                                        </Button>
+                                    )}
+                                </div>
+                            </Field>
+                        </div>
+
+                        {editErrors.general ? (
+                            <p className="text-sm text-destructive">{editErrors.general}</p>
+                        ) : null}
+                        <Button type="submit" disabled={!canSubmitEditProduct || !hasEditProductChanges || isEditSubmitting} loading={isEditSubmitting} loadingText="Saving product">
+                            Save Changes
+                        </Button>
+                    </form>
+                </ProductSheetFrame>
             )}
         </div>
     )
