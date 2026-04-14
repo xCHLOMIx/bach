@@ -943,9 +943,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         const totalImportCharges = totals.shippingShare
         const totalLandedPrice = totals.finalTotal
 
-        const renderBatchProductCell = (product: Product, columnKey: BatchProductTableColumnKey, preview: ReturnType<typeof allocationPreviewByProductId.get>, baseUnitPrice: number, productTotal: number, finalUnit: number, finalTotal: number, importCharges: number, intendedSellingPrice: number | undefined) => {
+        const renderBatchProductCell = (product: Product, rowIndex: number, columnKey: BatchProductTableColumnKey, preview: ReturnType<typeof allocationPreviewByProductId.get>, baseUnitPrice: number, productTotal: number, finalUnit: number, finalTotal: number, importCharges: number, intendedSellingPrice: number | undefined) => {
             if (columnKey === "product") {
-                return <TableCell className="truncate max-w-xs font-medium">{product.name}</TableCell>
+                return <TableCell className="truncate max-w-xs font-medium">{rowIndex + 1}. {product.name}</TableCell>
             }
 
             if (columnKey === "quantity") {
@@ -1103,7 +1103,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                     <TableRow key={product._id}>
                                         {columnOrder.map((columnKey) => (
                                             <React.Fragment key={`${product._id}-${columnKey}`}>
-                                                {renderBatchProductCell(product, columnKey, preview, baseUnitPrice, productTotal, finalUnit, finalTotal, importCharges, intendedSellingPrice)}
+                                                {renderBatchProductCell(product, index, columnKey, preview, baseUnitPrice, productTotal, finalUnit, finalTotal, importCharges, intendedSellingPrice)}
                                             </React.Fragment>
                                         ))}
                                     </TableRow>
