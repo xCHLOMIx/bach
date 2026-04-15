@@ -30,6 +30,7 @@ const PRODUCTS_PER_PAGE = 10
 const BATCH_PRODUCT_COLUMN_ORDER_STORAGE_KEY = "batch-details:column-order"
 
 type BatchProductTableColumnKey =
+    | "index"
     | "product"
     | "quantity"
     | "purchase"
@@ -40,6 +41,7 @@ type BatchProductTableColumnKey =
     | "profit"
 
 const DEFAULT_BATCH_PRODUCT_COLUMN_ORDER: BatchProductTableColumnKey[] = [
+    "index",
     "product",
     "quantity",
     "purchase",
@@ -297,6 +299,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     const canSave = hasAnyExpenseAmount(form)
 
     const columnLabels: Record<BatchProductTableColumnKey, string> = {
+        index: "#",
         product: "Product",
         quantity: "Quantity",
         purchase: "Purchase",
@@ -944,8 +947,12 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         const totalLandedPrice = totals.finalTotal
 
         const renderBatchProductCell = (product: Product, rowIndex: number, columnKey: BatchProductTableColumnKey, preview: ReturnType<typeof allocationPreviewByProductId.get>, baseUnitPrice: number, productTotal: number, finalUnit: number, finalTotal: number, importCharges: number, intendedSellingPrice: number | undefined) => {
+            if (columnKey === "index") {
+                return <TableCell className="text-center text-muted-foreground">{rowIndex + 1}</TableCell>
+            }
+
             if (columnKey === "product") {
-                return <TableCell className="truncate max-w-xs font-medium">{rowIndex + 1}. {product.name}</TableCell>
+                return <TableCell className="truncate max-w-xs font-medium">{product.name}</TableCell>
             }
 
             if (columnKey === "quantity") {
@@ -1032,6 +1039,10 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         }
 
         const renderBatchTotalCell = (columnKey: BatchProductTableColumnKey) => {
+            if (columnKey === "index") {
+                return <TableCell className="text-center">-</TableCell>
+            }
+
             if (columnKey === "product") {
                 return <TableCell>TOTAL</TableCell>
             }
@@ -1081,7 +1092,11 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                         onDragEnd={() => setDraggedColumn(null)}
                                         onDragOver={(event) => event.preventDefault()}
                                         onDrop={() => handleColumnDrop(columnKey)}
-                                        className="cursor-move select-none"
+                                        className={cn(
+                                            "cursor-move select-none text-right",
+                                            columnKey === "product" && "w-12 text-left",
+                                            columnKey === "index" && "w-12 text-center opacity-40"
+                                        )}
                                         title="Drag to reorder columns"
                                     >
                                         <span>{columnLabels[columnKey]}</span>
@@ -1129,8 +1144,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                 <Table className="min-w-275">
                     <TableHeader>
                         <TableRow>
+                            <TableHead className="w-12 text-center">#</TableHead>
                             <TableHead>Product</TableHead>
-                            <TableHead className="text-right">Quantity</TableHead>
+                            <TableHead className="text-end">Quantity</TableHead>
                             <TableHead className="text-right">Purchase</TableHead>
                             <TableHead className="text-right">Import Charges</TableHead>
                             <TableHead className="text-right">Weight %</TableHead>
@@ -1142,6 +1158,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                     <TableBody>
                         {[0, 1, 2, 3].map((index) => (
                             <TableRow key={`batch-details-loading-${index}`}>
+                                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-6" /></TableCell>
                                 <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                                 <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-12" /></TableCell>
                                 <TableCell className="text-right"><Skeleton className="ml-auto h-8 w-24" /></TableCell>
@@ -1149,6 +1166,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                 <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
                                 <TableCell className="text-right"><Skeleton className="ml-auto h-8 w-20" /></TableCell>
                                 <TableCell className="text-right"><Skeleton className="ml-auto h-8 w-20" /></TableCell>
+                                <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-24" /></TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

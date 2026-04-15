@@ -714,6 +714,7 @@ export function BatchCreatePage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead className="w-12 text-center">#</TableHead>
                             <TableHead>Product</TableHead>
                             <TableHead className="text-right">Quantity</TableHead>
                             <TableHead className="text-right">Purchase</TableHead>
@@ -734,7 +735,8 @@ export function BatchCreatePage() {
 
                             return (
                                 <TableRow key={row._id}>
-                                    <TableCell className="truncate max-w-xs font-medium">{index + 1}. {row.name}</TableCell>
+                                    <TableCell className="text-center text-muted-foreground">{index + 1}</TableCell>
+                                    <TableCell className="truncate max-w-xs font-medium">{row.name}</TableCell>
                                     <TableCell className="text-right">{row.quantity.toLocaleString()}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="text-sm">Unit: {row.baseUnitPrice.toLocaleString()}</div>
@@ -772,6 +774,7 @@ export function BatchCreatePage() {
                             )
                         })}
                         <TableRow className="bg-muted/30 font-semibold">
+                            <TableCell className="text-center">-</TableCell>
                             <TableCell>TOTAL</TableCell>
                             <TableCell className="text-right">{totals.quantity.toLocaleString()}</TableCell>
                             <TableCell className="text-right">{totals.baseTotal.toLocaleString()}</TableCell>
@@ -792,6 +795,7 @@ export function BatchCreatePage() {
             <Table>
                 <TableHeader>
                     <TableRow>
+                        <TableHead className="w-12 text-center">#</TableHead>
                         <TableHead>Product</TableHead>
                         <TableHead className="text-right">Quantity</TableHead>
                         <TableHead className="text-right">Purchase</TableHead>
@@ -805,6 +809,7 @@ export function BatchCreatePage() {
                 <TableBody>
                     {[0, 1, 2, 3].map((index) => (
                         <TableRow key={`create-batch-products-loading-${index}`}>
+                            <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-6" /></TableCell>
                             <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-12" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-20" /></TableCell>
