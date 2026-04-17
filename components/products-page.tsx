@@ -72,15 +72,13 @@ const PRODUCTS_COLUMN_ORDER_STORAGE_KEY = "products:column-order"
 
 function getProductsRouteStateFromLocation() {
     if (typeof window === "undefined") {
-        return { search: "", page: 1 }
+        return { search: "" }
     }
 
     const params = new URLSearchParams(window.location.search)
     const search = params.get("search")?.trim() ?? ""
-    const parsedPage = Number(params.get("page") ?? "1")
-    const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1
 
-    return { search, page }
+    return { search }
 }
 
 type Category = { _id: string; name: string }
@@ -270,24 +268,17 @@ export function ProductsPage() {
     const isPreviewOpen = previewImages.length > 0
     const editGeneratedObjectUrlsRef = React.useRef<string[]>([])
     const productSearchInputRef = React.useRef<HTMLInputElement | null>(null)
-    const productSearchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
     const productSearchRef = React.useRef("")
     const hasHydratedProductQueryRef = React.useRef(false)
     const hasCompletedInitialProductsLoadRef = React.useRef(false)
-    const skipNextSortReloadRef = React.useRef(false)
-    const hasHydratedSearchSortRef = React.useRef(false)
     const hydratedSearchValueRef = React.useRef<string | null>(null)
 
-    // Filter and pagination state
+    // Filter state
     const [isFilterSheetOpen, setIsFilterSheetOpen] = React.useState(false)
     const [filterPriceMin, setFilterPriceMin] = React.useState("")
     const [filterPriceMax, setFilterPriceMax] = React.useState("")
     const [filterCategories, setFilterCategories] = React.useState<Set<string>>(new Set())
     const [filterBatches, setFilterBatches] = React.useState<Set<string>>(new Set())
-    const [currentPage, setCurrentPage] = React.useState(() => getProductsRouteStateFromLocation().page)
-    const [totalCount, setTotalCount] = React.useState(0)
-    const itemsPerPage = 60
-    const totalPages = Math.ceil(totalCount / itemsPerPage)
 
     const openImagePreview = React.useCallback((images: string[], index: number) => {
         if (images.length === 0) {
@@ -472,66 +463,24 @@ export function ProductsPage() {
         return formatDecimalWithCommas(`${beforeDot}${afterDot}`)
     }
 
-    const getApiSortColumn = React.useCallback((column: ProductSortColumn) => {
-        switch (column) {
-            case "name":
-                return "name"
-            case "batch":
-                return "batchId"
-            case "added":
-                return "createdAt"
-            case "onHand":
-                return "quantityRemaining"
-            case "buyingPrice":
-                return "purchasePriceRWF"
-            case "sellingPrice":
-                return "intendedSellingPrice"
-            case "landedPrice":
-                return "landedCost"
-            case "profit":
-                // Profit is derived client-side in current implementation.
-                return "name"
-            default:
-                return "name"
-        }
-    }, [])
-
-    const loadProducts = React.useCallback(async (page: number = 1, options?: string | LoadProductsOptions) => {
-        const normalizedOptions = typeof options === "string" ? { searchValue: options } : (options ?? {})
+    const loadProducts = React.useCallback(async (_page: number = 1, _options?: string | LoadProductsOptions) => {
+        void _page
+        void _options
         setIsLoading(true)
         try {
-            const params = new URLSearchParams()
-            params.set("page", page.toString())
-            params.set("limit", itemsPerPage.toString())
-            params.set("search", normalizedOptions.searchValue ?? productSearchRef.current)
-
-            if (filterPriceMin) params.set("priceMin", stripCommas(filterPriceMin))
-            if (filterPriceMax) params.set("priceMax", stripCommas(filterPriceMax))
-            if (filterCategories.size > 0) params.set("categories", Array.from(filterCategories).join(","))
-            if (filterBatches.size > 0) params.set("batches", Array.from(filterBatches).join(","))
-
-            params.set("sortColumn", getApiSortColumn(normalizedOptions.sortColumn ?? sortColumn))
-            params.set("sortDirection", normalizedOptions.sortDirection ?? sortDirection)
-
-            const productsResponse = await fetch(`/api/products?${params.toString()}`)
+            const productsResponse = await fetch("/api/products")
 
             if (productsResponse.ok) {
                 const productsData = await productsResponse.json()
                 setProducts(productsData.products ?? [])
-                setTotalCount(productsData.totalCount ?? 0)
-                setCurrentPage(page)
             }
         } finally {
             setIsLoading(false)
         }
-    }, [filterPriceMin, filterPriceMax, filterCategories, filterBatches, sortColumn, sortDirection, itemsPerPage, getApiSortColumn])
+    }, [])
 
     const buildProductListReturnTo = React.useCallback(() => {
         const returnParams = new URLSearchParams()
-
-        if (currentPage > 1) {
-            returnParams.set("page", String(currentPage))
-        }
 
         const searchValue = productSearchInput.trim()
         if (searchValue) {
@@ -539,7 +488,7 @@ export function ProductsPage() {
         }
 
         return `${pathname}${returnParams.toString() ? `?${returnParams.toString()}` : ""}`
-    }, [currentPage, pathname, productSearchInput])
+    }, [pathname, productSearchInput])
 
     const buildProductDetailsHref = React.useCallback((productId: string) => {
         const returnTo = buildProductListReturnTo()
@@ -551,33 +500,7 @@ export function ProductsPage() {
 
     // Apply filters with current state values - plain function, not memoized
     const applyFilters = async () => {
-        setIsLoading(true)
-        try {
-            const params = new URLSearchParams()
-            params.set("page", "1")
-            params.set("limit", itemsPerPage.toString())
-            params.set("search", productSearch)
-
-            if (filterPriceMin) params.set("priceMin", stripCommas(filterPriceMin))
-            if (filterPriceMax) params.set("priceMax", stripCommas(filterPriceMax))
-            if (filterCategories.size > 0) params.set("categories", Array.from(filterCategories).join(","))
-            if (filterBatches.size > 0) params.set("batches", Array.from(filterBatches).join(","))
-
-            params.set("sortColumn", getApiSortColumn(sortColumn))
-            params.set("sortDirection", sortDirection)
-
-            const productsResponse = await fetch(`/api/products?${params.toString()}`)
-
-            if (productsResponse.ok) {
-                const productsData = await productsResponse.json()
-                setProducts(productsData.products ?? [])
-                setTotalCount(productsData.totalCount ?? 0)
-                setCurrentPage(1)
-                setIsFilterSheetOpen(false)
-            }
-        } finally {
-            setIsLoading(false)
-        }
+        setIsFilterSheetOpen(false)
     }
 
     const loadFormOptions = React.useCallback(async () => {
@@ -640,25 +563,6 @@ export function ProductsPage() {
             void ensureFormOptionsLoaded()
         }
     }, [isFilterSheetOpen, ensureFormOptionsLoaded])
-
-    // Trigger reload when sort changes.
-    React.useEffect(() => {
-        if (!hasCompletedInitialProductsLoadRef.current) {
-            return
-        }
-
-        if (skipNextSortReloadRef.current) {
-            skipNextSortReloadRef.current = false
-            return
-        }
-
-        if (!hasHydratedSearchSortRef.current) {
-            hasHydratedSearchSortRef.current = true
-            return
-        }
-
-        void loadProducts(1)
-    }, [sortColumn, sortDirection, loadProducts])
 
     React.useEffect(() => {
         const savedViewMode = window.localStorage.getItem(PRODUCTS_VIEW_MODE_STORAGE_KEY)
@@ -785,7 +689,6 @@ export function ProductsPage() {
 
         const routeState = getProductsRouteStateFromLocation()
         const initialSearch = routeState.search
-        const initialPage = routeState.page
         const initialSortColumn = savedSortColumn ?? sortColumn
         const initialSortDirection = savedSortDirection ?? sortDirection
 
@@ -794,13 +697,9 @@ export function ProductsPage() {
 
         const hasRouteQuery =
             typeof window !== "undefined" &&
-            (window.location.search.includes("search=") || window.location.search.includes("page="))
+            window.location.search.includes("search=")
 
         hydratedSearchValueRef.current = hasRouteQuery ? initialSearch : null
-
-        if (savedSortColumn || savedSortDirection) {
-            skipNextSortReloadRef.current = true
-        }
 
         if (savedSortColumn) {
             setSortColumn(savedSortColumn)
@@ -812,14 +711,13 @@ export function ProductsPage() {
 
         void (async () => {
             try {
-                await loadProducts(initialPage, {
+                await loadProducts(1, {
                     searchValue: initialSearch,
                     sortColumn: initialSortColumn,
                     sortDirection: initialSortDirection,
                 })
             } finally {
                 hasCompletedInitialProductsLoadRef.current = true
-                hasHydratedSearchSortRef.current = true
             }
         })()
     }, [loadProducts, sortColumn, sortDirection])
@@ -1332,7 +1230,7 @@ export function ProductsPage() {
             setEditBatchId("")
             clearEditImages()
             setIsEditProductSheetOpen(false)
-            await loadProducts(currentPage)
+            await loadProducts(1)
         } finally {
             setIsEditSubmitting(false)
         }
@@ -1401,7 +1299,7 @@ export function ProductsPage() {
             setShowDeleteConfirm(false)
             setDeleteConfirmData(null)
             setIsDeleteInfoLoading(false)
-            await loadProducts(currentPage)
+            await loadProducts(1)
         } catch (error) {
             alert("Failed to delete product")
             console.error(error)
@@ -1414,25 +1312,82 @@ export function ProductsPage() {
         product.name.toLowerCase().includes(saleProductSearch.toLowerCase())
     )
 
-    // Server already sorts all columns except derived profit.
+    // Search, filters, and sorting are all computed client-side for instant interactions.
     const sortedFilteredProducts = React.useMemo(() => {
-        if (sortColumn !== "profit") {
-            return products
-        }
+        const normalizedSearch = productSearch.trim().toLowerCase()
+        const parsedPriceMin = filterPriceMin ? Number(stripCommas(filterPriceMin)) : null
+        const parsedPriceMax = filterPriceMax ? Number(stripCommas(filterPriceMax)) : null
 
-        const sorted = [...products]
+        const filtered = products.filter((product) => {
+            if (normalizedSearch && !product.name.toLowerCase().includes(normalizedSearch)) {
+                return false
+            }
+
+            if (filterCategories.size > 0) {
+                const productCategoryId = product.categoryId?._id ?? ""
+                if (!productCategoryId || !filterCategories.has(productCategoryId)) {
+                    return false
+                }
+            }
+
+            if (filterBatches.size > 0) {
+                const productBatchId = product.batchId?._id ?? ""
+                if (!productBatchId || !filterBatches.has(productBatchId)) {
+                    return false
+                }
+            }
+
+            if (parsedPriceMin !== null && product.landedCost < parsedPriceMin) {
+                return false
+            }
+
+            if (parsedPriceMax !== null && product.landedCost > parsedPriceMax) {
+                return false
+            }
+
+            return true
+        })
+
+        const sorted = [...filtered]
 
         sorted.sort((a, b) => {
-            const aValue = typeof a.intendedSellingPrice === "number" ? a.intendedSellingPrice - a.landedCost : Number.NEGATIVE_INFINITY
-            const bValue = typeof b.intendedSellingPrice === "number" ? b.intendedSellingPrice - b.landedCost : Number.NEGATIVE_INFINITY
+            const sortOrder = sortDirection === "asc" ? 1 : -1
 
-            if (aValue < bValue) return sortDirection === "asc" ? -1 : 1
-            if (aValue > bValue) return sortDirection === "asc" ? 1 : -1
+            const getSortValue = (product: Product) => {
+                switch (sortColumn) {
+                    case "name":
+                        return product.name.toLowerCase()
+                    case "batch":
+                        return (product.batchId?.batchName ?? "").toLowerCase()
+                    case "added":
+                        return new Date(product.createdAt).getTime()
+                    case "onHand":
+                        return product.quantityRemaining
+                    case "buyingPrice":
+                        return product.purchasePriceRWF
+                    case "sellingPrice":
+                        return typeof product.intendedSellingPrice === "number" ? product.intendedSellingPrice : Number.NEGATIVE_INFINITY
+                    case "landedPrice":
+                        return product.landedCost
+                    case "profit":
+                        return typeof product.intendedSellingPrice === "number"
+                            ? product.intendedSellingPrice - product.landedCost
+                            : Number.NEGATIVE_INFINITY
+                    default:
+                        return product.name.toLowerCase()
+                }
+            }
+
+            const aValue = getSortValue(a)
+            const bValue = getSortValue(b)
+
+            if (aValue < bValue) return -1 * sortOrder
+            if (aValue > bValue) return 1 * sortOrder
             return 0
         })
 
         return sorted
-    }, [products, sortColumn, sortDirection])
+    }, [products, sortColumn, sortDirection, productSearch, filterPriceMin, filterPriceMax, filterCategories, filterBatches])
 
     const paginatedProducts = sortedFilteredProducts
     const selectedProducts = products.filter((product) => selectedProductIds.has(product._id))
@@ -1786,12 +1741,6 @@ export function ProductsPage() {
         </div>
     )
 
-    const applyProductSearch = React.useCallback((rawValue: string) => {
-        const nextSearch = rawValue.trim()
-        setProductSearch(nextSearch)
-        void loadProducts(1, nextSearch)
-    }, [loadProducts])
-
     React.useEffect(() => {
         if (!hasCompletedInitialProductsLoadRef.current) {
             return
@@ -1801,22 +1750,8 @@ export function ProductsPage() {
             return
         }
 
-        if (productSearchTimeoutRef.current) {
-            clearTimeout(productSearchTimeoutRef.current)
-        }
-
-        productSearchTimeoutRef.current = setTimeout(() => {
-            const nextSearch = productSearchInput.trim()
-            setProductSearch(nextSearch)
-            void loadProducts(1, nextSearch)
-        }, 1000)
-
-        return () => {
-            if (productSearchTimeoutRef.current) {
-                clearTimeout(productSearchTimeoutRef.current)
-            }
-        }
-    }, [productSearchInput, loadProducts])
+        setProductSearch(productSearchInput.trim())
+    }, [productSearchInput])
 
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
@@ -2235,58 +2170,9 @@ export function ProductsPage() {
                             </div>
                         </div>
 
-                        {/* Pagination Controls */}
-                        {totalCount > 0 && (
-                            <div className="mt-4 flex items-center justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} products
-                                </p>
-                                <div className="flex gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => loadProducts(Math.max(currentPage - 1, 1))}
-                                        disabled={currentPage === 1}
-                                    >
-                                        <ChevronLeftIcon className="h-4 w-4" />
-                                        Previous
-                                    </Button>
-                                    <div className="flex items-center gap-1">
-                                        {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
-                                            let pageNum;
-                                            if (totalPages <= 5) {
-                                                pageNum = i + 1;
-                                            } else if (currentPage <= 3) {
-                                                pageNum = i + 1;
-                                            } else if (currentPage >= totalPages - 2) {
-                                                pageNum = totalPages - 4 + i;
-                                            } else {
-                                                pageNum = currentPage - 2 + i;
-                                            }
-                                            return (
-                                                <Button
-                                                    key={pageNum}
-                                                    variant={currentPage === pageNum ? "default" : "outline"}
-                                                    size="sm"
-                                                    onClick={() => loadProducts(pageNum)}
-                                                >
-                                                    {pageNum}
-                                                </Button>
-                                            );
-                                        })}
-                                    </div>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => loadProducts(Math.min(currentPage + 1, totalPages))}
-                                        disabled={currentPage === totalPages}
-                                    >
-                                        Next
-                                        <ChevronRightIcon className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
+                        <p className="mt-4 text-sm text-muted-foreground">
+                            Showing {paginatedProducts.length} of {products.length} products
+                        </p>
                     </>
                 ) : (
                     <>
@@ -2368,58 +2254,9 @@ export function ProductsPage() {
                             ))}
                         </div>
 
-                        {/* Grid View Pagination Controls */}
-                        {totalCount > 0 && (
-                            <div className="mt-6 flex items-center justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} products
-                                </p>
-                                <div className="flex gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => loadProducts(Math.max(currentPage - 1, 1))}
-                                        disabled={currentPage === 1}
-                                    >
-                                        <ChevronLeftIcon className="h-4 w-4" />
-                                        Previous
-                                    </Button>
-                                    <div className="flex items-center gap-1">
-                                        {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
-                                            let pageNum;
-                                            if (totalPages <= 5) {
-                                                pageNum = i + 1;
-                                            } else if (currentPage <= 3) {
-                                                pageNum = i + 1;
-                                            } else if (currentPage >= totalPages - 2) {
-                                                pageNum = totalPages - 4 + i;
-                                            } else {
-                                                pageNum = currentPage - 2 + i;
-                                            }
-                                            return (
-                                                <Button
-                                                    key={pageNum}
-                                                    variant={currentPage === pageNum ? "default" : "outline"}
-                                                    size="sm"
-                                                    onClick={() => loadProducts(pageNum)}
-                                                >
-                                                    {pageNum}
-                                                </Button>
-                                            );
-                                        })}
-                                    </div>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => loadProducts(Math.min(currentPage + 1, totalPages))}
-                                        disabled={currentPage === totalPages}
-                                    >
-                                        Next
-                                        <ChevronRightIcon className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
+                        <p className="mt-6 text-sm text-muted-foreground">
+                            Showing {paginatedProducts.length} of {products.length} products
+                        </p>
                     </>
                 )}
             </CardContent>
@@ -2981,7 +2818,7 @@ export function ProductsPage() {
                 categories={categories}
                 batches={batches}
                 onSaved={async () => {
-                    await loadProducts(currentPage)
+                    await loadProducts(1)
                 }}
             />
         </div>

@@ -18,8 +18,6 @@ export async function GET(request: NextRequest) {
   if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
 
   const searchParams = request.nextUrl.searchParams
-  const page = Math.max(1, Number(searchParams.get("page") ?? "1"))
-  const limit = Math.max(1, Number(searchParams.get("limit") ?? "20"))
   const search = String(searchParams.get("search") ?? "").trim()
   const priceMin = searchParams.get("priceMin") ? Number(searchParams.get("priceMin")) : null
   const priceMax = searchParams.get("priceMax") ? Number(searchParams.get("priceMax")) : null
@@ -29,7 +27,7 @@ export async function GET(request: NextRequest) {
   const sortDirection = String(searchParams.get("sortDirection") ?? "asc") as "asc" | "desc"
 
   // Build filter object
-  const filter: any = { userId: user._id }
+  const filter: Record<string, unknown> = { userId: user._id }
 
   // Search filter
   if (search) {
@@ -66,7 +64,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Build sort object
-  const sortObj: any = {}
+  const sortObj: Record<string, 1 | -1> = {}
   sortObj[sortColumn] = sortDirection === "asc" ? 1 : -1
 
   // Execute count and find in parallel (much faster than sequential)
@@ -76,8 +74,6 @@ export async function GET(request: NextRequest) {
       .populate("categoryId", "name")
       .populate("batchId", "batchName")
       .sort(sortObj)
-      .skip((page - 1) * limit)
-      .limit(limit)
       .lean()
       .exec(),
   ])
