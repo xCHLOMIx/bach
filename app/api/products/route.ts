@@ -58,9 +58,10 @@ export async function GET(request: NextRequest) {
 
   // Price filter
   if (priceMin !== null || priceMax !== null) {
-    filter.landedCost = {}
-    if (priceMin !== null) filter.landedCost.$gte = priceMin
-    if (priceMax !== null) filter.landedCost.$lte = priceMax
+    const landedCostFilter: { $gte?: number; $lte?: number } = {}
+    if (priceMin !== null) landedCostFilter.$gte = priceMin
+    if (priceMax !== null) landedCostFilter.$lte = priceMax
+    filter.landedCost = landedCostFilter
   }
 
   // Build sort object
