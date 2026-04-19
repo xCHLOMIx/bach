@@ -161,3 +161,24 @@
   border-width: 1px;
   font-family: var(--font-geist-sans), sans-serif;
 }
+
+@media print {
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+
+  [data-slot="sidebar-wrapper"] {
+    background: white !important;
+    min-height: auto !important;
+  }
+
+  [data-slot="sidebar-inset"] {
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    overflow: visible !important;
+  }
+}

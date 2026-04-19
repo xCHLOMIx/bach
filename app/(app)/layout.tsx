@@ -30,8 +30,8 @@ export default async function RootLayout({
                 } as React.CSSProperties
             }
         >
-            <AppSidebar variant="inset" />
-            <SidebarInset>
+            <AppSidebar variant="inset" className="print:hidden" />
+            <SidebarInset className="print:m-0 print:ml-0 print:rounded-none print:shadow-none">
                 <SiteHeader />
                 <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
                     {children}

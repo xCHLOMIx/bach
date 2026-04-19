@@ -22,7 +22,7 @@ import { calculateBatchProductLandedCosts, convertInternationalExpenseToRwf } fr
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 import { getAllIntendedSellingPrices } from "@/lib/intended-pricing"
 import { cn } from "@/lib/utils"
-import { CheckIcon, ChevronLeft, CopyIcon, PackageOpen, SearchIcon, XIcon } from "lucide-react"
+import { CheckIcon, ChevronLeft, CopyIcon, PackageOpen, Printer, SearchIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 
 const CURRENCY_OPTIONS = ["RWF", "USD", "CNY", "AED"] as const
@@ -1079,9 +1079,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         }
 
         return (
-            <div className="overflow-hidden rounded-md border">
-                <div className="overflow-x-auto">
-                    <Table className="min-w-275">
+            <div className="overflow-hidden rounded-md border print:overflow-visible print:rounded-none print:border-0">
+                <div className="overflow-x-auto print:overflow-visible">
+                    <Table className="min-w-275 print:min-w-0 print:w-full print:text-[11px]">
                         <TableHeader>
                             <TableRow>
                                 {columnOrder.map((columnKey) => (
@@ -1139,9 +1139,9 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     }
 
     const renderProductsTableSkeleton = () => (
-        <div className="overflow-hidden rounded-md border">
+        <div className="overflow-hidden rounded-md border print:overflow-visible print:rounded-none print:border-0">
             <div className="overflow-x-auto">
-                <Table className="min-w-275">
+                <Table className="min-w-275 print:min-w-0 print:w-full print:text-[11px]">
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-12 text-center">#</TableHead>
@@ -1283,8 +1283,8 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
     ].filter((item) => item.amount > 0)
 
     return (
-        <form className="flex flex-1 flex-col gap-4 p-4 lg:p-6" onSubmit={submit} onKeyDown={preventImplicitSubmitOnEnter}>
-            <div className="mb-1 flex items-center gap-3">
+        <form className="flex flex-1 flex-col gap-4 p-4 lg:p-6 print:p-0" onSubmit={submit} onKeyDown={preventImplicitSubmitOnEnter}>
+            <div className="mb-1 flex items-center gap-3 print:hidden">
                 <Button variant="outline" className="h-9 w-9 p-0" type="button" onClick={() => router.push("/app/batches")}>
                     <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -1302,7 +1302,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7"
+                                className="h-7 w-7 print:hidden"
                                 onClick={copyTrackingNumber}
                                 aria-label="Copy tracking number"
                             >
@@ -1312,7 +1312,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                     </div>
                 </div>
                 {isEditing ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 print:hidden">
                         <Button
                             type="button"
                             variant="outline"
@@ -1334,9 +1334,21 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         </Button>
                     </div>
                 ) : (
-                    <Button type="button" size={"lg"} className="h-10 px-6" onClick={() => setIsEditing(true)}>
-                        Edit
-                    </Button>
+                    <div className="flex items-center gap-2 print:hidden">
+                        <Button
+                            type="button"
+                            size={"lg"}
+                            variant="outline"
+                            className="h-10 border-input bg-white px-6 text-foreground hover:bg-muted"
+                            onClick={() => window.print()}
+                        >
+                            <Printer className="h-4 w-4" />
+                            Print
+                        </Button>
+                        <Button type="button" size={"lg"} className="h-10 px-6" onClick={() => setIsEditing(true)}>
+                            Edit
+                        </Button>
+                    </div>
                 )}
             </CardHeader>
 
