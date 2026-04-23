@@ -507,7 +507,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
 
                     <Field>
                         <div className="flex items-center justify-between">
-                            <FieldLabel htmlFor="quick-product-selling-price">Selling price (RWF, optional)</FieldLabel>
+                            <FieldLabel htmlFor="quick-product-selling-price">Selling price (RWF)</FieldLabel>
                         </div>
                         <Input
                             id="quick-product-selling-price"

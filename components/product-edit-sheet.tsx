@@ -694,7 +694,7 @@ export function ProductEditSheet({
 
                         <Field>
                             <div className="flex items-center justify-between">
-                                <FieldLabel htmlFor="edit-intended-selling-price">Selling price (RWF, optional)</FieldLabel>
+                                <FieldLabel htmlFor="edit-intended-selling-price">Selling price (RWF)</FieldLabel>
                                 <FieldError className="text-destructive text-xs">{editErrors.intendedSellingPrice}</FieldError>
                             </div>
                             <Input
