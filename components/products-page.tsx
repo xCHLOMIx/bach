@@ -69,6 +69,7 @@ const PRODUCTS_VIEW_MODE_STORAGE_KEY = "products:view-mode"
 const PRODUCTS_VISIBLE_COLUMNS_STORAGE_KEY = "products:visible-columns"
 const PRODUCTS_TABLE_STATE_STORAGE_KEY = "products:table-state"
 const PRODUCTS_COLUMN_ORDER_STORAGE_KEY = "products:column-order"
+const PRODUCTS_DETAIL_RETURN_SEARCH_STORAGE_KEY = "products:detail-return-search"
 const NO_BATCH_ASSIGNMENT_VALUE = "__none__"
 
 function getProductsRouteStateFromLocation() {
@@ -181,6 +182,7 @@ export function ProductsPage() {
     const [selectedProductIds, setSelectedProductIds] = React.useState<Set<string>>(new Set())
     const [selectedExistingBatchId, setSelectedExistingBatchId] = React.useState("")
     const [isAssigningSelectedToBatch, setIsAssigningSelectedToBatch] = React.useState(false)
+    const [showSelectedBatchWarning, setShowSelectedBatchWarning] = React.useState(false)
     const [visibleColumns, setVisibleColumns] = React.useState<Record<ProductTableColumnKey, boolean>>({
         image: true,
         name: true,
@@ -501,6 +503,20 @@ export function ProductsPage() {
         return `/app/products/${productId}?${detailParams.toString()}`
     }, [buildProductListReturnTo])
 
+    const persistProductDetailReturnSearch = React.useCallback(() => {
+        if (typeof window === "undefined") {
+            return
+        }
+
+        const searchValue = productSearchInput.trim()
+        if (!searchValue) {
+            window.sessionStorage.removeItem(PRODUCTS_DETAIL_RETURN_SEARCH_STORAGE_KEY)
+            return
+        }
+
+        window.sessionStorage.setItem(PRODUCTS_DETAIL_RETURN_SEARCH_STORAGE_KEY, searchValue)
+    }, [productSearchInput])
+
     // Apply filters with current state values - plain function, not memoized
     const applyFilters = async () => {
         setIsFilterSheetOpen(false)
@@ -703,7 +719,11 @@ export function ProductsPage() {
         }
 
         const routeState = getProductsRouteStateFromLocation()
-        const initialSearch = routeState.search
+        const savedDetailReturnSearch =
+            typeof window !== "undefined"
+                ? window.sessionStorage.getItem(PRODUCTS_DETAIL_RETURN_SEARCH_STORAGE_KEY)?.trim() ?? ""
+                : ""
+        const initialSearch = routeState.search || savedDetailReturnSearch
         const initialSortColumn = savedSortColumn ?? sortColumn
         const initialSortDirection = savedSortDirection ?? sortDirection
 
@@ -715,6 +735,10 @@ export function ProductsPage() {
             window.location.search.includes("search=")
 
         hydratedSearchValueRef.current = hasRouteQuery ? initialSearch : null
+
+        if (typeof window !== "undefined") {
+            window.sessionStorage.removeItem(PRODUCTS_DETAIL_RETURN_SEARCH_STORAGE_KEY)
+        }
 
         if (savedSortColumn) {
             setSortColumn(savedSortColumn)
@@ -1406,11 +1430,23 @@ export function ProductsPage() {
 
     const paginatedProducts = sortedFilteredProducts
     const selectedProducts = products.filter((product) => selectedProductIds.has(product._id))
+    const selectedProductsInBatches = React.useMemo(
+        () => selectedProducts.filter((product) => Boolean(product.batchId?._id)),
+        [selectedProducts]
+    )
+    const selectedProductsInBatchesPreview = React.useMemo(
+        () => selectedProductsInBatches.slice(0, 3).map((product) => product.name).join(", "),
+        [selectedProductsInBatches]
+    )
     const singleSelectedProduct = selectedProducts.length === 1 ? selectedProducts[0] : null
     const intendedSellingPricesByProductId = React.useMemo(() => getAllIntendedSellingPrices(products), [products])
     const currentEditProduct = React.useMemo(() => {
         return products.find((p) => p._id === editProductId)
     }, [products, editProductId])
+
+    React.useEffect(() => {
+        setShowSelectedBatchWarning(selectedProductsInBatches.length > 0)
+    }, [selectedProductsInBatches.length])
 
     const saleSelectedQuantity = Number(saleQuantity || 0)
     const saleAvailableQuantity = saleSelectedProduct?.quantityRemaining ?? 0
@@ -1514,6 +1550,7 @@ export function ProductsPage() {
                             return
                         }
 
+                        persistProductDetailReturnSearch()
                         window.history.replaceState(window.history.state, "", buildProductListReturnTo())
                     }}>
                         {product.images?.[0] ? (
@@ -1543,6 +1580,7 @@ export function ProductsPage() {
                             return
                         }
 
+                        persistProductDetailReturnSearch()
                         window.history.replaceState(window.history.state, "", buildProductListReturnTo())
                     }}>
                         <span className="block w-11/12 overflow-hidden text-ellipsis whitespace-nowrap" title={product.name}>
@@ -1628,7 +1666,7 @@ export function ProductsPage() {
         }
 
         return null
-    }, [intendedSellingPricesByProductId])
+    }, [buildProductDetailsHref, buildProductListReturnTo, intendedSellingPricesByProductId, persistProductDetailReturnSearch])
 
     const handleDeleteSelectedProduct = React.useCallback(() => {
         if (selectedProducts.length === 0) {
@@ -1841,8 +1879,8 @@ export function ProductsPage() {
             </CardHeader>
             <CardContent>
                 {isLoading ? (
-                    <div className="overflow-visible rounded-xl border">
-                        <div className="min-w-245 overflow-x-auto overflow-y-visible rounded-xl">
+                    <div className="overflow-hidden rounded-xl border">
+                        <div className="min-w-245 overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -2135,8 +2173,30 @@ export function ProductsPage() {
                                 ) : null}
                             </div>
                         </div>
-                        <div className="overflow-visible rounded-xl border">
-                            <div className="min-w-245 overflow-x-auto overflow-y-visible rounded-xl">
+                        {showSelectedBatchWarning ? (
+                            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
+                                <p className="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-200">Warning</p>
+                                <ul className="list-disc space-y-1 pl-5 text-sm text-amber-800 dark:text-amber-300">
+                                    <li>
+                                        <span className="font-semibold">{selectedProductsInBatches.length}</span>
+                                        {" "}
+                                        selected product{selectedProductsInBatches.length === 1 ? "" : "s"}
+                                        {" "}
+                                        {selectedProductsInBatches.length === 1 ? "belongs" : "belong"}
+                                        {" "}
+                                        to batch{selectedProductsInBatches.length === 1 ? "" : "es"}.
+                                    </li>
+                                    {selectedProductsInBatchesPreview ? (
+                                        <li>
+                                            {selectedProductsInBatchesPreview}
+                                            {selectedProductsInBatches.length > 3 ? ", ..." : ""}
+                                        </li>
+                                    ) : null}
+                                </ul>
+                            </div>
+                        ) : null}
+                        <div className="overflow-hidden rounded-xl border">
+                            <div className="min-w-245 overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -2264,18 +2324,24 @@ export function ProductsPage() {
                                             role="link"
                                             tabIndex={0}
                                             onClick={() => {
+                                                persistProductDetailReturnSearch()
                                                 window.history.replaceState(window.history.state, "", buildProductListReturnTo())
                                                 router.push(buildProductDetailsHref(product._id))
                                             }}
                                             onKeyDown={(event) => {
                                                 if (event.key === "Enter" || event.key === " ") {
                                                     event.preventDefault()
+                                                    persistProductDetailReturnSearch()
                                                     window.history.replaceState(window.history.state, "", buildProductListReturnTo())
                                                     router.push(buildProductDetailsHref(product._id))
                                                 }
                                             }}
                                         >
-                                            <Link href={buildProductDetailsHref(product._id)} className="block mb-3 overflow-hidden rounded-md border bg-muted">
+                                            <Link
+                                                href={buildProductDetailsHref(product._id)}
+                                                className="block mb-3 overflow-hidden rounded-md border bg-muted"
+                                                onClick={() => persistProductDetailReturnSearch()}
+                                            >
                                                 {product.images?.[0] ? (
                                                     <img
                                                         src={product.images[0]}
@@ -2292,7 +2358,7 @@ export function ProductsPage() {
                                                 )}
                                             </Link>
                                             <div className="mb-1 truncate text-base font-semibold text-card-foreground">
-                                                <Link href={buildProductDetailsHref(product._id)} className="hover:underline">
+                                                <Link href={buildProductDetailsHref(product._id)} className="hover:underline" onClick={() => persistProductDetailReturnSearch()}>
                                                     {product.name}
                                                 </Link>
                                             </div>
