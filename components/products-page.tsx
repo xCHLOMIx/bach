@@ -182,6 +182,9 @@ export function ProductsPage() {
     const [selectedProductIds, setSelectedProductIds] = React.useState<Set<string>>(new Set())
     const [selectedExistingBatchId, setSelectedExistingBatchId] = React.useState("")
     const [isAssigningSelectedToBatch, setIsAssigningSelectedToBatch] = React.useState(false)
+    const [showAssignBatchConfirm, setShowAssignBatchConfirm] = React.useState(false)
+    const [assignBatchWarning, setAssignBatchWarning] = React.useState<{ productsInBatches: number, productNames: string[] }>({ productsInBatches: 0, productNames: [] })
+    const [isAssignBatchInfoLoading, setIsAssignBatchInfoLoading] = React.useState(false)
     const [showSelectedBatchWarning, setShowSelectedBatchWarning] = React.useState(false)
     const [visibleColumns, setVisibleColumns] = React.useState<Record<ProductTableColumnKey, boolean>>({
         image: true,
@@ -2138,7 +2141,18 @@ export function ProductsPage() {
                                                 disabled={!selectedExistingBatchId || isAssigningSelectedToBatch}
                                                 loading={isAssigningSelectedToBatch}
                                                 loadingText="Adding"
-                                                onClick={() => void assignSelectedProductsToExistingBatch()}
+                                                onClick={async () => {
+                                                    setShowAssignBatchConfirm(true)
+                                                    setIsAssignBatchInfoLoading(true)
+                                                    // Simulate API call to get batch warnings for selected products
+                                                    const selected = products.filter((p) => selectedProductIds.has(p._id))
+                                                    const inBatch = selected.filter((p) => Boolean(p.batchId?._id))
+                                                    setAssignBatchWarning({
+                                                        productsInBatches: inBatch.length,
+                                                        productNames: inBatch.slice(0, 3).map((p) => p.name)
+                                                    })
+                                                    setIsAssignBatchInfoLoading(false)
+                                                }}
                                             >
                                                 Add to Batch
                                             </Button>
@@ -2173,28 +2187,65 @@ export function ProductsPage() {
                                 ) : null}
                             </div>
                         </div>
-                        {showSelectedBatchWarning ? (
-                            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
-                                <p className="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-200">Warning</p>
-                                <ul className="list-disc space-y-1 pl-5 text-sm text-amber-800 dark:text-amber-300">
-                                    <li>
-                                        <span className="font-semibold">{selectedProductsInBatches.length}</span>
-                                        {" "}
-                                        selected product{selectedProductsInBatches.length === 1 ? "" : "s"}
-                                        {" "}
-                                        {selectedProductsInBatches.length === 1 ? "belongs" : "belong"}
-                                        {" "}
-                                        to batch{selectedProductsInBatches.length === 1 ? "" : "es"}.
-                                    </li>
-                                    {selectedProductsInBatchesPreview ? (
-                                        <li>
-                                            {selectedProductsInBatchesPreview}
-                                            {selectedProductsInBatches.length > 3 ? ", ..." : ""}
-                                        </li>
+                        {/* Batch warning now handled in modal, not here */}
+                        {showAssignBatchConfirm && (
+                            <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 px-4">
+                                <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-950">
+                                    <h3 className="text-lg font-semibold text-primary">Assign to Batch?</h3>
+                                    <p className="mt-3 text-sm text-muted-foreground">
+                                        You are about to assign <span className="font-semibold text-foreground">{selectedProductIds.size}</span> product{selectedProductIds.size === 1 ? "" : "s"} to a batch.
+                                    </p>
+
+                                    {isAssignBatchInfoLoading ? (
+                                        <div className="mt-4 space-y-2">
+                                            <Skeleton className="h-3 w-3/4" />
+                                            <Skeleton className="h-3 w-2/3" />
+                                        </div>
+                                    ) : assignBatchWarning.productsInBatches > 0 ? (
+                                        <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-950">
+                                            <p className="mb-2 text-sm font-semibold text-accent-foreground">Warning:</p>
+                                            <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                                                <li>
+                                                    <span className="font-semibold">{assignBatchWarning.productsInBatches}</span> selected product{assignBatchWarning.productsInBatches === 1 ? "" : "s"} already assigned to batch.
+                                                </li>
+                                                {assignBatchWarning.productNames.length > 0 && (
+                                                    <li>
+                                                        {assignBatchWarning.productNames.join(", ")}
+                                                        {assignBatchWarning.productsInBatches > 3 ? ", ..." : ""}
+                                                    </li>
+                                                )}
+                                            </ul>
+                                        </div>
                                     ) : null}
-                                </ul>
+
+                                    <div className="mt-6 flex justify-end gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setShowAssignBatchConfirm(false)
+                                            }}
+                                            disabled={isAssigningSelectedToBatch || isAssignBatchInfoLoading}
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="destructive"
+                                            onClick={async () => {
+                                                setShowAssignBatchConfirm(false)
+                                                await assignSelectedProductsToExistingBatch()
+                                            }}
+                                            disabled={isAssigningSelectedToBatch || isAssignBatchInfoLoading}
+                                            loading={isAssigningSelectedToBatch}
+                                            loadingText={isAssigningSelectedToBatch ? "Assigning..." : undefined}
+                                        >
+                                            Assign to Batch
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
-                        ) : null}
+                        )}
                         <div className="overflow-hidden rounded-xl border">
                             <div className="min-w-245 overflow-x-auto">
                                 <Table>
