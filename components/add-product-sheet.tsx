@@ -251,9 +251,6 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
             title="Add Product"
             description="Create a new product entry."
             contentClassName="p-0"
-            onInteractOutside={(event) => {
-                event.preventDefault()
-            }}
             triggerButton={triggerButton ?? (
                 <Button type="button" size="sm" variant="outline" className="h-12 px-4">
                     <PlusIcon className="h-4 w-4" />
