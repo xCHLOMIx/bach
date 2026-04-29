@@ -16,6 +16,7 @@ import { ProductSheetFrame } from "@/components/product-sheet-frame"
 import { XIcon, ImagePlusIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { toast } from "sonner"
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
+import { FormattedNumberInput } from "@/components/formatted-number-input"
 
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"]
 const NO_CATEGORY_VALUE = "__none__"
@@ -97,8 +98,7 @@ export function ProductEditSheet({
 
     const stripCommas = (value: string) => value.replace(/,/g, "")
     const toIntegerInput = (value: string) => value.replace(/\D/g, "")
-
-    const formatDecimalWithCommas = (value: string) => {
+    const formatDecimalWithCommas = React.useCallback((value: string) => {
         if (!value) {
             return ""
         }
@@ -111,27 +111,23 @@ export function ProductEditSheet({
         }
 
         return formattedInteger
-    }
-
-    const toDecimalInput = (value: string) => {
-        const digitsAndDotsOnly = stripCommas(value).replace(/[^\d.]/g, "")
-        const firstDotIndex = digitsAndDotsOnly.indexOf(".")
-
-        if (firstDotIndex === -1) {
-            return formatDecimalWithCommas(digitsAndDotsOnly)
-        }
-
-        const beforeDot = digitsAndDotsOnly.slice(0, firstDotIndex + 1)
-        const afterDot = digitsAndDotsOnly.slice(firstDotIndex + 1).replace(/\./g, "")
-
-        return formatDecimalWithCommas(`${beforeDot}${afterDot}`)
-    }
+    }, [])
 
     const canSubmitEditProduct =
         Boolean(editProductName.trim()) &&
         Boolean(editQuantityInitial.trim()) &&
         Boolean(editUnitPriceForeign.trim()) &&
         (editSourceCurrency === "RWF" || Boolean(editExchangeRate.trim()))
+
+    const buyingPricePreview = React.useMemo(() => {
+        const unitPrice = Number(stripCommas(editUnitPriceForeign) || 0)
+        const rate = editSourceCurrency === "RWF" ? 1 : Number(stripCommas(editExchangeRate) || 0)
+        if (!unitPrice || !rate) {
+            return ""
+        }
+
+        return Math.round(unitPrice * rate).toLocaleString()
+    }, [editExchangeRate, editSourceCurrency, editUnitPriceForeign])
 
     const clearEditImages = React.useCallback(() => {
         editGeneratedObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
@@ -273,7 +269,7 @@ export function ProductEditSheet({
             src: image,
         })))
         setEditErrors({})
-    }, [open, product, clearEditImages])
+    }, [open, product, clearEditImages, formatDecimalWithCommas])
 
     React.useEffect(() => {
         if (editSourceCurrency === "RWF") {
@@ -352,6 +348,7 @@ export function ProductEditSheet({
                     const createCategoryData = await createCategoryResponse.json()
                     if (!createCategoryResponse.ok) {
                         setEditErrors(createCategoryData.errors ?? { categoryId: "Failed to create category" })
+                        toast.error(createCategoryData.errors?.general ?? "Failed to create category")
                         return
                     }
 
@@ -397,6 +394,7 @@ export function ProductEditSheet({
             const data = await response.json()
             if (!response.ok) {
                 setEditErrors(data.errors ?? { general: "Failed to update product" })
+                toast.error(data.errors?.general ?? "Failed to update product")
                 return
             }
 
@@ -423,12 +421,7 @@ export function ProductEditSheet({
                 description="Update product details and batch assignment."
                 contentClassName="overflow-y-auto"
                 onInteractOutside={(event) => {
-                    if (isPreviewOpen) {
-                        const target = event.target
-                        if (!(target instanceof Element) || !target.closest('[data-image-preview="true"]')) {
-                            event.preventDefault()
-                        }
-                    }
+                    event.preventDefault()
                 }}
                 onEscapeKeyDown={(event) => {
                     if (isPreviewOpen) {
@@ -437,7 +430,7 @@ export function ProductEditSheet({
                 }}
             >
                 <form className="grid gap-6 p-4" onSubmit={submitEditProduct} onKeyDown={preventImplicitSubmitOnEnter}>
-                    <div className="space-y-3 border-b pb-4">
+                    <div className="space-y-3 rounded-xl border p-4">
                         <h3 className="font-semibold text-sm">Images</h3>
 
                         <div className="relative h-64 w-full overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center group">
@@ -568,7 +561,7 @@ export function ProductEditSheet({
                         )}
                     </div>
 
-                    <div className="space-y-3 border-b pb-4">
+                    <div className="grid gap-4 rounded-xl border p-4">
                         <h3 className="font-semibold text-sm">Product Details</h3>
 
                         <Field>
@@ -582,82 +575,6 @@ export function ProductEditSheet({
                                 value={editProductName}
                                 onChange={(event) => setEditProductName(event.target.value)}
                             />
-                        </Field>
-
-                        <Field>
-                            <div className="flex items-center justify-between">
-                                <FieldLabel htmlFor="edit-external-link">External link (optional)</FieldLabel>
-                                <FieldError className="text-destructive text-xs">{editErrors.externalLink}</FieldError>
-                            </div>
-                            <Input
-                                id="edit-external-link"
-                                type="url"
-                                placeholder="https://example.com/product"
-                                value={editExternalLink}
-                                onChange={(event) => setEditExternalLink(event.target.value)}
-                            />
-                        </Field>
-
-                        <Field>
-                            <div className="flex items-center justify-between">
-                                <FieldLabel htmlFor="edit-category">Category (optional)</FieldLabel>
-                                <FieldError className="text-destructive text-xs">{editErrors.categoryId}</FieldError>
-                            </div>
-                            {isAddingEditCustomCategory ? (
-                                <div className="flex gap-2">
-                                    <Input
-                                        id="edit-category"
-                                        placeholder="Type new category name"
-                                        value={editCustomCategoryName}
-                                        onChange={(event) => setEditCustomCategoryName(event.target.value)}
-                                    />
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => {
-                                            setIsAddingEditCustomCategory(false)
-                                            setEditCustomCategoryName("")
-                                            setEditCategoryId("")
-                                        }}
-                                    >
-                                        Cancel
-                                    </Button>
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-2">
-                                    <Select
-                                        value={editCategoryId || NO_CATEGORY_VALUE}
-                                        onValueChange={(value) => {
-                                            setIsAddingEditCustomCategory(false)
-                                            setEditCustomCategoryName("")
-                                            setEditCategoryId(value === NO_CATEGORY_VALUE ? "" : value)
-                                        }}
-                                    >
-                                        <SelectTrigger id="edit-category" className="w-full">
-                                            <SelectValue placeholder="Choose category (optional)" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value={NO_CATEGORY_VALUE}>No category</SelectItem>
-                                            {categories.map((category) => (
-                                                <SelectItem key={category._id} value={category._id}>
-                                                    {category.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        className="h-8 px-3"
-                                        onClick={() => {
-                                            setIsAddingEditCustomCategory(true)
-                                            setEditCategoryId("")
-                                        }}
-                                    >
-                                        Add category
-                                    </Button>
-                                </div>
-                            )}
                         </Field>
 
                         <Field>
@@ -676,107 +593,199 @@ export function ProductEditSheet({
                             />
                         </Field>
 
-                        <Field>
-                            <div className="flex items-center justify-between">
-                                <FieldLabel htmlFor="edit-unit-price">Unit price</FieldLabel>
-                                <FieldError className="text-destructive text-xs">{editErrors.unitPriceForeign}</FieldError>
-                            </div>
-                            <Input
-                                id="edit-unit-price"
-                                type="text"
-                                inputMode="decimal"
-                                autoComplete="off"
-                                placeholder="Enter unit price"
-                                value={editUnitPriceForeign}
-                                onChange={(event) => setEditUnitPriceForeign(toDecimalInput(event.target.value))}
-                            />
-                        </Field>
+                        <div className="grid gap-4 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-unit-price">Unit price</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.unitPriceForeign}</FieldError>
+                                </div>
+                                <div className="flex rounded-lg border border-input bg-background focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+                                    <FormattedNumberInput
+                                        id="edit-unit-price"
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        placeholder="Price"
+                                        value={editUnitPriceForeign}
+                                        onValueChange={setEditUnitPriceForeign}
+                                        className="h-11 rounded-r-none border-0 bg-transparent shadow-none focus-visible:border-0 focus-visible:ring-0"
+                                    />
+                                    <div className="flex items-center rounded-r-lg border-l border-input bg-muted/30 px-2">
+                                        <Select value={editSourceCurrency} onValueChange={setEditSourceCurrency}>
+                                            <SelectTrigger id="edit-currency" className="h-9 min-w-20 border-0 bg-transparent px-1 shadow-none focus:ring-0">
+                                                <SelectValue placeholder="Currency" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {SOURCE_CURRENCY_OPTIONS.map((currency) => (
+                                                    <SelectItem key={currency} value={currency}>
+                                                        {currency}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                {editErrors.sourceCurrency ? <FieldError className="text-destructive text-xs">{editErrors.sourceCurrency}</FieldError> : null}
+                            </Field>
 
-                        <Field>
-                            <div className="flex items-center justify-between">
-                                <FieldLabel htmlFor="edit-intended-selling-price">Selling price (RWF)</FieldLabel>
-                                <FieldError className="text-destructive text-xs">{editErrors.intendedSellingPrice}</FieldError>
-                            </div>
-                            <Input
-                                id="edit-intended-selling-price"
-                                type="text"
-                                inputMode="decimal"
-                                autoComplete="off"
-                                placeholder="Enter intended selling price"
-                                value={editIntendedSellingPrice}
-                                onChange={(event) => setEditIntendedSellingPrice(toDecimalInput(event.target.value))}
-                            />
-                        </Field>
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-exchange-rate">Exchange rate</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.exchangeRate}</FieldError>
+                                </div>
+                                <FormattedNumberInput
+                                    id="edit-exchange-rate"
+                                    type="text"
+                                    inputMode="decimal"
+                                    autoComplete="off"
+                                    placeholder="Rate to RWF"
+                                    value={editExchangeRate}
+                                    disabled={editSourceCurrency === "RWF"}
+                                    onValueChange={setEditExchangeRate}
+                                    className="h-11"
+                                />
+                            </Field>
+                        </div>
 
-                        <Field>
-                            <div className="flex items-center justify-between">
-                                <FieldLabel htmlFor="edit-currency">Source currency</FieldLabel>
-                                <FieldError className="text-destructive text-xs">{editErrors.sourceCurrency}</FieldError>
-                            </div>
-                            <Select value={editSourceCurrency} onValueChange={setEditSourceCurrency}>
-                                <SelectTrigger id="edit-currency">
-                                    <SelectValue placeholder="Choose source currency" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {SOURCE_CURRENCY_OPTIONS.map((currency) => (
-                                        <SelectItem key={currency} value={currency}>
-                                            {currency}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </Field>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-buying-price">Buying price</FieldLabel>
+                                </div>
+                                <Input
+                                    id="edit-buying-price"
+                                    readOnly
+                                    value={buyingPricePreview ? `${buyingPricePreview} RWF` : ""}
+                                    placeholder="Calculated from unit price"
+                                    className="h-11"
+                                />
+                            </Field>
 
-                        <Field>
-                            <div className="flex items-center justify-between">
-                                <FieldLabel htmlFor="edit-exchange-rate">Exchange rate to RWF</FieldLabel>
-                                <FieldError className="text-destructive text-xs">{editErrors.exchangeRate}</FieldError>
-                            </div>
-                            <Input
-                                id="edit-exchange-rate"
-                                type="text"
-                                inputMode="decimal"
-                                autoComplete="off"
-                                placeholder={editSourceCurrency === "RWF" ? "Auto-set to 1 for RWF" : "Enter exchange rate to RWF"}
-                                value={editExchangeRate}
-                                disabled={editSourceCurrency === "RWF"}
-                                onChange={(event) => setEditExchangeRate(toDecimalInput(event.target.value))}
-                            />
-                        </Field>
-                    </div>
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-intended-selling-price">Selling price</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.intendedSellingPrice}</FieldError>
+                                </div>
+                                <FormattedNumberInput
+                                    id="edit-intended-selling-price"
+                                    type="text"
+                                    inputMode="decimal"
+                                    autoComplete="off"
+                                    placeholder="Enter intended selling price"
+                                    value={editIntendedSellingPrice}
+                                    onValueChange={setEditIntendedSellingPrice}
+                                    className="h-11"
+                                />
+                            </Field>
+                        </div>
 
-                    <div className="space-y-3">
-                        <h3 className="font-semibold text-sm">Batch Settings</h3>
-
-                        <Field>
-                            <div className="flex items-center justify-between">
-                                <FieldLabel htmlFor="edit-batch">Batch</FieldLabel>
-                                <FieldError className="text-destructive text-xs">{editErrors.batchId}</FieldError>
-                            </div>
-                            <div className="flex gap-2">
-                                <Select value={editBatchId} onValueChange={setEditBatchId}>
-                                    <SelectTrigger id="edit-batch" className="w-full">
-                                        <SelectValue placeholder="Select batch" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {batches.map((batch) => (
-                                            <SelectItem key={batch._id} value={batch._id}>
-                                                {batch.batchName}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                {editBatchId && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setEditBatchId("")}
-                                    >
-                                        Clear
-                                    </Button>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-category">Category</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.categoryId}</FieldError>
+                                </div>
+                                {isAddingEditCustomCategory ? (
+                                    <div className="flex gap-2">
+                                        <Input
+                                            id="edit-category"
+                                            placeholder="Type new category name"
+                                            value={editCustomCategoryName}
+                                            onChange={(event) => setEditCustomCategoryName(event.target.value)}
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setIsAddingEditCustomCategory(false)
+                                                setEditCustomCategoryName("")
+                                                setEditCategoryId("")
+                                            }}
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <Select
+                                            value={editCategoryId || NO_CATEGORY_VALUE}
+                                            onValueChange={(value) => {
+                                                setIsAddingEditCustomCategory(false)
+                                                setEditCustomCategoryName("")
+                                                setEditCategoryId(value === NO_CATEGORY_VALUE ? "" : value)
+                                            }}
+                                        >
+                                            <SelectTrigger id="edit-category" className="w-full">
+                                                <SelectValue placeholder="Choose category" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value={NO_CATEGORY_VALUE}>No category</SelectItem>
+                                                {categories.map((category) => (
+                                                    <SelectItem key={category._id} value={category._id}>
+                                                        {category.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            className="h-8 px-3"
+                                            onClick={() => {
+                                                setIsAddingEditCustomCategory(true)
+                                                setEditCategoryId("")
+                                            }}
+                                        >
+                                            Add category
+                                        </Button>
+                                    </div>
                                 )}
+                            </Field>
+
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-batch">Batch</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.batchId}</FieldError>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Select value={editBatchId} onValueChange={setEditBatchId}>
+                                        <SelectTrigger id="edit-batch" className="w-full">
+                                            <SelectValue placeholder="Select batch" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {batches.map((batch) => (
+                                                <SelectItem key={batch._id} value={batch._id}>
+                                                    {batch.batchName}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {editBatchId && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setEditBatchId("")}
+                                        >
+                                            Clear
+                                        </Button>
+                                    )}
+                                </div>
+                            </Field>
+                        </div>
+
+                        <Field>
+                            <div className="flex items-center justify-between">
+                                <FieldLabel htmlFor="edit-external-link">External link (optional)</FieldLabel>
+                                <FieldError className="text-destructive text-xs">{editErrors.externalLink}</FieldError>
                             </div>
+                            <Input
+                                id="edit-external-link"
+                                type="url"
+                                placeholder="https://example.com/product"
+                                value={editExternalLink}
+                                onChange={(event) => setEditExternalLink(event.target.value)}
+                            />
                         </Field>
                     </div>
 

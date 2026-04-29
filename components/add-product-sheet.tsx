@@ -15,6 +15,7 @@ import {
 import { ImagePlusIcon, PlusIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 import { ProductSheetFrame } from "@/components/product-sheet-frame"
+import { FormattedNumberInput } from "@/components/formatted-number-input"
 
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"] as const
 const NO_CATEGORY_VALUE = "__none__"
@@ -128,35 +129,6 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
         setDraggedImageIndex(null)
     }, [draggedImageIndex])
 
-    const formatDecimalWithCommas = (value: string) => {
-        if (!value) {
-            return ""
-        }
-
-        const [integerPart, decimalPart] = value.split(".")
-        const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-
-        if (decimalPart !== undefined) {
-            return `${formattedInteger}.${decimalPart}`
-        }
-
-        return formattedInteger
-    }
-
-    const toDecimalInput = (value: string) => {
-        const digitsAndDotsOnly = stripCommas(value).replace(/[^\d.]/g, "")
-        const firstDotIndex = digitsAndDotsOnly.indexOf(".")
-
-        if (firstDotIndex === -1) {
-            return formatDecimalWithCommas(digitsAndDotsOnly)
-        }
-
-        const beforeDot = digitsAndDotsOnly.slice(0, firstDotIndex + 1)
-        const afterDot = digitsAndDotsOnly.slice(firstDotIndex + 1).replace(/\./g, "")
-
-        return formatDecimalWithCommas(`${beforeDot}${afterDot}`)
-    }
-
     const resetForm = () => {
         setName("")
         setCategoryId("")
@@ -177,6 +149,16 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
         Boolean(quantityInitial.trim()) &&
         Boolean(unitPriceForeign.trim()) &&
         (sourceCurrency === "RWF" || Boolean(exchangeRate.trim()))
+
+    const buyingPricePreview = React.useMemo(() => {
+        const unitPrice = Number(stripCommas(unitPriceForeign) || 0)
+        const rate = sourceCurrency === "RWF" ? 1 : Number(stripCommas(exchangeRate) || 0)
+        if (!unitPrice || !rate) {
+            return ""
+        }
+
+        return Math.round(unitPrice * rate).toLocaleString()
+    }, [exchangeRate, sourceCurrency, unitPriceForeign])
 
     const submit = async () => {
         if (isSubmitting) {
@@ -245,6 +227,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
             const data = await response.json()
             if (!response.ok) {
                 setErrors(data.errors ?? { general: "Failed to create product" })
+                toast.error(data.errors?.general ?? "Failed to create product")
                 return
             }
 
@@ -264,15 +247,13 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
     return (
         <ProductSheetFrame
             open={isOpen}
-            onOpenChange={(nextOpen) => {
-                if (isOpen && !nextOpen) {
-                    resetForm()
-                }
-                setIsOpen(nextOpen)
-            }}
+            onOpenChange={setIsOpen}
             title="Add Product"
             description="Create a new product entry."
             contentClassName="p-0"
+            onInteractOutside={(event) => {
+                event.preventDefault()
+            }}
             triggerButton={triggerButton ?? (
                 <Button type="button" size="sm" variant="outline" className="h-12 px-4">
                     <PlusIcon className="h-4 w-4" />
@@ -282,8 +263,212 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
         >
             {isOpen ? (
                 <div className="grid gap-6 overflow-y-auto p-4">
+                    <div className="grid gap-4 rounded-xl border p-4">
+                        <Field>
+                            <div className="flex items-center justify-between">
+                                <FieldLabel htmlFor="quick-product-name">Product name</FieldLabel>
+                                <FieldError className="text-xs text-destructive">{errors.name}</FieldError>
+                            </div>
+                            <Input
+                                id="quick-product-name"
+                                placeholder="Product name"
+                                value={name}
+                                onChange={(event) => setName(event.target.value)}
+                            />
+                        </Field>
+
+                        <Field>
+                            <div className="flex items-center justify-between">
+                                <FieldLabel htmlFor="quick-product-quantity">Initial stock</FieldLabel>
+                                <FieldError className="text-xs text-destructive">{errors.quantityInitial}</FieldError>
+                            </div>
+                            <Input
+                                id="quick-product-quantity"
+                                type="text"
+                                inputMode="numeric"
+                                autoComplete="off"
+                                placeholder="Enter initial stock"
+                                value={quantityInitial}
+                                onChange={(event) => setQuantityInitial(toIntegerInput(event.target.value))}
+                            />
+                        </Field>
+
+                        <div className="grid gap-4 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="quick-product-unit-price">Unit price</FieldLabel>
+                                    <FieldError className="text-xs text-destructive">{errors.unitPriceForeign}</FieldError>
+                                </div>
+                                <div className="flex rounded-lg border border-input bg-background focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+                                    <FormattedNumberInput
+                                        id="quick-product-unit-price"
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        placeholder="Price"
+                                        value={unitPriceForeign}
+                                        onValueChange={setUnitPriceForeign}
+                                        className="h-11 rounded-r-none border-0 bg-transparent shadow-none focus-visible:border-0 focus-visible:ring-0"
+                                    />
+                                    <div className="flex items-center rounded-r-lg border-l border-input bg-muted/30 px-2">
+                                        <Select value={sourceCurrency} onValueChange={(value) => setSourceCurrency(value as (typeof SOURCE_CURRENCY_OPTIONS)[number])}>
+                                            <SelectTrigger id="quick-product-currency" className="h-9 min-w-20 border-0 bg-transparent px-1 shadow-none focus:ring-0">
+                                                <SelectValue placeholder="Currency" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {SOURCE_CURRENCY_OPTIONS.map((currency) => (
+                                                    <SelectItem key={currency} value={currency}>
+                                                        {currency}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                {errors.sourceCurrency ? <FieldError className="text-xs text-destructive">{errors.sourceCurrency}</FieldError> : null}
+                            </Field>
+
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="quick-product-exchange-rate">Exchange rate</FieldLabel>
+                                    <FieldError className="text-xs text-destructive">{errors.exchangeRate}</FieldError>
+                                </div>
+                                <FormattedNumberInput
+                                    id="quick-product-exchange-rate"
+                                    type="text"
+                                    inputMode="decimal"
+                                    autoComplete="off"
+                                    placeholder={sourceCurrency === "RWF" ? "Rate to RWF" : "Rate to RWF"}
+                                    value={exchangeRate}
+                                    disabled={sourceCurrency === "RWF"}
+                                    onValueChange={setExchangeRate}
+                                    className="h-11"
+                                />
+                            </Field>
+                        </div>
+
+                        <div className="grid">
+                            {/* <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="quick-product-buying-price">Buying price</FieldLabel>
+                                </div>
+                                <Input
+                                    id="quick-product-buying-price"
+                                    readOnly
+                                    value={buyingPricePreview ? `${buyingPricePreview} RWF` : ""}
+                                    placeholder="Calculated from unit price"
+                                    className="h-11"
+                                />
+                            </Field> */}
+
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="quick-product-selling-price">Selling price</FieldLabel>
+                                    <FieldError className="text-xs text-destructive">{errors.intendedSellingPrice}</FieldError>
+                                </div>
+                                <FormattedNumberInput
+                                    id="quick-product-selling-price"
+                                    type="text"
+                                    inputMode="decimal"
+                                    autoComplete="off"
+                                    placeholder="Enter target selling price"
+                                    value={intendedSellingPrice}
+                                    onValueChange={setIntendedSellingPriceInput}
+                                    className="h-11"
+                                />
+                            </Field>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="quick-product-category">Category</FieldLabel>
+                                    <FieldError className="text-xs text-destructive">{errors.categoryId}</FieldError>
+                                </div>
+                                {isAddingCustomCategory ? (
+                                    <div className="flex gap-2">
+                                        <Input
+                                            id="quick-product-category"
+                                            placeholder="Type new category name"
+                                            value={customCategoryName}
+                                            onChange={(event) => setCustomCategoryName(event.target.value)}
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setIsAddingCustomCategory(false)
+                                                setCustomCategoryName("")
+                                                setCategoryId("")
+                                            }}
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <Select
+                                            value={categoryId || NO_CATEGORY_VALUE}
+                                            onValueChange={(value) => {
+                                                setIsAddingCustomCategory(false)
+                                                setCustomCategoryName("")
+                                                setCategoryId(value === NO_CATEGORY_VALUE ? "" : value)
+                                            }}
+                                        >
+                                            <SelectTrigger id="quick-product-category" className="w-full">
+                                                <SelectValue placeholder="Choose category" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value={NO_CATEGORY_VALUE}>No category</SelectItem>
+                                                {categories.map((category) => (
+                                                    <SelectItem key={category._id} value={category._id}>
+                                                        {category.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            className="h-8 px-3"
+                                            onClick={() => {
+                                                setIsAddingCustomCategory(true)
+                                                setCategoryId("")
+                                            }}
+                                        >
+                                            +
+                                        </Button>
+                                    </div>
+                                )}
+                            </Field>
+
+                            <Field>
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="quick-product-link">Batches</FieldLabel>
+                                </div>
+                                <div className="flex h-11 items-center rounded-lg border border-dashed px-3 text-sm text-muted-foreground">
+                                    Batch assignment is available after the product is created.
+                                </div>
+                            </Field>
+                        </div>
+
+                        <Field>
+                            <div className="flex items-center justify-between">
+                                <FieldLabel htmlFor="quick-product-link">External link (optional)</FieldLabel>
+                                <FieldError className="text-xs text-destructive">{errors.externalLink}</FieldError>
+                            </div>
+                            <Input
+                                id="quick-product-link"
+                                type="url"
+                                placeholder="https://example.com/product"
+                                value={externalLink}
+                                onChange={(event) => setExternalLink(event.target.value)}
+                            />
+                        </Field>
+                    </div>
+
                     <Field>
-                        <div className="space-y-3 border-b pb-4">
+                        <div className="space-y-3 rounded-xl border p-4">
                             <h3 className="text-sm font-semibold">Images</h3>
 
                             <div className="relative flex h-64 w-full items-center justify-center overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 group">
@@ -384,182 +569,19 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                         </div>
                     </Field>
 
-                    <Field>
-                        <div className="flex items-center justify-between">
-                            <FieldLabel htmlFor="quick-product-name">Product name</FieldLabel>
-                            <FieldError className="text-xs text-destructive">{errors.name}</FieldError>
-                        </div>
-                        <Input
-                            id="quick-product-name"
-                            placeholder="Product name"
-                            value={name}
-                            onChange={(event) => setName(event.target.value)}
-                        />
-                    </Field>
-
-                    <Field>
-                        <div className="flex items-center justify-between">
-                            <FieldLabel htmlFor="quick-product-link">External link (optional)</FieldLabel>
-                            <FieldError className="text-xs text-destructive">{errors.externalLink}</FieldError>
-                        </div>
-                        <Input
-                            id="quick-product-link"
-                            type="url"
-                            placeholder="https://example.com/product"
-                            value={externalLink}
-                            onChange={(event) => setExternalLink(event.target.value)}
-                        />
-                    </Field>
-
-                    <Field>
-                        <div className="flex items-center justify-between">
-                            <FieldLabel htmlFor="quick-product-category">Category (optional)</FieldLabel>
-                            <FieldError className="text-xs text-destructive">{errors.categoryId}</FieldError>
-                        </div>
-                        {isAddingCustomCategory ? (
-                            <div className="flex gap-2">
-                                <Input
-                                    id="quick-product-category"
-                                    placeholder="Type new category name"
-                                    value={customCategoryName}
-                                    onChange={(event) => setCustomCategoryName(event.target.value)}
-                                />
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => {
-                                        setIsAddingCustomCategory(false)
-                                        setCustomCategoryName("")
-                                        setCategoryId("")
-                                    }}
-                                >
-                                    Cancel
-                                </Button>
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-2">
-                                <Select
-                                    value={categoryId || NO_CATEGORY_VALUE}
-                                    onValueChange={(value) => {
-                                        setIsAddingCustomCategory(false)
-                                        setCustomCategoryName("")
-                                        setCategoryId(value === NO_CATEGORY_VALUE ? "" : value)
-                                    }}
-                                >
-                                    <SelectTrigger id="quick-product-category" className="w-full">
-                                        <SelectValue placeholder="Choose category (optional)" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value={NO_CATEGORY_VALUE}>No category</SelectItem>
-                                        {categories.map((category) => (
-                                            <SelectItem key={category._id} value={category._id}>
-                                                {category.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    className="h-8 px-3"
-                                    onClick={() => {
-                                        setIsAddingCustomCategory(true)
-                                        setCategoryId("")
-                                    }}
-                                >
-                                    Add category
-                                </Button>
-                            </div>
-                        )}
-                    </Field>
-
-                    <Field>
-                        <div className="flex items-center justify-between">
-                            <FieldLabel htmlFor="quick-product-quantity">Initial stock</FieldLabel>
-                            <FieldError className="text-xs text-destructive">{errors.quantityInitial}</FieldError>
-                        </div>
-                        <Input
-                            id="quick-product-quantity"
-                            type="text"
-                            inputMode="numeric"
-                            autoComplete="off"
-                            placeholder="Enter initial stock"
-                            value={quantityInitial}
-                            onChange={(event) => setQuantityInitial(toIntegerInput(event.target.value))}
-                        />
-                    </Field>
-
-                    <Field>
-                        <div className="flex items-center justify-between">
-                            <FieldLabel htmlFor="quick-product-unit-price">Unit price</FieldLabel>
-                            <FieldError className="text-xs text-destructive">{errors.unitPriceForeign}</FieldError>
-                        </div>
-                        <Input
-                            id="quick-product-unit-price"
-                            type="text"
-                            inputMode="decimal"
-                            autoComplete="off"
-                            placeholder="Enter unit price"
-                            value={unitPriceForeign}
-                            onChange={(event) => setUnitPriceForeign(toDecimalInput(event.target.value))}
-                        />
-                    </Field>
-
-                    <Field>
-                        <div className="flex items-center justify-between">
-                            <FieldLabel htmlFor="quick-product-selling-price">Selling price (RWF)</FieldLabel>
-                        </div>
-                        <Input
-                            id="quick-product-selling-price"
-                            type="text"
-                            inputMode="decimal"
-                            autoComplete="off"
-                            placeholder="Enter target selling price"
-                            value={intendedSellingPrice}
-                            onChange={(event) => setIntendedSellingPriceInput(toDecimalInput(event.target.value))}
-                        />
-                    </Field>
-
-                    <Field>
-                        <div className="flex items-center justify-between">
-                            <FieldLabel htmlFor="quick-product-currency">Source currency</FieldLabel>
-                            <FieldError className="text-xs text-destructive">{errors.sourceCurrency}</FieldError>
-                        </div>
-                        <Select value={sourceCurrency} onValueChange={(value) => setSourceCurrency(value as (typeof SOURCE_CURRENCY_OPTIONS)[number])}>
-                            <SelectTrigger id="quick-product-currency">
-                                <SelectValue placeholder="Choose source currency" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {SOURCE_CURRENCY_OPTIONS.map((currency) => (
-                                    <SelectItem key={currency} value={currency}>
-                                        {currency}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </Field>
-
-                    <Field>
-                        <div className="flex items-center justify-between">
-                            <FieldLabel htmlFor="quick-product-exchange-rate">Exchange rate to RWF</FieldLabel>
-                            <FieldError className="text-xs text-destructive">{errors.exchangeRate}</FieldError>
-                        </div>
-                        <Input
-                            id="quick-product-exchange-rate"
-                            type="text"
-                            inputMode="decimal"
-                            autoComplete="off"
-                            placeholder={sourceCurrency === "RWF" ? "Auto-set to 1 for RWF" : "Enter exchange rate to RWF"}
-                            value={exchangeRate}
-                            disabled={sourceCurrency === "RWF"}
-                            onChange={(event) => setExchangeRate(toDecimalInput(event.target.value))}
-                        />
-                    </Field>
 
                     {errors.general ? <FieldError className="text-xs text-destructive">{errors.general}</FieldError> : null}
 
                     <div className="flex items-center justify-end gap-2">
-                        <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isSubmitting}>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                resetForm()
+                                setIsOpen(false)
+                            }}
+                            disabled={isSubmitting}
+                        >
                             Cancel
                         </Button>
                         <Button

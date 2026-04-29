@@ -69,6 +69,7 @@ const PRODUCTS_VIEW_MODE_STORAGE_KEY = "products:view-mode"
 const PRODUCTS_VISIBLE_COLUMNS_STORAGE_KEY = "products:visible-columns"
 const PRODUCTS_TABLE_STATE_STORAGE_KEY = "products:table-state"
 const PRODUCTS_COLUMN_ORDER_STORAGE_KEY = "products:column-order"
+const NO_BATCH_ASSIGNMENT_VALUE = "__none__"
 
 function getProductsRouteStateFromLocation() {
     if (typeof window === "undefined") {
@@ -178,6 +179,8 @@ export function ProductsPage() {
     const [isAddProductSheetOpen, setIsAddProductSheetOpen] = React.useState(false)
     const [isEditProductSheetOpen, setIsEditProductSheetOpen] = React.useState(false)
     const [selectedProductIds, setSelectedProductIds] = React.useState<Set<string>>(new Set())
+    const [selectedExistingBatchId, setSelectedExistingBatchId] = React.useState("")
+    const [isAssigningSelectedToBatch, setIsAssigningSelectedToBatch] = React.useState(false)
     const [visibleColumns, setVisibleColumns] = React.useState<Record<ProductTableColumnKey, boolean>>({
         image: true,
         name: true,
@@ -563,6 +566,18 @@ export function ProductsPage() {
             void ensureFormOptionsLoaded()
         }
     }, [isFilterSheetOpen, ensureFormOptionsLoaded])
+
+    React.useEffect(() => {
+        if (selectedProductIds.size > 0) {
+            void ensureFormOptionsLoaded()
+        }
+    }, [ensureFormOptionsLoaded, selectedProductIds.size])
+
+    React.useEffect(() => {
+        if (selectedProductIds.size === 0) {
+            setSelectedExistingBatchId("")
+        }
+    }, [selectedProductIds.size])
 
     React.useEffect(() => {
         const savedViewMode = window.localStorage.getItem(PRODUCTS_VIEW_MODE_STORAGE_KEY)
@@ -1741,6 +1756,35 @@ export function ProductsPage() {
         </div>
     )
 
+    const assignSelectedProductsToExistingBatch = React.useCallback(async () => {
+        if (!selectedExistingBatchId || selectedProductIds.size === 0) {
+            return
+        }
+
+        setIsAssigningSelectedToBatch(true)
+
+        try {
+            const response = await fetch(`/api/batches/${selectedExistingBatchId}/products`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ productIds: Array.from(selectedProductIds) }),
+            })
+
+            const data = await response.json().catch(() => null)
+            if (!response.ok) {
+                toast.error(data?.errors?.general ?? "Failed to assign products to batch")
+                return
+            }
+
+            toast.success("Products added to batch")
+            setSelectedProductIds(new Set())
+            setSelectedExistingBatchId("")
+            await loadProducts(1)
+        } finally {
+            setIsAssigningSelectedToBatch(false)
+        }
+    }, [loadProducts, selectedExistingBatchId, selectedProductIds])
+
     React.useEffect(() => {
         if (!hasCompletedInitialProductsLoadRef.current) {
             return
@@ -1797,8 +1841,8 @@ export function ProductsPage() {
             </CardHeader>
             <CardContent>
                 {isLoading ? (
-                    <div className="overflow-hidden rounded-xl border">
-                        <div className="min-w-245 overflow-x-auto">
+                    <div className="overflow-visible rounded-xl border">
+                        <div className="min-w-245 overflow-x-auto overflow-y-visible rounded-xl">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -2032,6 +2076,35 @@ export function ProductsPage() {
 
                                 {selectedProductIds.size > 0 ? (
                                     <>
+                                        <div className="flex min-w-72 items-center gap-2">
+                                            <Select
+                                                value={selectedExistingBatchId || NO_BATCH_ASSIGNMENT_VALUE}
+                                                onValueChange={(value) => setSelectedExistingBatchId(value === NO_BATCH_ASSIGNMENT_VALUE ? "" : value)}
+                                            >
+                                                <SelectTrigger className="py-5.5 px-3">
+                                                    <SelectValue placeholder="Add selected to batch" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value={NO_BATCH_ASSIGNMENT_VALUE}>Select batch</SelectItem>
+                                                    {batches.map((batch) => (
+                                                        <SelectItem key={batch._id} value={batch._id}>
+                                                            {batch.batchName}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-12 px-4"
+                                                disabled={!selectedExistingBatchId || isAssigningSelectedToBatch}
+                                                loading={isAssigningSelectedToBatch}
+                                                loadingText="Adding"
+                                                onClick={() => void assignSelectedProductsToExistingBatch()}
+                                            >
+                                                Add to Batch
+                                            </Button>
+                                        </div>
                                         <Button
                                             size="sm"
                                             variant="outline"
@@ -2062,8 +2135,8 @@ export function ProductsPage() {
                                 ) : null}
                             </div>
                         </div>
-                        <div className="overflow-hidden rounded-xl border">
-                            <div className="min-w-245 overflow-x-auto">
+                        <div className="overflow-visible rounded-xl border">
+                            <div className="min-w-245 overflow-x-auto overflow-y-visible rounded-xl">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>

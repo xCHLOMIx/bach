@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AddProductSheet } from "@/components/add-product-sheet"
+import { CurrencyAmountRateRow } from "@/components/currency-amount-rate-row"
+import { FormattedNumberInput } from "@/components/formatted-number-input"
 import { calculateBatchProductLandedCosts, convertInternationalExpenseToRwf } from "@/lib/costs"
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 import { getAllIntendedSellingPrices } from "@/lib/intended-pricing"
@@ -199,35 +201,6 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         next.splice(toIndex, 0, moved)
         return next
     }, [])
-
-    const formatDecimalWithCommas = (value: string) => {
-        if (!value) {
-            return ""
-        }
-
-        const [integerPart, decimalPart] = value.split(".")
-        const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-
-        if (decimalPart !== undefined) {
-            return `${formattedInteger}.${decimalPart}`
-        }
-
-        return formattedInteger
-    }
-
-    const toDecimalInput = (value: string) => {
-        const digitsAndDotsOnly = stripCommas(value).replace(/[^\d.]/g, "")
-        const firstDotIndex = digitsAndDotsOnly.indexOf(".")
-
-        if (firstDotIndex === -1) {
-            return formatDecimalWithCommas(digitsAndDotsOnly)
-        }
-
-        const beforeDot = digitsAndDotsOnly.slice(0, firstDotIndex + 1)
-        const afterDot = digitsAndDotsOnly.slice(firstDotIndex + 1).replace(/\./g, "")
-
-        return formatDecimalWithCommas(`${beforeDot}${afterDot}`)
-    }
 
     const safeReadJson = async (response: Response) => {
         const text = await response.text()
@@ -661,6 +634,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             if (!updateResponse.ok) {
                 const updateErrors = (updateData?.errors ?? null) as Record<string, string> | null
                 setErrors(updateErrors ?? { general: "Failed to update batch" })
+                toast.error(updateErrors?.general ?? "Failed to update batch")
                 return
             }
 
@@ -674,6 +648,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             if (!syncResponse.ok) {
                 const syncErrors = (syncData?.errors ?? null) as Record<string, string> | null
                 setErrors(syncErrors ?? { general: "Failed to update products" })
+                toast.error(syncErrors?.general ?? "Failed to update products")
                 return
             }
 
@@ -942,9 +917,6 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             },
             { quantity: 0, baseTotal: 0, weightPercentage: 0, shippingShare: 0, finalTotal: 0, sellingTotal: 0, totalProfit: 0 }
         )
-
-        const totalImportCharges = totals.shippingShare
-        const totalLandedPrice = totals.finalTotal
 
         const renderBatchProductCell = (product: Product, rowIndex: number, columnKey: BatchProductTableColumnKey, preview: ReturnType<typeof allocationPreviewByProductId.get>, baseUnitPrice: number, productTotal: number, finalUnit: number, finalTotal: number, importCharges: number, intendedSellingPrice: number | undefined) => {
             if (columnKey === "index") {
@@ -1384,145 +1356,70 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                     <div className="space-y-3 rounded-lg border p-3">
                         <p className="text-sm font-semibold">International Expenses</p>
 
-                        <div className="grid gap-3 lg:grid-cols-3">
-                            <div className="grid gap-1.5">
-                                <label htmlFor="intl-shipping" className="text-sm font-medium">Intl shipping</label>
-                                <Input
-                                    id="intl-shipping"
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={form.intlShipping}
-                                    onChange={(event) =>
-                                        setForm((current) => ({ ...current, intlShipping: toDecimalInput(event.target.value) }))
-                                    }
-                                />
-                                {renderFieldError("intlShipping")}
-                            </div>
-                            <div className="grid gap-1.5">
-                                <label className="text-sm font-medium">Currency</label>
-                                <select
-                                    value={form.intlShippingCurrency}
-                                    onChange={(event) =>
-                                        setForm((current) => ({
-                                            ...current,
-                                            intlShippingCurrency: event.target.value,
-                                            intlShippingExchangeRate: event.target.value === "RWF" ? "1" : current.intlShippingExchangeRate,
-                                        }))
-                                    }
-                                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
-                                >
-                                    {CURRENCY_OPTIONS.map((currency) => (
-                                        <option key={`edit-intl-${currency}`} value={currency}>{currency}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="grid gap-1.5">
-                                <label className="text-sm font-medium">Exchange rate</label>
-                                <Input
-                                    type="text"
-                                    inputMode="decimal"
-                                    disabled={form.intlShippingCurrency === "RWF"}
-                                    value={form.intlShippingExchangeRate}
-                                    onChange={(event) =>
-                                        setForm((current) => ({ ...current, intlShippingExchangeRate: toDecimalInput(event.target.value) }))
-                                    }
-                                />
-                                {renderFieldError("intlShippingExchangeRate")}
-                            </div>
-                        </div>
-
-                        <div className="grid gap-3 lg:grid-cols-3">
-                            <div className="grid gap-1.5">
-                                <label htmlFor="warehouse-usa" className="text-sm font-medium">Warehouse USA</label>
-                                <Input
-                                    id="warehouse-usa"
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={form.warehouseUSA}
-                                    onChange={(event) =>
-                                        setForm((current) => ({ ...current, warehouseUSA: toDecimalInput(event.target.value) }))
-                                    }
-                                />
-                                {renderFieldError("warehouseUSA")}
-                            </div>
-                            <div className="grid gap-1.5">
-                                <label className="text-sm font-medium">Currency</label>
-                                <select
-                                    value={form.warehouseUSACurrency}
-                                    onChange={(event) =>
-                                        setForm((current) => ({
-                                            ...current,
-                                            warehouseUSACurrency: event.target.value,
-                                            warehouseUSAExchangeRate: event.target.value === "RWF" ? "1" : current.warehouseUSAExchangeRate,
-                                        }))
-                                    }
-                                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
-                                >
-                                    {CURRENCY_OPTIONS.map((currency) => (
-                                        <option key={`edit-warehouse-${currency}`} value={currency}>{currency}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="grid gap-1.5">
-                                <label className="text-sm font-medium">Exchange rate</label>
-                                <Input
-                                    type="text"
-                                    inputMode="decimal"
-                                    disabled={form.warehouseUSACurrency === "RWF"}
-                                    value={form.warehouseUSAExchangeRate}
-                                    onChange={(event) =>
-                                        setForm((current) => ({ ...current, warehouseUSAExchangeRate: toDecimalInput(event.target.value) }))
-                                    }
-                                />
-                                {renderFieldError("warehouseUSAExchangeRate")}
-                            </div>
-                        </div>
-
-                        <div className="grid gap-3 lg:grid-cols-3">
-                            <div className="grid gap-1.5">
-                                <label htmlFor="amazon-prime" className="text-sm font-medium">Amazon Prime</label>
-                                <Input
-                                    id="amazon-prime"
-                                    type="text"
-                                    inputMode="decimal"
-                                    value={form.amazonPrime}
-                                    onChange={(event) =>
-                                        setForm((current) => ({ ...current, amazonPrime: toDecimalInput(event.target.value) }))
-                                    }
-                                />
-                                {renderFieldError("amazonPrime")}
-                            </div>
-                            <div className="grid gap-1.5">
-                                <label className="text-sm font-medium">Currency</label>
-                                <select
-                                    value={form.amazonPrimeCurrency}
-                                    onChange={(event) =>
-                                        setForm((current) => ({
-                                            ...current,
-                                            amazonPrimeCurrency: event.target.value,
-                                            amazonPrimeExchangeRate: event.target.value === "RWF" ? "1" : current.amazonPrimeExchangeRate,
-                                        }))
-                                    }
-                                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
-                                >
-                                    {CURRENCY_OPTIONS.map((currency) => (
-                                        <option key={`edit-prime-${currency}`} value={currency}>{currency}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="grid gap-1.5">
-                                <label className="text-sm font-medium">Exchange rate</label>
-                                <Input
-                                    type="text"
-                                    inputMode="decimal"
-                                    disabled={form.amazonPrimeCurrency === "RWF"}
-                                    value={form.amazonPrimeExchangeRate}
-                                    onChange={(event) =>
-                                        setForm((current) => ({ ...current, amazonPrimeExchangeRate: toDecimalInput(event.target.value) }))
-                                    }
-                                />
-                                {renderFieldError("amazonPrimeExchangeRate")}
-                            </div>
+                        <div className="grid gap-4 xl:grid-cols-3">
+                            <CurrencyAmountRateRow
+                                amountId="intl-shipping"
+                                amountLabel="Intl shipping"
+                                amountValue={form.intlShipping}
+                                onAmountChange={(value) => setForm((current) => ({ ...current, intlShipping: value }))}
+                                amountError={errors.intlShipping}
+                                currencyValue={form.intlShippingCurrency}
+                                onCurrencyChange={(value) =>
+                                    setForm((current) => ({
+                                        ...current,
+                                        intlShippingCurrency: value,
+                                        intlShippingExchangeRate: value === "RWF" ? "1" : current.intlShippingExchangeRate,
+                                    }))
+                                }
+                                currencyOptions={CURRENCY_OPTIONS}
+                                rateValue={form.intlShippingExchangeRate}
+                                onRateChange={(value) => setForm((current) => ({ ...current, intlShippingExchangeRate: value }))}
+                                ratePlaceholder="Rate to RWF"
+                                rateError={errors.intlShippingExchangeRate}
+                                disabledRate={form.intlShippingCurrency === "RWF"}
+                            />
+                            <CurrencyAmountRateRow
+                                amountId="warehouse-usa"
+                                amountLabel="Warehouse USA"
+                                amountValue={form.warehouseUSA}
+                                onAmountChange={(value) => setForm((current) => ({ ...current, warehouseUSA: value }))}
+                                amountError={errors.warehouseUSA}
+                                currencyValue={form.warehouseUSACurrency}
+                                onCurrencyChange={(value) =>
+                                    setForm((current) => ({
+                                        ...current,
+                                        warehouseUSACurrency: value,
+                                        warehouseUSAExchangeRate: value === "RWF" ? "1" : current.warehouseUSAExchangeRate,
+                                    }))
+                                }
+                                currencyOptions={CURRENCY_OPTIONS}
+                                rateValue={form.warehouseUSAExchangeRate}
+                                onRateChange={(value) => setForm((current) => ({ ...current, warehouseUSAExchangeRate: value }))}
+                                ratePlaceholder="Rate to RWF"
+                                rateError={errors.warehouseUSAExchangeRate}
+                                disabledRate={form.warehouseUSACurrency === "RWF"}
+                            />
+                            <CurrencyAmountRateRow
+                                amountId="amazon-prime"
+                                amountLabel="Amazon Prime"
+                                amountValue={form.amazonPrime}
+                                onAmountChange={(value) => setForm((current) => ({ ...current, amazonPrime: value }))}
+                                amountError={errors.amazonPrime}
+                                currencyValue={form.amazonPrimeCurrency}
+                                onCurrencyChange={(value) =>
+                                    setForm((current) => ({
+                                        ...current,
+                                        amazonPrimeCurrency: value,
+                                        amazonPrimeExchangeRate: value === "RWF" ? "1" : current.amazonPrimeExchangeRate,
+                                    }))
+                                }
+                                currencyOptions={CURRENCY_OPTIONS}
+                                rateValue={form.amazonPrimeExchangeRate}
+                                onRateChange={(value) => setForm((current) => ({ ...current, amazonPrimeExchangeRate: value }))}
+                                ratePlaceholder="Rate to RWF"
+                                rateError={errors.amazonPrimeExchangeRate}
+                                disabledRate={form.amazonPrimeCurrency === "RWF"}
+                            />
                         </div>
                     </div>
 
@@ -1552,27 +1449,23 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <div className="grid gap-1.5">
                                     <label htmlFor="collection-fee" className="text-sm font-medium">Collection Fee</label>
-                                    <Input
+                                    <FormattedNumberInput
                                         id="collection-fee"
                                         type="text"
                                         inputMode="decimal"
                                         value={form.collectionFee}
-                                        onChange={(event) =>
-                                            setForm((current) => ({ ...current, collectionFee: toDecimalInput(event.target.value) }))
-                                        }
+                                        onValueChange={(value) => setForm((current) => ({ ...current, collectionFee: value }))}
                                     />
                                     {renderFieldError("collectionFee")}
                                 </div>
                                 <div className="grid gap-1.5">
                                     <label htmlFor="local-transport-easy" className="text-sm font-medium">Transport</label>
-                                    <Input
+                                    <FormattedNumberInput
                                         id="local-transport-easy"
                                         type="text"
                                         inputMode="decimal"
                                         value={form.localTransport}
-                                        onChange={(event) =>
-                                            setForm((current) => ({ ...current, localTransport: toDecimalInput(event.target.value) }))
-                                        }
+                                        onValueChange={(value) => setForm((current) => ({ ...current, localTransport: value }))}
                                     />
                                     {renderFieldError("localTransport")}
                                 </div>
@@ -1581,79 +1474,67 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <div className="grid gap-1.5">
                                     <label htmlFor="customs-duties" className="text-sm font-medium">Custom Duties (Tax)</label>
-                                    <Input
+                                    <FormattedNumberInput
                                         id="customs-duties"
                                         type="text"
                                         inputMode="decimal"
                                         value={form.customsDuties}
-                                        onChange={(event) =>
-                                            setForm((current) => ({ ...current, customsDuties: toDecimalInput(event.target.value) }))
-                                        }
+                                        onValueChange={(value) => setForm((current) => ({ ...current, customsDuties: value }))}
                                     />
                                     {renderFieldError("customsDuties")}
                                 </div>
                                 <div className="grid gap-1.5">
                                     <label htmlFor="arrival-notif" className="text-sm font-medium">Arrival Not.</label>
-                                    <Input
+                                    <FormattedNumberInput
                                         id="arrival-notif"
                                         type="text"
                                         inputMode="decimal"
                                         value={form.arrivalNotif}
-                                        onChange={(event) =>
-                                            setForm((current) => ({ ...current, arrivalNotif: toDecimalInput(event.target.value) }))
-                                        }
+                                        onValueChange={(value) => setForm((current) => ({ ...current, arrivalNotif: value }))}
                                     />
                                     {renderFieldError("arrivalNotif")}
                                 </div>
                                 <div className="grid gap-1.5">
                                     <label htmlFor="warehouse-storage" className="text-sm font-medium">Warehouse</label>
-                                    <Input
+                                    <FormattedNumberInput
                                         id="warehouse-storage"
                                         type="text"
                                         inputMode="decimal"
                                         value={form.warehouseStorage}
-                                        onChange={(event) =>
-                                            setForm((current) => ({ ...current, warehouseStorage: toDecimalInput(event.target.value) }))
-                                        }
+                                        onValueChange={(value) => setForm((current) => ({ ...current, warehouseStorage: value }))}
                                     />
                                     {renderFieldError("warehouseStorage")}
                                 </div>
                                 <div className="grid gap-1.5">
                                     <label htmlFor="declaration" className="text-sm font-medium">Declaration</label>
-                                    <Input
+                                    <FormattedNumberInput
                                         id="declaration"
                                         type="text"
                                         inputMode="decimal"
                                         value={form.declaration}
-                                        onChange={(event) =>
-                                            setForm((current) => ({ ...current, declaration: toDecimalInput(event.target.value) }))
-                                        }
+                                        onValueChange={(value) => setForm((current) => ({ ...current, declaration: value }))}
                                     />
                                     {renderFieldError("declaration")}
                                 </div>
                                 <div className="grid gap-1.5">
                                     <label htmlFor="local-transport-advanced" className="text-sm font-medium">Local Transport</label>
-                                    <Input
+                                    <FormattedNumberInput
                                         id="local-transport-advanced"
                                         type="text"
                                         inputMode="decimal"
                                         value={form.localTransport}
-                                        onChange={(event) =>
-                                            setForm((current) => ({ ...current, localTransport: toDecimalInput(event.target.value) }))
-                                        }
+                                        onValueChange={(value) => setForm((current) => ({ ...current, localTransport: value }))}
                                     />
                                     {renderFieldError("localTransport")}
                                 </div>
                                 <div className="grid gap-1.5">
                                     <label htmlFor="miscellaneous" className="text-sm font-medium">Miscellaneous</label>
-                                    <Input
+                                    <FormattedNumberInput
                                         id="miscellaneous"
                                         type="text"
                                         inputMode="decimal"
                                         value={form.miscellaneous}
-                                        onChange={(event) =>
-                                            setForm((current) => ({ ...current, miscellaneous: toDecimalInput(event.target.value) }))
-                                        }
+                                        onValueChange={(value) => setForm((current) => ({ ...current, miscellaneous: value }))}
                                     />
                                     {renderFieldError("miscellaneous")}
                                 </div>
