@@ -48,7 +48,7 @@ export function ProductSheetFrame({
                 onEscapeKeyDown={onEscapeKeyDown}
             >
                 <SheetHeader>
-                    <SheetTitle className="w-max max-w-10/12 bg-red-200 truncate">{title}</SheetTitle>
+                    <SheetTitle className="w-max max-w-10/12 truncate">{title}</SheetTitle>
                     {description ? <SheetDescription>{description}</SheetDescription> : null}
                 </SheetHeader>
                 {children}

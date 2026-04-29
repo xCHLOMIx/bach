@@ -420,9 +420,6 @@ export function ProductEditSheet({
                 title={<span className="truncate">Edit {product?.name || "Product"}</span>}
                 description="Update product details and batch assignment."
                 contentClassName="overflow-y-auto"
-                onInteractOutside={(event) => {
-                    event.preventDefault()
-                }}
                 onEscapeKeyDown={(event) => {
                     if (isPreviewOpen) {
                         event.preventDefault()
@@ -800,7 +797,7 @@ export function ProductEditSheet({
 
             {previewImageSrc ? (
                 <div
-                    className="fixed inset-0 z-120 flex items-center justify-center bg-black/80 p-4"
+                    className="fixed inset-0flex items-center justify-center bg-black/80 p-4"
                     style={{ zIndex: 120, pointerEvents: "auto" }}
                     onMouseDown={(event) => {
                         if (event.target === event.currentTarget) {
@@ -816,7 +813,7 @@ export function ProductEditSheet({
                     {previewImages.length > 1 ? (
                         <button
                             type="button"
-                            className="absolute left-4 top-1/2 z-121 flex h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
+                            className="absolute left-4 top-1/2 flex h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
                             style={{ zIndex: 121, pointerEvents: "auto" }}
                             onMouseDown={(event) => {
                                 event.preventDefault()
@@ -834,7 +831,7 @@ export function ProductEditSheet({
 
                     <button
                         type="button"
-                        className="absolute right-4 top-4 z-121 cursor-pointer rounded-md bg-black/70 p-2 text-white hover:bg-black"
+                        className="absolute right-4 top-4 cursor-pointer rounded-md bg-black/70 p-2 text-white hover:bg-black"
                         style={{ zIndex: 121, pointerEvents: "auto" }}
                         onMouseDown={(event) => {
                             event.preventDefault()
@@ -851,7 +848,7 @@ export function ProductEditSheet({
                     {previewImages.length > 1 ? (
                         <button
                             type="button"
-                            className="absolute right-4 top-1/2 z-121 flex h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
+                            className="absolute right-4 top-1/2 flex h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
                             style={{ zIndex: 121, pointerEvents: "auto" }}
                             onMouseDown={(event) => {
                                 event.preventDefault()

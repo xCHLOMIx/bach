@@ -19,6 +19,7 @@ import { FormattedNumberInput } from "@/components/formatted-number-input"
 
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"] as const
 const NO_CATEGORY_VALUE = "__none__"
+const NO_BATCH_VALUE = "__none__"
 
 type AddProductSheetProps = {
     onProductCreated?: () => Promise<void> | void
@@ -30,6 +31,11 @@ type AddProductSheetProps = {
 type Category = {
     _id: string
     name: string
+}
+
+type Batch = {
+    _id: string
+    batchName: string
 }
 
 function moveItem<T>(items: T[], fromIndex: number, toIndex: number) {
@@ -48,6 +54,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
     const [isSubmitting, setIsSubmitting] = React.useState(false)
     const [errors, setErrors] = React.useState<Record<string, string>>({})
     const [categories, setCategories] = React.useState<Category[]>([])
+    const [batches, setBatches] = React.useState<Batch[]>([])
     const [hasLoadedCategories, setHasLoadedCategories] = React.useState(false)
 
     const [name, setName] = React.useState("")
@@ -59,6 +66,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
     const [intendedSellingPrice, setIntendedSellingPriceInput] = React.useState("")
     const [sourceCurrency, setSourceCurrency] = React.useState<(typeof SOURCE_CURRENCY_OPTIONS)[number]>("USD")
     const [exchangeRate, setExchangeRate] = React.useState("")
+    const [batchId, setBatchId] = React.useState("")
     const [externalLink, setExternalLink] = React.useState("")
     const [imageFiles, setImageFiles] = React.useState<File[]>([])
     const [draggedImageIndex, setDraggedImageIndex] = React.useState<number | null>(null)
@@ -104,13 +112,21 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
         }
 
         const loadCategories = async () => {
-            const response = await fetch("/api/categories")
-            if (!response.ok) {
-                return
+            const [categoriesResponse, batchesResponse] = await Promise.all([
+                fetch("/api/categories"),
+                fetch("/api/batches"),
+            ])
+
+            if (categoriesResponse.ok) {
+                const categoriesData = await categoriesResponse.json()
+                setCategories(categoriesData.categories ?? [])
             }
 
-            const data = await response.json()
-            setCategories(data.categories ?? [])
+            if (batchesResponse.ok) {
+                const batchesData = await batchesResponse.json()
+                setBatches(batchesData.batches ?? [])
+            }
+
             setHasLoadedCategories(true)
         }
 
@@ -139,6 +155,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
         setIntendedSellingPriceInput("")
         setSourceCurrency("USD")
         setExchangeRate("")
+        setBatchId("")
         setExternalLink("")
         setImageFiles([])
         setErrors({})
@@ -149,16 +166,6 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
         Boolean(quantityInitial.trim()) &&
         Boolean(unitPriceForeign.trim()) &&
         (sourceCurrency === "RWF" || Boolean(exchangeRate.trim()))
-
-    const buyingPricePreview = React.useMemo(() => {
-        const unitPrice = Number(stripCommas(unitPriceForeign) || 0)
-        const rate = sourceCurrency === "RWF" ? 1 : Number(stripCommas(exchangeRate) || 0)
-        if (!unitPrice || !rate) {
-            return ""
-        }
-
-        return Math.round(unitPrice * rate).toLocaleString()
-    }, [exchangeRate, sourceCurrency, unitPriceForeign])
 
     const submit = async () => {
         if (isSubmitting) {
@@ -232,6 +239,21 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
             }
 
             const createdProductId = (data?.product as { _id?: string } | undefined)?._id
+            if (createdProductId && batchId) {
+                const assignResponse = await fetch(`/api/batches/${batchId}/products`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ productIds: [createdProductId] }),
+                })
+
+                if (!assignResponse.ok) {
+                    const assignData = await assignResponse.json().catch(() => null)
+                    setErrors(assignData?.errors ?? { general: "Product created, but batch assignment failed" })
+                    toast.error(assignData?.errors?.general ?? "Product created, but batch assignment failed")
+                    return
+                }
+            }
+
             if (createdProductId) {
                 toast.success("Product created")
             }
@@ -441,11 +463,22 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
 
                             <Field>
                                 <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="quick-product-link">Batches</FieldLabel>
+                                    <FieldLabel htmlFor="quick-product-batch">Batches</FieldLabel>
+                                    <FieldError className="text-xs text-destructive">{errors.batchId}</FieldError>
                                 </div>
-                                <div className="flex h-11 items-center rounded-lg border border-dashed px-3 text-sm text-muted-foreground">
-                                    Batch assignment is available after the product is created.
-                                </div>
+                                <Select value={batchId || NO_BATCH_VALUE} onValueChange={(value) => setBatchId(value === NO_BATCH_VALUE ? "" : value)}>
+                                    <SelectTrigger id="quick-product-batch" className="w-full">
+                                        <SelectValue placeholder="Select batch" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={NO_BATCH_VALUE}>No batch</SelectItem>
+                                        {batches.map((batch) => (
+                                            <SelectItem key={batch._id} value={batch._id}>
+                                                {batch.batchName}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </Field>
                         </div>
 
