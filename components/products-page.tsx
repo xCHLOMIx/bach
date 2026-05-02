@@ -1880,7 +1880,7 @@ export function ProductsPage() {
                     <div className="overflow-hidden rounded-xl border">
                         <div className="min-w-245 overflow-x-auto overflow-y-auto max-h-[calc(100vh-300px)]">
                             <Table>
-                                <TableHeader className="bg-background sticky top-0 z-10">
+                                <TableHeader className="bg-background sticky top-0 z-1">
                                     <TableRow>
                                         <TableHead>Image</TableHead>
                                         <TableHead>Name</TableHead>
@@ -2244,7 +2244,7 @@ export function ProductsPage() {
                         <div className="overflow-hidden rounded-xl border">
                             <div className="min-w-245 overflow-x-auto overflow-y-auto max-h-[calc(100vh-300px)]">
                                 <Table>
-                                    <TableHeader className="bg-background sticky top-0 z-10">
+                                    <TableHeader className="bg-background sticky top-0 z-1">
                                         <TableRow className="bg-muted hover:bg-muted">
                                             <TableHead className="w-12">
                                                 <Checkbox

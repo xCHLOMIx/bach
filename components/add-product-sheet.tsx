@@ -90,6 +90,18 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
     const stripCommas = (value: string) => value.replace(/,/g, "")
     const toSelectedFiles = (event: React.ChangeEvent<HTMLInputElement>) => Array.from(event.target.files ?? [])
 
+    const formatNumber = (value: number) => {
+        if (!Number.isFinite(value)) return ""
+        return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    }
+
+    const buyingPricePreview = React.useMemo(() => {
+        if (!unitPriceForeign || unitPriceForeign.trim() === "") return ""
+        const unit = Number(stripCommas(unitPriceForeign)) || 0
+        const rate = sourceCurrency === "RWF" ? 1 : Number(stripCommas(exchangeRate)) || 0
+        return formatNumber(unit * rate)
+    }, [unitPriceForeign, exchangeRate, sourceCurrency])
+
     const imagePreviews = React.useMemo(() => {
         const previews = imageFiles.map((file) => URL.createObjectURL(file))
         return previews
@@ -333,7 +345,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                                     />
                                     <div className="flex items-center rounded-r-lg border-l border-input bg-muted/30 px-2">
                                         <Select value={sourceCurrency} onValueChange={(value) => setSourceCurrency(value as (typeof SOURCE_CURRENCY_OPTIONS)[number])}>
-                                            <SelectTrigger id="quick-product-currency" className="h-9 min-w-20 border-0 bg-transparent px-1 shadow-none focus:ring-0">
+                                            <SelectTrigger id="quick-product-currency" className="h-9 border-0 bg-transparent px-1 shadow-none focus:ring-0">
                                                 <SelectValue placeholder="Currency" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -368,19 +380,16 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                             </Field>
                         </div>
 
-                        <div className="grid">
-                            {/* <Field>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <Field>
                                 <div className="flex items-center justify-between">
                                     <FieldLabel htmlFor="quick-product-buying-price">Buying price</FieldLabel>
                                 </div>
-                                <Input
+                                <div
                                     id="quick-product-buying-price"
-                                    readOnly
-                                    value={buyingPricePreview ? `${buyingPricePreview} RWF` : ""}
-                                    placeholder="Calculated from unit price"
-                                    className="h-11"
-                                />
-                            </Field> */}
+                                    className="h-11 flex items-center p-3 bg-muted rounded-md text-muted-foreground"
+                                >{buyingPricePreview ? `${buyingPricePreview} RWF` : buyingPricePreview === "" ? "0" : `${buyingPricePreview} RWF`}</div>
+                            </Field>
 
                             <Field>
                                 <div className="flex items-center justify-between">
@@ -392,7 +401,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                                     type="text"
                                     inputMode="decimal"
                                     autoComplete="off"
-                                    placeholder="Enter target selling price"
+                                    placeholder="Target Selling price"
                                     value={intendedSellingPrice}
                                     onValueChange={setIntendedSellingPriceInput}
                                     className="h-11"
@@ -400,7 +409,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                             </Field>
                         </div>
 
-                        <div className="grid gap-4 md:grid-cols-2">
+                        <div className="grid gap-4">
                             <Field>
                                 <div className="flex items-center justify-between">
                                     <FieldLabel htmlFor="quick-product-category">Category</FieldLabel>
@@ -457,7 +466,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                                                 setCategoryId("")
                                             }}
                                         >
-                                            +
+                                            Add category
                                         </Button>
                                     </div>
                                 )}

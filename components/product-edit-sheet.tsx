@@ -481,7 +481,7 @@ export function ProductEditSheet({
                                     />
                                     <div className="flex items-center rounded-r-lg border-l border-input bg-muted/30 px-2">
                                         <Select value={editSourceCurrency} onValueChange={setEditSourceCurrency}>
-                                            <SelectTrigger id="edit-currency" className="h-9 min-w-20 border-0 bg-transparent px-1 shadow-none focus:ring-0">
+                                            <SelectTrigger id="edit-currency" className="h-9 border-0 bg-transparent px-1 shadow-none focus:ring-0">
                                                 <SelectValue placeholder="Currency" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -548,7 +548,7 @@ export function ProductEditSheet({
                             </Field>
                         </div>
 
-                        <div className="grid gap-4 md:grid-cols-2">
+                        <div className="grid gap-4">
                             <Field>
                                 <div className="flex items-center justify-between">
                                     <FieldLabel htmlFor="edit-category">Category</FieldLabel>
