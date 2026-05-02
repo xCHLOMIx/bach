@@ -270,6 +270,46 @@ export function BatchCreatePage() {
         return <p className="text-xs text-destructive">{errors[field]}</p>
     }
 
+    const mapErrorKeyToElementId = (key: string) => {
+        const mapping: Record<string, string> = {
+            batchName: "batch-name",
+            trackingId: "tracking-id",
+            pickupMethod: "pickup-method",
+            intlShipping: "intl-shipping",
+            intlShippingExchangeRate: "intl-shipping-rate",
+            intlShippingCurrency: "intl-shipping-currency",
+            amazonPrime: "amazon-prime",
+            amazonPrimeExchangeRate: "amazon-prime-rate",
+            amazonPrimeCurrency: "amazon-prime-currency",
+            warehouseUSA: "warehouse-usa",
+            warehouseUSAExchangeRate: "warehouse-usa-rate",
+            warehouseUSACurrency: "warehouse-usa-currency",
+            collectionFee: "collection-fee",
+            localTransport: "local-transport",
+            customsDuties: "customs-duties",
+            arrivalNotif: "arrival-notif",
+            warehouseStorage: "warehouse-storage",
+            declaration: "declaration",
+            miscellaneous: "miscellaneous",
+            general: "batch-name",
+        }
+
+        return mapping[key] ?? mapping[Object.keys(mapping)[0]]
+    }
+
+    const scrollToFirstError = (errs: Record<string, string> | null) => {
+        if (!errs) return
+        const firstKey = Object.keys(errs)[0]
+        const id = mapErrorKeyToElementId(firstKey)
+        const el = document.getElementById(id)
+        if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" })
+                ; (el as HTMLElement).focus?.()
+        } else {
+            window.scrollTo({ top: 0, behavior: "smooth" })
+        }
+    }
+
     const handlePickupMethodChange = (method: PickupMethod) => {
         setForm((current) => {
             if (method === current.pickupMethod) {
@@ -482,6 +522,8 @@ export function BatchCreatePage() {
 
             if (Object.keys(nextErrors).length > 0) {
                 setErrors(nextErrors)
+                // scroll to first invalid field
+                setTimeout(() => scrollToFirstError(nextErrors), 50)
                 return
             }
 
@@ -523,8 +565,10 @@ export function BatchCreatePage() {
             const data = await safeReadJson(response)
             if (!response.ok) {
                 const apiErrors = (data?.errors ?? null) as Record<string, string> | null
-                setErrors(apiErrors ?? { general: "Failed to create batch" })
-                toast.error(apiErrors?.general ?? "Failed to create batch")
+                const finalErrors = apiErrors ?? { general: "Failed to create batch" }
+                setErrors(finalErrors)
+                setTimeout(() => scrollToFirstError(finalErrors), 50)
+                toast.error(finalErrors.general ?? "Failed to create batch")
                 return
             }
 
@@ -696,9 +740,9 @@ export function BatchCreatePage() {
 
         // Use memoized data instead of calculating inline
         return (
-            <div className="overflow-hidden rounded-md border">
+            <div className="overflow-auto rounded-md border max-h-96">
                 <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
                             <TableHead className="w-12 text-center">#</TableHead>
                             <TableHead>Product</TableHead>

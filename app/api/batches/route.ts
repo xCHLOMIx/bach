@@ -92,11 +92,9 @@ export async function POST(request: NextRequest) {
 
   const errors: FieldErrors = {}
 
-  if (!batchName) errors.batchName = "Batch name is required"
   if (!["easy", "advanced"].includes(pickupMethod)) {
     errors.pickupMethod = "Pickup method must be easy or advanced"
   }
-
   if (batchName) {
     const existingBatch = await BatchModel.findOne({
       userId: user._id,
@@ -159,9 +157,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const formatPrettyDate = (d: Date) => new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(d)
+
     const batch = await BatchModel.create({
       userId: user._id,
-      batchName,
+      batchName: batchName || formatPrettyDate(new Date()),
       trackingId,
       pickupMethod,
       intlShipping,
