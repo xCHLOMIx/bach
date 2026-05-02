@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import { CardHeader, CardTitle } from "@/components/ui/card"
@@ -924,7 +925,17 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             }
 
             if (columnKey === "product") {
-                return <TableCell className="truncate max-w-xs font-medium">{product.name}</TableCell>
+                return (
+                    <TableCell className="max-w-xs font-medium">
+                        <Link
+                            href={`/app/products/${product._id}?returnTo=${encodeURIComponent(`/app/batches/${batchId}`)}`}
+                            className="block truncate hover:bg-black/3 max-w-full w-max rounded-sm p-2"
+                            title={product.name}
+                        >
+                            {product.name}
+                        </Link>
+                    </TableCell>
+                )
             }
 
             if (columnKey === "quantity") {

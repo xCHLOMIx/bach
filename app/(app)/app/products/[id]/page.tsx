@@ -89,7 +89,9 @@ export default function ProductDetailsPage() {
   const searchParams = useSearchParams()
   const productId = params.id as string
   const requestedReturnTo = searchParams.get("returnTo")?.trim()
-  const returnTo = requestedReturnTo?.startsWith("/app/products") ? requestedReturnTo : "/app/products"
+  const returnTo = requestedReturnTo?.startsWith("/app/products") || requestedReturnTo?.startsWith("/app/batches")
+    ? requestedReturnTo
+    : "/app/products"
 
   const goBackToProducts = useCallback(() => {
     router.push(returnTo)
