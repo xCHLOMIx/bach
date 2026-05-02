@@ -531,7 +531,7 @@ export default function ProductDetailsPage() {
           <Button variant="outline" className="h-9 w-9 p-0" onClick={goBackToProducts}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <p className="text-sm font-medium text-muted-foreground">Back to Products</p>
+          <p className="text-sm font-medium text-muted-foreground">Back</p>
         </div>
 
         <div className="flex items-center gap-2">
