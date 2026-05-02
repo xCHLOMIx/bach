@@ -1515,16 +1515,10 @@ export function ProductsPage() {
             return
         }
 
-        setSortColumn((currentColumn) => {
-            if (currentColumn === columnKey) {
-                setSortDirection((currentDirection) => (currentDirection === "asc" ? "desc" : "asc"))
-                return currentColumn
-            }
-
-            setSortDirection("asc")
-            return columnKey
-        })
-    }, [])
+        const isSameColumn = sortColumn === columnKey
+        setSortColumn(columnKey)
+        setSortDirection(isSameColumn && sortDirection === "asc" ? "desc" : "asc")
+    }, [sortColumn, sortDirection])
 
     const renderProductColumnCell = React.useCallback((product: Product, columnKey: ProductTableColumnKey) => {
         const intendedSellingPrice = intendedSellingPricesByProductId[product._id]
