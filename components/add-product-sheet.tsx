@@ -388,7 +388,9 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                                 <div
                                     id="quick-product-buying-price"
                                     className="h-11 flex items-center p-3 bg-muted rounded-md text-muted-foreground"
-                                >{buyingPricePreview ? `${buyingPricePreview} RWF` : buyingPricePreview === "" ? "0" : `${buyingPricePreview} RWF`}</div>
+                                >
+                                    {buyingPricePreview ? `${buyingPricePreview} RWF` : buyingPricePreview === "" ? "0" : `${buyingPricePreview} RWF`}
+                                </div>
                             </Field>
 
                             <Field>

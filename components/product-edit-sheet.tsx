@@ -115,6 +115,11 @@ export function ProductEditSheet({
         return formattedInteger
     }, [])
 
+    const formatNumber = (value: number) => {
+        if (!Number.isFinite(value)) return ""
+        return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    }
+
     const canSubmitEditProduct =
         Boolean(editProductName.trim()) &&
         Boolean(editQuantityInitial.trim()) &&
@@ -122,13 +127,10 @@ export function ProductEditSheet({
         (editSourceCurrency === "RWF" || Boolean(editExchangeRate.trim()))
 
     const buyingPricePreview = React.useMemo(() => {
-        const unitPrice = Number(stripCommas(editUnitPriceForeign) || 0)
-        const rate = editSourceCurrency === "RWF" ? 1 : Number(stripCommas(editExchangeRate) || 0)
-        if (!unitPrice || !rate) {
-            return ""
-        }
-
-        return Math.round(unitPrice * rate).toLocaleString()
+        if (!editUnitPriceForeign || editUnitPriceForeign.trim() === "") return ""
+        const unitPrice = Number(stripCommas(editUnitPriceForeign)) || 0
+        const rate = editSourceCurrency === "RWF" ? 1 : Number(stripCommas(editExchangeRate)) || 0
+        return formatNumber(unitPrice * rate)
     }, [editExchangeRate, editSourceCurrency, editUnitPriceForeign])
 
     const clearEditImages = React.useCallback(() => {
@@ -521,13 +523,12 @@ export function ProductEditSheet({
                                 <div className="flex items-center justify-between">
                                     <FieldLabel htmlFor="edit-buying-price">Buying price</FieldLabel>
                                 </div>
-                                <Input
-                                    id="edit-buying-price"
-                                    readOnly
-                                    value={buyingPricePreview ? `${buyingPricePreview} RWF` : ""}
-                                    placeholder="Calculated from unit price"
-                                    className="h-11"
-                                />
+                                <div
+                                    id="quick-product-buying-price"
+                                    className="h-11 flex items-center p-3 bg-muted rounded-md text-muted-foreground"
+                                >
+                                    {buyingPricePreview ? `${buyingPricePreview} RWF` : buyingPricePreview === "" ? "0" : `${buyingPricePreview} RWF`}
+                                </div>
                             </Field>
 
                             <Field>
