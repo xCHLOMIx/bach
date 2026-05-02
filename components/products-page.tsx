@@ -1884,9 +1884,9 @@ export function ProductsPage() {
             <CardContent>
                 {isLoading ? (
                     <div className="overflow-hidden rounded-xl border">
-                        <div className="min-w-245 overflow-x-auto">
+                        <div className="min-w-245 overflow-x-auto overflow-y-auto max-h-[calc(100vh-300px)]">
                             <Table>
-                                <TableHeader>
+                                <TableHeader className="bg-background sticky top-0 z-10">
                                     <TableRow>
                                         <TableHead>Image</TableHead>
                                         <TableHead>Name</TableHead>
@@ -2248,10 +2248,10 @@ export function ProductsPage() {
                             </div>
                         )}
                         <div className="overflow-hidden rounded-xl border">
-                            <div className="min-w-245 overflow-x-auto">
+                            <div className="min-w-245 overflow-x-auto overflow-y-auto max-h-[calc(100vh-300px)]">
                                 <Table>
-                                    <TableHeader>
-                                        <TableRow>
+                                    <TableHeader className="bg-background sticky top-0 z-10">
+                                        <TableRow className="bg-muted hover:bg-muted">
                                             <TableHead className="w-12">
                                                 <Checkbox
                                                     checked={paginatedProducts.length > 0 && paginatedProducts.every((product) => selectedProductIds.has(product._id))}

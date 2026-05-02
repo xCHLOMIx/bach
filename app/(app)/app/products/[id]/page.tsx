@@ -597,7 +597,7 @@ export default function ProductDetailsPage() {
                     alt={`${product.name} thumbnail ${index + 1}`}
                     fill
                     sizes="80px"
-                    className="object-cover"
+                    className="object-cover rounded-2xl"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-muted px-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
@@ -622,7 +622,7 @@ export default function ProductDetailsPage() {
                     fill
                     priority
                     sizes="(max-width: 1280px) 100vw, 55vw"
-                    className="object-contain p-6"
+                    className="object-contain p-6 rounded-[1.5rem]"
                   />
                 </button>
               ) : (

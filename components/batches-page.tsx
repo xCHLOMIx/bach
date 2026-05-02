@@ -932,7 +932,7 @@ export function BatchesPage() {
                 <div className="overflow-hidden rounded-xl border">
                     <div className="min-w-200 overflow-x-auto">
                         <Table>
-                            <TableHeader>
+                            <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
                                     <TableHead className="w-12">
                                         <Checkbox
@@ -1074,7 +1074,7 @@ export function BatchesPage() {
                 <div className="overflow-hidden rounded-xl border">
                     <div className="min-w-200 overflow-x-auto">
                         <Table>
-                            <TableHeader>
+                            <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
                                     <TableHead className="w-12">
                                         <input

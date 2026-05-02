@@ -1065,7 +1065,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             <div className="overflow-hidden rounded-md border print:overflow-visible print:rounded-none print:border-0">
                 <div className="overflow-x-auto print:overflow-visible">
                     <Table className="min-w-275 print:min-w-0 print:w-full print:text-[11px]">
-                        <TableHeader>
+                        <TableHeader className="sticky top-0 bg-background z-10 print:sticky-none">
                             <TableRow>
                                 {columnOrder.map((columnKey) => (
                                     <TableHead
@@ -1125,7 +1125,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         <div className="overflow-hidden rounded-md border print:overflow-visible print:rounded-none print:border-0">
             <div className="overflow-x-auto">
                 <Table className="min-w-275 print:min-w-0 print:w-full print:text-[11px]">
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 bg-background z-10 print:sticky-none">
                         <TableRow>
                             <TableHead className="w-12 text-center">#</TableHead>
                             <TableHead>Product</TableHead>

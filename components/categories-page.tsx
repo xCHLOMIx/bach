@@ -523,7 +523,7 @@ export function CategoriesPage() {
                 <div className="overflow-hidden rounded-xl border">
                     <div className="min-w-160 overflow-x-auto">
                         <Table>
-                            <TableHeader>
+                            <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
                                     <TableHead className="w-12">
                                         <Checkbox checked={false} disabled />
@@ -561,7 +561,7 @@ export function CategoriesPage() {
                 <div className="overflow-hidden rounded-xl border">
                     <div className="min-w-160 overflow-x-auto">
                         <Table>
-                            <TableHeader>
+                            <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
                                     <TableHead className="w-12">
                                         <Checkbox

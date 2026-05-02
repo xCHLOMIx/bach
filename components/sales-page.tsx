@@ -369,7 +369,7 @@ export function SalesPage() {
                     )}
                     <div className="overflow-hidden rounded-xl border">
                         <Table>
-                            <TableHeader>
+                            <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
                                     <TableHead>Product</TableHead>
                                     <TableHead>Qty</TableHead>
