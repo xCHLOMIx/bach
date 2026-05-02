@@ -71,6 +71,7 @@ const PRODUCTS_TABLE_STATE_STORAGE_KEY = "products:table-state"
 const PRODUCTS_COLUMN_ORDER_STORAGE_KEY = "products:column-order"
 const PRODUCTS_DETAIL_RETURN_SEARCH_STORAGE_KEY = "products:detail-return-search"
 const NO_BATCH_ASSIGNMENT_VALUE = "__none__"
+const NO_CATEGORY_ASSIGNMENT_VALUE = "__none__"
 
 function getProductsRouteStateFromLocation() {
     if (typeof window === "undefined") {
@@ -182,10 +183,15 @@ export function ProductsPage() {
     const [isEditProductSheetOpen, setIsEditProductSheetOpen] = React.useState(false)
     const [selectedProductIds, setSelectedProductIds] = React.useState<Set<string>>(new Set())
     const [selectedExistingBatchId, setSelectedExistingBatchId] = React.useState("")
+    const [selectedExistingCategoryId, setSelectedExistingCategoryId] = React.useState("")
     const [isAssigningSelectedToBatch, setIsAssigningSelectedToBatch] = React.useState(false)
+    const [isAssigningSelectedToCategory, setIsAssigningSelectedToCategory] = React.useState(false)
     const [showAssignBatchConfirm, setShowAssignBatchConfirm] = React.useState(false)
-    const [assignBatchWarning, setAssignBatchWarning] = React.useState<{ productsInBatches: number, productNames: string[] }>({ productsInBatches: 0, productNames: [] })
+    const [showAssignCategoryConfirm, setShowAssignCategoryConfirm] = React.useState(false)
+    const [assignBatchWarning, setAssignBatchWarning] = React.useState<{ productsInBatches: number }>({ productsInBatches: 0 })
+    const [assignCategoryWarning, setAssignCategoryWarning] = React.useState<{ productsInCategories: number }>({ productsInCategories: 0 })
     const [isAssignBatchInfoLoading, setIsAssignBatchInfoLoading] = React.useState(false)
+    const [isAssignCategoryInfoLoading, setIsAssignCategoryInfoLoading] = React.useState(false)
     const [showSelectedBatchWarning, setShowSelectedBatchWarning] = React.useState(false)
     const [visibleColumns, setVisibleColumns] = React.useState<Record<ProductTableColumnKey, boolean>>({
         image: true,
@@ -596,6 +602,7 @@ export function ProductsPage() {
     React.useEffect(() => {
         if (selectedProductIds.size === 0) {
             setSelectedExistingBatchId("")
+            setSelectedExistingCategoryId("")
         }
     }, [selectedProductIds.size])
 
@@ -1821,6 +1828,35 @@ export function ProductsPage() {
         }
     }, [loadProducts, selectedExistingBatchId, selectedProductIds])
 
+    const assignSelectedProductsToExistingCategory = React.useCallback(async () => {
+        if (!selectedExistingCategoryId || selectedProductIds.size === 0) {
+            return
+        }
+
+        setIsAssigningSelectedToCategory(true)
+
+        try {
+            const response = await fetch(`/api/categories/${selectedExistingCategoryId}/products`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ productIds: Array.from(selectedProductIds) }),
+            })
+
+            const data = await response.json().catch(() => null)
+            if (!response.ok) {
+                toast.error(data?.errors?.general ?? "Failed to assign products to category")
+                return
+            }
+
+            toast.success("Products added to category")
+            setSelectedProductIds(new Set())
+            setSelectedExistingCategoryId("")
+            await loadProducts(1)
+        } finally {
+            setIsAssigningSelectedToCategory(false)
+        }
+    }, [loadProducts, selectedExistingCategoryId, selectedProductIds])
+
     React.useEffect(() => {
         if (!hasCompletedInitialProductsLoadRef.current) {
             return
@@ -2127,12 +2163,32 @@ export function ProductsPage() {
                                                 const inBatch = selected.filter((p) => Boolean(p.batchId?._id))
                                                 setAssignBatchWarning({
                                                     productsInBatches: inBatch.length,
-                                                    productNames: inBatch.slice(0, 3).map((p) => p.name)
                                                 })
                                                 setIsAssignBatchInfoLoading(false)
                                             }}
                                         >
                                             Add to Batch
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-12 px-4"
+                                            disabled={isAssigningSelectedToCategory}
+                                            loading={isAssigningSelectedToCategory}
+                                            loadingText="Adding"
+                                            onClick={async () => {
+                                                setSelectedExistingCategoryId("")
+                                                setShowAssignCategoryConfirm(true)
+                                                setIsAssignCategoryInfoLoading(true)
+                                                const selected = products.filter((p) => selectedProductIds.has(p._id))
+                                                const inCategory = selected.filter((p) => Boolean(p.categoryId?._id))
+                                                setAssignCategoryWarning({
+                                                    productsInCategories: inCategory.length,
+                                                })
+                                                setIsAssignCategoryInfoLoading(false)
+                                            }}
+                                        >
+                                            Add to Category
                                         </Button>
                                         <Button
                                             size="sm"
@@ -2204,12 +2260,6 @@ export function ProductsPage() {
                                                 <li>
                                                     <span className="font-semibold">{assignBatchWarning.productsInBatches}</span> selected product{assignBatchWarning.productsInBatches === 1 ? "" : "s"} already assigned to batch.
                                                 </li>
-                                                {assignBatchWarning.productNames.length > 0 && (
-                                                    <li>
-                                                        {assignBatchWarning.productNames.join(", ")}
-                                                        {assignBatchWarning.productsInBatches > 3 ? ", ..." : ""}
-                                                    </li>
-                                                )}
                                             </ul>
                                         </div>
                                     ) : null}
@@ -2237,6 +2287,77 @@ export function ProductsPage() {
                                             loadingText={isAssigningSelectedToBatch ? "Assigning..." : undefined}
                                         >
                                             Assign to Batch
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        {showAssignCategoryConfirm && (
+                            <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 px-4">
+                                <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-950">
+                                    <h3 className="text-lg font-semibold text-primary">Assign to Category?</h3>
+                                    <p className="mt-3 text-sm text-muted-foreground">
+                                        You are about to assign <span className="font-semibold text-foreground">{selectedProductIds.size}</span> product{selectedProductIds.size === 1 ? "" : "s"} to a category.
+                                    </p>
+
+                                    <div className="mt-4">
+                                        <Select
+                                            value={selectedExistingCategoryId || NO_CATEGORY_ASSIGNMENT_VALUE}
+                                            onValueChange={(value) => setSelectedExistingCategoryId(value === NO_CATEGORY_ASSIGNMENT_VALUE ? "" : value)}
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select category" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value={NO_CATEGORY_ASSIGNMENT_VALUE}>Select category</SelectItem>
+                                                {categories.map((category) => (
+                                                    <SelectItem key={category._id} value={category._id}>
+                                                        {category.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {isAssignCategoryInfoLoading ? (
+                                        <div className="mt-4 space-y-2">
+                                            <Skeleton className="h-3 w-3/4" />
+                                            <Skeleton className="h-3 w-2/3" />
+                                        </div>
+                                    ) : assignCategoryWarning.productsInCategories > 0 ? (
+                                        <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-950">
+                                            <p className="mb-2 text-sm font-semibold text-accent-foreground">Warning:</p>
+                                            <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                                                <li>
+                                                    <span className="font-semibold">{assignCategoryWarning.productsInCategories}</span> selected product{assignCategoryWarning.productsInCategories === 1 ? "" : "s"} already assigned to category.
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    ) : null}
+
+                                    <div className="mt-6 flex justify-end gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setShowAssignCategoryConfirm(false)
+                                            }}
+                                            disabled={isAssigningSelectedToCategory || isAssignCategoryInfoLoading}
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="destructive"
+                                            onClick={async () => {
+                                                setShowAssignCategoryConfirm(false)
+                                                await assignSelectedProductsToExistingCategory()
+                                            }}
+                                            disabled={!selectedExistingCategoryId || isAssigningSelectedToCategory || isAssignCategoryInfoLoading}
+                                            loading={isAssigningSelectedToCategory}
+                                            loadingText={isAssigningSelectedToCategory ? "Assigning..." : undefined}
+                                        >
+                                            Assign to Category
                                         </Button>
                                     </div>
                                 </div>
