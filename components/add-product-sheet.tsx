@@ -281,8 +281,8 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
             )}
         >
             {isOpen ? (
-                <div className="grid gap-6 overflow-y-auto p-4">
-                    <div className="grid gap-4 rounded-xl border p-4">
+                <div className="grid gap-6 overflow-y-auto">
+                    <div className="grid gap-4 rounded-xl border m-4 p-4">
                         <Field>
                             <div className="flex items-center justify-between">
                                 <FieldLabel htmlFor="quick-product-name">Product name</FieldLabel>
@@ -496,9 +496,9 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                             />
                         </Field>
                     </div>
+                    <div className="grid gap-4 rounded-xl border mx-4 p-4">
 
-                    <Field>
-                        <div className="space-y-3 rounded-xl border p-4">
+                        <Field>
                             <h3 className="text-sm font-semibold">Images</h3>
 
                             <div className="relative flex h-64 w-full items-center justify-center overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 group">
@@ -596,13 +596,13 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                                     </label>
                                 </div>
                             ) : null}
-                        </div>
-                    </Field>
+                        </Field>
+                    </div>
 
 
                     {errors.general ? <FieldError className="text-xs text-destructive">{errors.general}</FieldError> : null}
 
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="sticky bottom-0 left-0 right-0 z-20 backdrop-blur-sm border-t border-border p-4 flex items-center justify-end gap-2">
                         <Button
                             type="button"
                             variant="outline"
