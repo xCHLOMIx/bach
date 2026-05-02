@@ -426,139 +426,8 @@ export function ProductEditSheet({
                     }
                 }}
             >
-                <form className="grid gap-6 p-4" onSubmit={submitEditProduct} onKeyDown={preventImplicitSubmitOnEnter}>
-                    <div className="space-y-3 rounded-xl border p-4">
-                        <h3 className="font-semibold text-sm">Images</h3>
-
-                        <div className="relative h-64 w-full overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center group">
-                            {editImages[0] ? (
-                                <>
-                                    <img
-                                        src={editImages[0].src}
-                                        alt="Main product image"
-                                        className="h-full w-full cursor-pointer object-cover"
-                                        draggable
-                                        loading="lazy"
-                                        onDragStart={() => setDraggedEditImageId(editImages[0].id)}
-                                        onDragEnd={() => setDraggedEditImageId(null)}
-                                        onDragOver={(event) => event.preventDefault()}
-                                        onDrop={() => reorderEditImages(editImages[0].id)}
-                                        onClick={() => openImagePreview(editImages.map((image) => image.src), 0)}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => removeEditImage(editImages[0].id)}
-                                        className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        <XIcon className="h-4 w-4" />
-                                    </button>
-                                </>
-                            ) : (
-                                <label className="cursor-pointer flex flex-col items-center gap-2 px-3 text-center w-full h-full justify-center">
-                                    <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70 transition-colors group-hover:border-primary/50">
-                                        <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
-                                    </div>
-                                    <div className="text-sm font-medium text-foreground">Add main image</div>
-                                    <div className="text-xs text-muted-foreground">Click to upload</div>
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        className="hidden"
-                                        onChange={(event) => {
-                                            const selectedFiles = Array.from(event.target.files ?? [])
-                                            if (selectedFiles.length > 0) {
-                                                const nextImages = selectedFiles.map((file, index) => {
-                                                    const src = URL.createObjectURL(file)
-                                                    editGeneratedObjectUrlsRef.current.push(src)
-
-                                                    return {
-                                                        id: `new-${Date.now()}-${index}-${file.name}`,
-                                                        type: "new" as const,
-                                                        src,
-                                                        file,
-                                                    }
-                                                })
-
-                                                setEditImages((current) => [
-                                                    ...nextImages,
-                                                    ...current,
-                                                ])
-                                            }
-
-                                            event.currentTarget.value = ""
-                                        }}
-                                    />
-                                </label>
-                            )}
-                        </div>
-
-                        {editImages.length > 0 && (
-                            <div className="grid grid-cols-3 gap-2">
-                                {editImages.slice(1).map((image, index) => {
-                                    const imageIndex = index + 1
-                                    return (
-                                        <div key={image.id} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
-                                            <img
-                                                src={image.src}
-                                                alt={`Product image ${imageIndex + 1}`}
-                                                className="w-full h-full cursor-pointer object-cover"
-                                                draggable
-                                                loading="lazy"
-                                                onDragStart={() => setDraggedEditImageId(image.id)}
-                                                onDragEnd={() => setDraggedEditImageId(null)}
-                                                onDragOver={(event) => event.preventDefault()}
-                                                onDrop={() => reorderEditImages(image.id)}
-                                                onClick={() => openImagePreview(editImages.map((entry) => entry.src), imageIndex)}
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => removeEditImage(image.id)}
-                                                className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <XIcon className="h-3 w-3" />
-                                            </button>
-                                        </div>
-                                    )
-                                })}
-
-                                <label className="relative aspect-square rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors group">
-                                    <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        className="hidden"
-                                        onChange={(event) => {
-                                            const selectedFiles = Array.from(event.target.files ?? [])
-                                            if (selectedFiles.length > 0) {
-                                                const nextImages = selectedFiles.map((file, index) => {
-                                                    const src = URL.createObjectURL(file)
-                                                    editGeneratedObjectUrlsRef.current.push(src)
-
-                                                    return {
-                                                        id: `new-${Date.now()}-${index}-${file.name}`,
-                                                        type: "new" as const,
-                                                        src,
-                                                        file,
-                                                    }
-                                                })
-
-                                                setEditImages((current) => [
-                                                    ...current,
-                                                    ...nextImages,
-                                                ])
-                                            }
-
-                                            event.currentTarget.value = ""
-                                        }}
-                                    />
-                                </label>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="grid gap-4 rounded-xl border p-4">
+                <form className="grid gap-6" onSubmit={submitEditProduct} onKeyDown={preventImplicitSubmitOnEnter}>
+                    <div className="grid gap-4 m-4 rounded-xl border p-4">
                         <h3 className="font-semibold text-sm">Product Details</h3>
 
                         <Field>
@@ -786,12 +655,148 @@ export function ProductEditSheet({
                         </Field>
                     </div>
 
+                    <div className="space-y-3 mx-4 rounded-xl border p-4">
+                        <h3 className="font-semibold text-sm">Images</h3>
+
+                        <div className="relative h-64 w-full overflow-hidden rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center group">
+                            {editImages[0] ? (
+                                <>
+                                    <img
+                                        src={editImages[0].src}
+                                        alt="Main product image"
+                                        className="h-full w-full cursor-pointer object-cover"
+                                        draggable
+                                        loading="lazy"
+                                        onDragStart={() => setDraggedEditImageId(editImages[0].id)}
+                                        onDragEnd={() => setDraggedEditImageId(null)}
+                                        onDragOver={(event) => event.preventDefault()}
+                                        onDrop={() => reorderEditImages(editImages[0].id)}
+                                        onClick={() => openImagePreview(editImages.map((image) => image.src), 0)}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => removeEditImage(editImages[0].id)}
+                                        className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <XIcon className="h-4 w-4" />
+                                    </button>
+                                </>
+                            ) : (
+                                <label className="cursor-pointer flex flex-col items-center gap-2 px-3 text-center w-full h-full justify-center">
+                                    <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70 transition-colors group-hover:border-primary/50">
+                                        <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+                                    </div>
+                                    <div className="text-sm font-medium text-foreground">Add main image</div>
+                                    <div className="text-xs text-muted-foreground">Click to upload</div>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        className="hidden"
+                                        onChange={(event) => {
+                                            const selectedFiles = Array.from(event.target.files ?? [])
+                                            if (selectedFiles.length > 0) {
+                                                const nextImages = selectedFiles.map((file, index) => {
+                                                    const src = URL.createObjectURL(file)
+                                                    editGeneratedObjectUrlsRef.current.push(src)
+
+                                                    return {
+                                                        id: `new-${Date.now()}-${index}-${file.name}`,
+                                                        type: "new" as const,
+                                                        src,
+                                                        file,
+                                                    }
+                                                })
+
+                                                setEditImages((current) => [
+                                                    ...nextImages,
+                                                    ...current,
+                                                ])
+                                            }
+
+                                            event.currentTarget.value = ""
+                                        }}
+                                    />
+                                </label>
+                            )}
+                        </div>
+
+                        {editImages.length > 0 && (
+                            <div className="grid grid-cols-3 gap-2">
+                                {editImages.slice(1).map((image, index) => {
+                                    const imageIndex = index + 1
+                                    return (
+                                        <div key={image.id} className="relative aspect-square rounded-md border border-border overflow-hidden group bg-muted/30">
+                                            <img
+                                                src={image.src}
+                                                alt={`Product image ${imageIndex + 1}`}
+                                                className="w-full h-full cursor-pointer object-cover"
+                                                draggable
+                                                loading="lazy"
+                                                onDragStart={() => setDraggedEditImageId(image.id)}
+                                                onDragEnd={() => setDraggedEditImageId(null)}
+                                                onDragOver={(event) => event.preventDefault()}
+                                                onDrop={() => reorderEditImages(image.id)}
+                                                onClick={() => openImagePreview(editImages.map((entry) => entry.src), imageIndex)}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => removeEditImage(image.id)}
+                                                className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                <XIcon className="h-3 w-3" />
+                                            </button>
+                                        </div>
+                                    )
+                                })}
+
+                                <label className="relative aspect-square rounded-md border-2 border-dashed border-border bg-muted/30 flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors group">
+                                    <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        className="hidden"
+                                        onChange={(event) => {
+                                            const selectedFiles = Array.from(event.target.files ?? [])
+                                            if (selectedFiles.length > 0) {
+                                                const nextImages = selectedFiles.map((file, index) => {
+                                                    const src = URL.createObjectURL(file)
+                                                    editGeneratedObjectUrlsRef.current.push(src)
+
+                                                    return {
+                                                        id: `new-${Date.now()}-${index}-${file.name}`,
+                                                        type: "new" as const,
+                                                        src,
+                                                        file,
+                                                    }
+                                                })
+
+                                                setEditImages((current) => [
+                                                    ...current,
+                                                    ...nextImages,
+                                                ])
+                                            }
+
+                                            event.currentTarget.value = ""
+                                        }}
+                                    />
+                                </label>
+                            </div>
+                        )}
+                    </div>
+
                     {editErrors.general ? (
                         <p className="text-sm text-destructive">{editErrors.general}</p>
                     ) : null}
-                    <Button type="submit" disabled={!canSubmitEditProduct || !hasEditProductChanges || isEditSubmitting} loading={isEditSubmitting} loadingText="Saving product">
-                        Save Changes
-                    </Button>
+
+                    <div className="sticky bottom-0 left-0 right-0 z-20 bg-card/90 backdrop-blur-sm border-t border-border p-4">
+                        <div className="flex justify-end">
+                            <Button type="submit" disabled={!canSubmitEditProduct || !hasEditProductChanges || isEditSubmitting} loading={isEditSubmitting} loadingText="Saving product">
+                                Save Changes
+                            </Button>
+                        </div>
+                    </div>
                 </form>
             </ProductSheetFrame>
 
