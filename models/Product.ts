@@ -6,6 +6,7 @@ const productSchema = new Schema(
     name: { type: String, required: true, trim: true },
     categoryId: { type: Types.ObjectId, ref: "Category", required: false, default: null },
     batchId: { type: Types.ObjectId, ref: "Batch", default: null },
+    batchName: { type: String, trim: true, default: "" },
     quantityInitial: { type: Number, required: true, min: 0 },
     quantityRemaining: { type: Number, required: true, min: 0 },
     unitPriceForeign: { type: Number, required: true, min: 0 },

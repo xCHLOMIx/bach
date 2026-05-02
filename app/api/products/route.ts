@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData()
 
   const name = String(formData.get("name") ?? "").trim()
+  const rawBatchId = String(formData.get("batchId") ?? "").trim()
   const categoryId = String(formData.get("categoryId") ?? "").trim()
   const rawQuantityInitial = String(formData.get("quantityInitial") ?? "").trim()
   const rawUnitPriceForeign = String(formData.get("unitPriceForeign") ?? "").trim()
@@ -153,11 +154,23 @@ export async function POST(request: NextRequest) {
   const resolvedExchangeRate = sourceCurrency === "RWF" ? 1 : exchangeRate
   const unitPriceLocalRWF = unitPriceForeign * resolvedExchangeRate
 
+  // Determine batch assignment or fallback batchName
+  let batchIdValue: string | null = null
+  if (rawBatchId) {
+    if (!Types.ObjectId.isValid(rawBatchId)) {
+      return errorResponse({ batchId: "Invalid batch" }, 400)
+    }
+    batchIdValue = rawBatchId
+  }
+
+  const formatPrettyDate = (d: Date) => new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(d)
+
   const product = await ProductModel.create({
     userId: user._id,
     name,
     categoryId: categoryId || null,
-    batchId: null,
+    batchId: batchIdValue || null,
+    batchName: batchIdValue ? "" : formatPrettyDate(new Date()),
     quantityInitial,
     quantityRemaining: quantityInitial,
     unitPriceForeign,

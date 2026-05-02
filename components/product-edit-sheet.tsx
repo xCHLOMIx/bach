@@ -5,6 +5,7 @@ import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import {
     Select,
     SelectContent,
@@ -36,6 +37,7 @@ type Product = {
     externalLink?: string
     images: string[]
     intendedSellingPrice?: number | null
+    batchName?: string
 }
 
 type EditImageItem = {
@@ -435,9 +437,10 @@ export function ProductEditSheet({
                                 <FieldLabel htmlFor="edit-name">Product name</FieldLabel>
                                 <FieldError className="text-destructive text-xs">{editErrors.name}</FieldError>
                             </div>
-                            <Input
+                            <Textarea
                                 id="edit-name"
                                 placeholder="Product name"
+                                rows={3}
                                 value={editProductName}
                                 onChange={(event) => setEditProductName(event.target.value)}
                             />

@@ -274,6 +274,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (batchId !== undefined) {
       updateData.batchId = batchId || null
       nextBatchId = batchId || null
+      if (batchId) {
+        // If assigned to a real batch, clear any fallback batchName stored on product
+        updateData.batchName = ""
+      } else {
+        // If cleared batch assignment, set fallback batchName to product.createdAt formatted
+        const createdAt = existingProduct.createdAt ? new Date(existingProduct.createdAt) : new Date()
+        updateData.batchName = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(createdAt)
+      }
     }
 
     const nextSourceCurrency = sourceCurrency ?? existingProduct.sourceCurrency
@@ -419,7 +427,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       hasActiveSales: salesCount > 0,
       salesCount,
       isInBatch: Boolean(product.batchId),
-      batchName: populatedBatch?.batchName ?? null,
+      batchName: populatedBatch?.batchName ?? (product.batchName ?? null),
     }
 
     // Check if this is a confirmation deletion (from the delete button with ?confirm=true)

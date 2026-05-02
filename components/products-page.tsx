@@ -103,6 +103,7 @@ type Product = {
     images: string[]
     intendedSellingPrice?: number | null
     createdAt: string
+    batchName?: string
 }
 
 type ProductTableColumnKey =
@@ -1400,7 +1401,7 @@ export function ProductsPage() {
                     case "name":
                         return product.name.toLowerCase()
                     case "batch":
-                        return (product.batchId?.batchName ?? "").toLowerCase()
+                        return (product.batchId?.batchName ?? product.batchName ?? "").toLowerCase()
                     case "added":
                         return new Date(product.createdAt).getTime()
                     case "onHand":
@@ -1597,7 +1598,7 @@ export function ProductsPage() {
         if (columnKey === "batch") {
             return (
                 <TableCell className="p-0">
-                    <div className="block p-2">{product.batchId?.batchName ?? "Unassigned"}</div>
+                    <div className="block p-2">{product.batchId?.batchName ?? product.batchName ?? "Unassigned"}</div>
                 </TableCell>
             )
         }
@@ -2414,7 +2415,7 @@ export function ProductsPage() {
                                                 </Link>
                                             </div>
                                             <div className="text-sm text-muted-foreground">Category: {product.categoryId?.name ?? "-"}</div>
-                                            <div className="text-sm text-muted-foreground">Batch: {product.batchId?.batchName ?? "Unassigned"}</div>
+                                            <div className="text-sm text-muted-foreground">Batch: {product.batchId?.batchName ?? product.batchName ?? "Unassigned"}</div>
                                             <div className="mt-3 flex flex-wrap items-center gap-2">
                                                 <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
                                                     Stock: {product.quantityRemaining}

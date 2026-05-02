@@ -5,6 +5,7 @@ import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import {
     Select,
     SelectContent,
@@ -288,9 +289,10 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                                 <FieldLabel htmlFor="quick-product-name">Product name</FieldLabel>
                                 <FieldError className="text-xs text-destructive">{errors.name}</FieldError>
                             </div>
-                            <Input
+                            <Textarea
                                 id="quick-product-name"
                                 placeholder="Product name"
+                                rows={3}
                                 value={name}
                                 onChange={(event) => setName(event.target.value)}
                             />

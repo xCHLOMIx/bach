@@ -28,6 +28,7 @@ type Product = {
   name: string
   categoryId?: { _id?: string; name?: string }
   batchId?: { _id?: string; batchName?: string } | null
+  batchName?: string
   quantityInitial: number
   quantityRemaining: number
   unitPriceForeign: number
@@ -675,9 +676,9 @@ export default function ProductDetailsPage() {
                   {product.categoryId.name}
                 </Badge>
               ) : null}
-              {product.batchId?.batchName ? (
+              {(product.batchId?.batchName ?? product.batchName) ? (
                 <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs font-semibold">
-                  Batch: {product.batchId.batchName}
+                  Batch: {product.batchId?.batchName ?? product.batchName}
                 </Badge>
               ) : null}
             </div>
@@ -761,7 +762,7 @@ export default function ProductDetailsPage() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Batch</p>
-                  <p className="mt-1 text-base font-semibold">{product.batchId?.batchName ?? "No batch assigned"}</p>
+                  <p className="mt-1 text-base font-semibold">{product.batchId?.batchName ?? product.batchName ?? "No batch assigned"}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Purchase Price</p>

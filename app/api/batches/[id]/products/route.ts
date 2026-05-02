@@ -127,7 +127,7 @@ export async function POST(
 
   await ProductModel.updateMany(
     { _id: { $in: productIds }, userId: user._id },
-    { $set: { batchId: new Types.ObjectId(id) } }
+    { $set: { batchId: new Types.ObjectId(id), batchName: "" } }
   )
 
   await recalculateBatchProducts(id)
@@ -206,10 +206,26 @@ export async function PUT(
   }
 
   if (idsToUnassign.length > 0) {
-    await ProductModel.updateMany(
-      { _id: { $in: idsToUnassign }, userId: user._id },
-      { $set: { batchId: null } }
-    )
+    // For each unassigned product, clear batchId and set fallback batchName to its createdAt formatted date
+    const unassignedProducts = await ProductModel.find({ _id: { $in: idsToUnassign }, userId: user._id })
+      .select("createdAt")
+      .lean()
+
+    const ops = unassignedProducts.map((p) => ({
+      updateOne: {
+        filter: { _id: p._id },
+        update: {
+          $set: {
+            batchId: null,
+            batchName: new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(new Date(p.createdAt)),
+          },
+        },
+      },
+    }))
+
+    if (ops.length > 0) {
+      await ProductModel.bulkWrite(ops)
+    }
     await resetUnassignedProductsCosts(idsToUnassign)
   }
 
