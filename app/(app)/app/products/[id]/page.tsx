@@ -525,11 +525,56 @@ export default function ProductDetailsPage() {
 
   return (
     <div className="flex-1 p-4 lg:p-6">
-      <div className="mb-6 flex items-center gap-3">
-        <Button variant="outline" className="h-9 w-9 p-0" onClick={goBackToProducts}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <p className="text-sm font-medium text-muted-foreground">Back to Products</p>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="h-9 w-9 p-0" onClick={goBackToProducts}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <p className="text-sm font-medium text-muted-foreground">Back to Products</p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {product.externalLink ? (
+            <Button asChild className="h-9 w-9 rounded-xl p-0 sm:w-auto sm:px-3">
+              <a href={product.externalLink} target="_blank" rel="noopener noreferrer" aria-label="External Link">
+                <span className="hidden sm:inline">External Link</span>
+                <ExternalLinkIcon className="h-4 w-4 sm:ml-2" />
+              </a>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              className="h-9 w-9 rounded-xl p-0 sm:w-auto sm:px-3"
+              aria-label="External Link"
+              disabled
+            >
+              <span className="hidden sm:inline">External Link</span>
+              <ExternalLinkIcon className="h-4 w-4 sm:ml-2" />
+            </Button>
+          )}
+
+          <Button
+            type="button"
+            variant="outline"
+            className="h-9 w-9 rounded-xl p-0 sm:w-auto sm:px-3"
+            onClick={openEditProductSheet}
+            aria-label="Edit Product"
+          >
+            <span className="hidden sm:inline">Edit Product</span>
+            <PencilIcon className="h-4 w-4 sm:ml-2" />
+          </Button>
+
+          <Button
+            type="button"
+            variant="destructive"
+            className="h-9 w-9 rounded-xl p-0 sm:w-auto sm:px-3"
+            onClick={() => void handleDeleteProduct(product)}
+            aria-label="Delete Product"
+          >
+            <span className="hidden sm:inline">Delete</span>
+            <Trash2Icon className="h-4 w-4 sm:ml-2" />
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
@@ -639,8 +684,7 @@ export default function ProductDetailsPage() {
 
             <h1 className="mt-4 text-xl font-semibold tracking-tight sm:text-2xl">{product.name}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Review pricing, inventory, and sourcing details in one place. The action row at the bottom keeps the
-              product link, edit flow, and delete flow on this page.
+              Review pricing, inventory, and sourcing details in one place.
             </p>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -733,41 +777,6 @@ export default function ProductDetailsPage() {
                   <p className="text-sm text-muted-foreground">Source Currency</p>
                   <p className="mt-1 text-base font-semibold">{product.sourceCurrency}</p>
                 </div>
-              </div>
-
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                {product.externalLink ? (
-                  <Button asChild className="flex-1 rounded-xl">
-                    <a href={product.externalLink} target="_blank" rel="noopener noreferrer">
-                      External Link
-                      <ExternalLinkIcon className="ml-2 h-4 w-4" />
-                    </a>
-                  </Button>
-                ) : (
-                  <Button variant="outline" className="flex-1 rounded-xl" disabled>
-                    External Link
-                  </Button>
-                )}
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1 rounded-xl"
-                  onClick={openEditProductSheet}
-                >
-                  Edit Product
-                  <PencilIcon className="ml-2 h-4 w-4" />
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="destructive"
-                  className="flex-1 rounded-xl"
-                  onClick={() => void handleDeleteProduct(product)}
-                >
-                  Delete
-                  <Trash2Icon className="ml-2 h-4 w-4" />
-                </Button>
               </div>
             </div>
           </div>
