@@ -497,10 +497,17 @@ export function SalesPage() {
                                                 const isOutOfStock = product.quantityRemaining === 0
                                                 const isSelected = selectedProductIds.has(product._id)
                                                 return (
-                                                    <button
+                                                    <div
                                                         key={product._id}
-                                                        type="button"
+                                                        role="button"
+                                                        tabIndex={0}
                                                         onClick={() => toggleProductSelection(product._id)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === "Enter" || e.key === " ") {
+                                                                e.preventDefault()
+                                                                toggleProductSelection(product._id)
+                                                            }
+                                                        }}
                                                         className={`w-full text-left p-3 rounded-lg border transition-colors ${isOutOfStock
                                                             ? "border-border opacity-70"
                                                             : isSelected
@@ -525,7 +532,7 @@ export function SalesPage() {
                                                                 </p>
                                                             </div>
                                                         </div>
-                                                    </button>
+                                                    </div>
                                                 )
                                             })
                                         )}
