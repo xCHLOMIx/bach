@@ -2112,46 +2112,28 @@ export function ProductsPage() {
 
                                 {selectedProductIds.size > 0 ? (
                                     <>
-                                        <div className="flex min-w-72 items-center gap-2">
-                                            <Select
-                                                value={selectedExistingBatchId || NO_BATCH_ASSIGNMENT_VALUE}
-                                                onValueChange={(value) => setSelectedExistingBatchId(value === NO_BATCH_ASSIGNMENT_VALUE ? "" : value)}
-                                            >
-                                                <SelectTrigger className="py-5.5 px-3">
-                                                    <SelectValue placeholder="Add selected to batch" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value={NO_BATCH_ASSIGNMENT_VALUE}>Select batch</SelectItem>
-                                                    {batches.map((batch) => (
-                                                        <SelectItem key={batch._id} value={batch._id}>
-                                                            {batch.batchName}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="h-12 px-4"
-                                                disabled={!selectedExistingBatchId || isAssigningSelectedToBatch}
-                                                loading={isAssigningSelectedToBatch}
-                                                loadingText="Adding"
-                                                onClick={async () => {
-                                                    setShowAssignBatchConfirm(true)
-                                                    setIsAssignBatchInfoLoading(true)
-                                                    // Simulate API call to get batch warnings for selected products
-                                                    const selected = products.filter((p) => selectedProductIds.has(p._id))
-                                                    const inBatch = selected.filter((p) => Boolean(p.batchId?._id))
-                                                    setAssignBatchWarning({
-                                                        productsInBatches: inBatch.length,
-                                                        productNames: inBatch.slice(0, 3).map((p) => p.name)
-                                                    })
-                                                    setIsAssignBatchInfoLoading(false)
-                                                }}
-                                            >
-                                                Add to Batch
-                                            </Button>
-                                        </div>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-12 px-4"
+                                            disabled={isAssigningSelectedToBatch}
+                                            loading={isAssigningSelectedToBatch}
+                                            loadingText="Adding"
+                                            onClick={async () => {
+                                                setSelectedExistingBatchId("")
+                                                setShowAssignBatchConfirm(true)
+                                                setIsAssignBatchInfoLoading(true)
+                                                const selected = products.filter((p) => selectedProductIds.has(p._id))
+                                                const inBatch = selected.filter((p) => Boolean(p.batchId?._id))
+                                                setAssignBatchWarning({
+                                                    productsInBatches: inBatch.length,
+                                                    productNames: inBatch.slice(0, 3).map((p) => p.name)
+                                                })
+                                                setIsAssignBatchInfoLoading(false)
+                                            }}
+                                        >
+                                            Add to Batch
+                                        </Button>
                                         <Button
                                             size="sm"
                                             variant="outline"
@@ -2190,6 +2172,25 @@ export function ProductsPage() {
                                     <p className="mt-3 text-sm text-muted-foreground">
                                         You are about to assign <span className="font-semibold text-foreground">{selectedProductIds.size}</span> product{selectedProductIds.size === 1 ? "" : "s"} to a batch.
                                     </p>
+
+                                    <div className="mt-4">
+                                        <Select
+                                            value={selectedExistingBatchId || NO_BATCH_ASSIGNMENT_VALUE}
+                                            onValueChange={(value) => setSelectedExistingBatchId(value === NO_BATCH_ASSIGNMENT_VALUE ? "" : value)}
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select batch" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value={NO_BATCH_ASSIGNMENT_VALUE}>Select batch</SelectItem>
+                                                {batches.map((batch) => (
+                                                    <SelectItem key={batch._id} value={batch._id}>
+                                                        {batch.batchName}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
 
                                     {isAssignBatchInfoLoading ? (
                                         <div className="mt-4 space-y-2">
@@ -2231,7 +2232,7 @@ export function ProductsPage() {
                                                 setShowAssignBatchConfirm(false)
                                                 await assignSelectedProductsToExistingBatch()
                                             }}
-                                            disabled={isAssigningSelectedToBatch || isAssignBatchInfoLoading}
+                                            disabled={!selectedExistingBatchId || isAssigningSelectedToBatch || isAssignBatchInfoLoading}
                                             loading={isAssigningSelectedToBatch}
                                             loadingText={isAssigningSelectedToBatch ? "Assigning..." : undefined}
                                         >
