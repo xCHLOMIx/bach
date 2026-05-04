@@ -569,9 +569,9 @@ export function SalesPage() {
                                         {bulkSaleRows.map((row) => {
                                             const quantityValue = Number(row.quantity || 0)
                                             const sellingPriceValue = Number(stripCommas(row.sellingPrice) || 0)
-                                            const totalLandedCost = row.landedCost * quantityValue
-                                            const totalSellingValue = sellingPriceValue * quantityValue
-                                            const totalProfit = totalSellingValue - totalLandedCost
+                                            const buyingPricePerUnit = row.landedCost
+                                            const profitPerUnit = sellingPriceValue - buyingPricePerUnit
+                                            const totalProfit = profitPerUnit * quantityValue
 
                                             return (
                                                 <div key={row.productId} className="rounded-lg border border-border p-3">
@@ -633,10 +633,13 @@ export function SalesPage() {
                                                     </div>
 
                                                     <div className="mt-3 rounded-md bg-muted p-2 text-xs text-muted-foreground">
-                                                        <p>Landed Total: <span className="font-semibold text-foreground">{formatRWF(totalLandedCost)} RWF</span></p>
-                                                        <p>Total value: <span className="font-semibold text-foreground">{formatRWF(totalSellingValue)} RWF</span></p>
+                                                        <p>Buying price / unit: <span className="font-semibold text-foreground">{formatRWF(buyingPricePerUnit)} RWF</span></p>
+                                                        <p>Selling price / unit: <span className="font-semibold text-foreground">{formatRWF(sellingPriceValue)} RWF</span></p>
                                                         <p>
-                                                            {totalProfit >= 0 ? "Profit" : "Loss"}: <span className={totalProfit >= 0 ? "font-semibold text-primary" : "font-semibold text-destructive"}>{formatRWF(Math.abs(totalProfit))} RWF</span>
+                                                            {profitPerUnit >= 0 ? "Profit / unit" : "Loss / unit"}: <span className={profitPerUnit >= 0 ? "font-semibold text-primary" : "font-semibold text-destructive"}>{formatRWF(Math.abs(profitPerUnit))} RWF</span>
+                                                        </p>
+                                                        <p>
+                                                            Total {totalProfit >= 0 ? "profit" : "loss"}: <span className={totalProfit >= 0 ? "font-semibold text-primary" : "font-semibold text-destructive"}>{formatRWF(Math.abs(totalProfit))} RWF</span>
                                                         </p>
                                                     </div>
                                                 </div>

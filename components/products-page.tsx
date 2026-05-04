@@ -1819,10 +1819,11 @@ export function ProductsPage() {
                 return
             }
 
-            toast.success("Products added to batch")
             setSelectedProductIds(new Set())
             setSelectedExistingBatchId("")
             await loadProducts(1)
+            setShowAssignBatchConfirm(false)
+            toast.success("Products added to batch")
         } finally {
             setIsAssigningSelectedToBatch(false)
         }
@@ -1848,10 +1849,11 @@ export function ProductsPage() {
                 return
             }
 
-            toast.success("Products added to category")
             setSelectedProductIds(new Set())
             setSelectedExistingCategoryId("")
             await loadProducts(1)
+            setShowAssignCategoryConfirm(false)
+            toast.success("Products added to category")
         } finally {
             setIsAssigningSelectedToCategory(false)
         }
@@ -2352,7 +2354,6 @@ export function ProductsPage() {
                                             type="button"
                                             variant="destructive"
                                             onClick={async () => {
-                                                setShowAssignBatchConfirm(false)
                                                 await assignSelectedProductsToExistingBatch()
                                             }}
                                             disabled={!selectedExistingBatchId || isAssigningSelectedToBatch || isAssignBatchInfoLoading}
@@ -2423,7 +2424,6 @@ export function ProductsPage() {
                                             type="button"
                                             variant="destructive"
                                             onClick={async () => {
-                                                setShowAssignCategoryConfirm(false)
                                                 await assignSelectedProductsToExistingCategory()
                                             }}
                                             disabled={!selectedExistingCategoryId || isAssigningSelectedToCategory || isAssignCategoryInfoLoading}
