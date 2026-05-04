@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
   const resolvedExchangeRate = sourceCurrency === "RWF" ? 1 : exchangeRate
   const unitPriceLocalRWF = unitPriceForeign * resolvedExchangeRate
 
-  // Determine batch assignment or fallback batchName
+  // Determine batch assignment.
   let batchIdValue: string | null = null
   if (rawBatchId) {
     if (!Types.ObjectId.isValid(rawBatchId)) {
@@ -162,8 +162,6 @@ export async function POST(request: NextRequest) {
     }
     batchIdValue = rawBatchId
   }
-
-  const formatPrettyDate = (d: Date) => new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(d)
 
   const product = await ProductModel.create({
     userId: user._id,
@@ -182,6 +180,7 @@ export async function POST(request: NextRequest) {
     intendedSellingPrice,
     externalLink,
     images: uploadedUrls,
+    batchName: "",
   })
 
   // Return without populate - client has the data they just sent

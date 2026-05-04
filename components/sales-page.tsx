@@ -41,6 +41,7 @@ type Product = {
     name: string
     quantityRemaining: number
     landedCost: number
+    intendedSellingPrice?: number | null
     unitOfMeasurement?: string
 }
 
@@ -227,7 +228,7 @@ export function SalesPage() {
             availableQuantity: product.quantityRemaining,
             landedCost: product.landedCost,
             quantity: "",
-            sellingPrice: formatDecimalWithCommas(String(product.landedCost)),
+            sellingPrice: typeof product.intendedSellingPrice === "number" ? formatDecimalWithCommas(String(product.intendedSellingPrice)) : "",
         }))
 
         setBulkSaleRows(rows)
@@ -674,8 +675,8 @@ export function SalesPage() {
 
             {
                 showDiscardConfirm && (
-                    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 animate-in fade-in duration-150">
-                        <div className="modal-pop-in w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-lg dark:border-slate-800 dark:bg-slate-950">
+                    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 animate-in fade-in duration-150" onClick={() => setShowDiscardConfirm(false)}>
+                        <div className="modal-pop-in w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-lg dark:border-slate-800 dark:bg-slate-950" onClick={(event) => event.stopPropagation()}>
                             <h3 className="text-base font-semibold text-foreground">
                                 Discard this sale draft?
                             </h3>

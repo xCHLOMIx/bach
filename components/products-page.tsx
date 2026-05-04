@@ -998,7 +998,7 @@ export function ProductsPage() {
     const openSaleModalForProduct = (product: Product) => {
         setSaleMode("single")
         setSaleSelectedProduct(product)
-        setSalePrice(formatDecimalWithCommas(String(product.landedCost)))
+        setSalePrice(typeof product.intendedSellingPrice === "number" ? formatDecimalWithCommas(String(product.intendedSellingPrice)) : "")
         setSaleQuantity("")
         setSaleStep("details")
         setSaleErrors({})
@@ -1017,7 +1017,7 @@ export function ProductsPage() {
                 availableQuantity: product.quantityRemaining,
                 landedCost: product.landedCost,
                 quantity: "",
-                sellingPrice: formatDecimalWithCommas(String(product.landedCost)),
+                sellingPrice: typeof product.intendedSellingPrice === "number" ? formatDecimalWithCommas(String(product.intendedSellingPrice)) : "",
             }))
 
         if (rows.length === 0) {
@@ -1177,7 +1177,7 @@ export function ProductsPage() {
 
     const handleSelectSaleProduct = (product: Product) => {
         setSaleSelectedProduct(product)
-        setSalePrice(formatDecimalWithCommas(String(product.landedCost)))
+        setSalePrice(typeof product.intendedSellingPrice === "number" ? formatDecimalWithCommas(String(product.intendedSellingPrice)) : "")
         setSaleStep("details")
         setSaleErrors({})
     }
@@ -1599,7 +1599,7 @@ export function ProductsPage() {
         if (columnKey === "batch") {
             return (
                 <TableCell className="p-0">
-                    <div className="block p-2">{product.batchId?.batchName ?? product.batchName ?? "Unassigned"}</div>
+                    <div className="block p-2">{product.batchId?.batchName || product.batchName || "Unassigned"}</div>
                 </TableCell>
             )
         }
@@ -1621,7 +1621,7 @@ export function ProductsPage() {
         if (columnKey === "onHand") {
             return (
                 <TableCell className="p-0">
-                    <div className="block p-2 font-medium">{product.quantityRemaining.toLocaleString()}</div>
+                    <div className="block p-2 text-center font-medium">{product.quantityRemaining.toLocaleString()}</div>
                 </TableCell>
             )
         }
@@ -1920,7 +1920,7 @@ export function ProductsPage() {
                                     <TableRow>
                                         <TableHead>Image</TableHead>
                                         <TableHead>Name</TableHead>
-                                        <TableHead>On Hand</TableHead>
+                                        <TableHead className="text-center">On Hand</TableHead>
                                         <TableHead>Purchase</TableHead>
                                         <TableHead>Landed Costs</TableHead>
                                         <TableHead>Selling Price</TableHead>
@@ -2222,8 +2222,8 @@ export function ProductsPage() {
                         </div>
                         {/* Batch warning now handled in modal, not here */}
                         {showAssignBatchConfirm && (
-                            <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 px-4">
-                                <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-950">
+                            <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 px-4" onClick={() => setShowAssignBatchConfirm(false)}>
+                                <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-950" onClick={(event) => event.stopPropagation()}>
                                     <h3 className="text-lg font-semibold text-primary">Assign to Batch?</h3>
                                     <p className="mt-3 text-sm text-muted-foreground">
                                         You are about to assign <span className="font-semibold text-foreground">{selectedProductIds.size}</span> product{selectedProductIds.size === 1 ? "" : "s"} to a batch.
@@ -2293,8 +2293,8 @@ export function ProductsPage() {
                             </div>
                         )}
                         {showAssignCategoryConfirm && (
-                            <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 px-4">
-                                <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-950">
+                            <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 px-4" onClick={() => setShowAssignCategoryConfirm(false)}>
+                                <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-950" onClick={(event) => event.stopPropagation()}>
                                     <h3 className="text-lg font-semibold text-primary">Assign to Category?</h3>
                                     <p className="mt-3 text-sm text-muted-foreground">
                                         You are about to assign <span className="font-semibold text-foreground">{selectedProductIds.size}</span> product{selectedProductIds.size === 1 ? "" : "s"} to a category.
@@ -2531,7 +2531,7 @@ export function ProductsPage() {
                                                 </Link>
                                             </div>
                                             <div className="text-sm text-muted-foreground">Category: {product.categoryId?.name ?? "-"}</div>
-                                            <div className="text-sm text-muted-foreground">Batch: {product.batchId?.batchName ?? product.batchName ?? "Unassigned"}</div>
+                                            <div className="text-sm text-muted-foreground">Batch: {product.batchId?.batchName || product.batchName || "Unassigned"}</div>
                                             <div className="mt-3 flex flex-wrap items-center gap-2">
                                                 <Badge variant={product.quantityRemaining > 0 ? "outline" : "destructive"}>
                                                     Stock: {product.quantityRemaining}
@@ -2862,8 +2862,8 @@ export function ProductsPage() {
             )}
 
             {showBulkDeleteConfirm ? (
-                <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 animate-in fade-in duration-150">
-                    <div className="modal-pop-in w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-950">
+                <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 animate-in fade-in duration-150" onClick={() => setShowBulkDeleteConfirm(false)}>
+                    <div className="modal-pop-in w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-950" onClick={(event) => event.stopPropagation()}>
                         <h3 className="text-lg font-semibold text-destructive">Delete Selected Products?</h3>
                         <p className="mt-3 text-sm text-muted-foreground">
                             You are about to permanently delete <span className="font-semibold text-foreground">{selectedProducts.length}</span> products.
@@ -2951,8 +2951,8 @@ export function ProductsPage() {
             ) : null}
 
             {showDiscardSaleConfirm && (
-                <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 animate-in fade-in duration-150">
-                    <div className="modal-pop-in w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-lg dark:border-slate-800 dark:bg-slate-950">
+                <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 animate-in fade-in duration-150" onClick={() => setShowDiscardSaleConfirm(false)}>
+                    <div className="modal-pop-in w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-lg dark:border-slate-800 dark:bg-slate-950" onClick={(event) => event.stopPropagation()}>
                         <h3 className="text-base font-semibold text-foreground">Discard sale draft?</h3>
                         <p className="mt-2 text-sm text-muted-foreground">
                             You have unsaved sale changes. Do you want to discard them and close?
@@ -2970,8 +2970,8 @@ export function ProductsPage() {
             )}
 
             {showDeleteConfirm && deleteConfirmData && (
-                <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 animate-in fade-in duration-150">
-                    <div className="modal-pop-in w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-950">
+                <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 animate-in fade-in duration-150" onClick={() => setShowDeleteConfirm(false)}>
+                    <div className="modal-pop-in w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-950" onClick={(event) => event.stopPropagation()}>
                         <h3 className="text-lg font-semibold text-destructive">Delete Product?</h3>
                         <p className="mt-3 text-sm text-muted-foreground">
                             You are about to permanently delete <span className="font-semibold text-foreground">&quot;{deleteConfirmData.productName}&quot;</span>.

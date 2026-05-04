@@ -100,7 +100,11 @@ export function DashboardOverview() {
                                 ) : (
                                     (data?.latestSales ?? []).map((sale) => (
                                         <TableRow key={sale._id}>
-                                            <TableCell>{sale.productId?.name ?? "Unknown product"}</TableCell>
+                                            <TableCell className="max-w-[16rem]">
+                                                <span className="block truncate" title={sale.productId?.name ?? "Unknown product"}>
+                                                    {sale.productId?.name ?? "Unknown product"}
+                                                </span>
+                                            </TableCell>
                                             <TableCell>{sale.quantity}</TableCell>
                                             <TableCell>{formatRWF(sale.sellingPrice)}</TableCell>
                                             <TableCell>{formatRWF(sale.landedCost)}</TableCell>

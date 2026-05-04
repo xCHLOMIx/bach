@@ -150,8 +150,8 @@ export function NavUser({
       </SidebarMenu>
 
       {showLogoutConfirm && (
-        <div className="fixed inset-0 z-auto flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-lg shadow-lg p-6 max-w-sm mx-4 border border-border">
+        <div className="fixed inset-0 z-auto flex items-center justify-center bg-black/40" onClick={() => setShowLogoutConfirm(false)}>
+          <div className="bg-card rounded-lg shadow-lg p-6 max-w-sm mx-4 border border-border" onClick={(event) => event.stopPropagation()}>
             <h2 className="text-lg font-semibold text-foreground mb-2">
               Log out?
             </h2>

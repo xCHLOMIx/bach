@@ -71,6 +71,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
     const [externalLink, setExternalLink] = React.useState("")
     const [imageFiles, setImageFiles] = React.useState<File[]>([])
     const [draggedImageIndex, setDraggedImageIndex] = React.useState<number | null>(null)
+    const productNameTextareaRef = React.useRef<HTMLTextAreaElement | null>(null)
 
     const isControlledOpen = typeof open === "boolean"
     const isOpen = isControlledOpen ? open : internalOpen
@@ -94,6 +95,17 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
         if (!Number.isFinite(value)) return ""
         return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
     }
+
+    const resizeProductNameTextarea = React.useCallback((element: HTMLTextAreaElement | null) => {
+        if (!element) return
+
+        element.style.height = "auto"
+        element.style.height = `${Math.max(element.scrollHeight, 44)}px`
+    }, [])
+
+    React.useLayoutEffect(() => {
+        resizeProductNameTextarea(productNameTextareaRef.current)
+    }, [name, resizeProductNameTextarea])
 
     const buyingPricePreview = React.useMemo(() => {
         if (!unitPriceForeign || unitPriceForeign.trim() === "") return ""
@@ -304,7 +316,10 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                             <Textarea
                                 id="quick-product-name"
                                 placeholder="Product name"
-                                rows={3}
+                                rows={1}
+                                ref={productNameTextareaRef}
+                                onInput={(event) => resizeProductNameTextarea(event.currentTarget)}
+                                className="min-h-10 resize-none overflow-hidden"
                                 value={name}
                                 onChange={(event) => setName(event.target.value)}
                             />

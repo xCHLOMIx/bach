@@ -712,8 +712,8 @@ export function CategoriesPage() {
             )}
 
             {showBulkDeleteConfirm ? (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-in fade-in duration-200">
-                    <div className="modal-pop-in bg-card rounded-lg shadow-lg w-full max-w-sm border border-border">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-in fade-in duration-200" onClick={() => setShowBulkDeleteConfirm(false)}>
+                    <div className="modal-pop-in bg-card rounded-lg shadow-lg w-full max-w-sm border border-border" onClick={(event) => event.stopPropagation()}>
                         <div className="p-6 space-y-4">
                             <div>
                                 <h2 className="text-lg font-semibold text-foreground">Delete Selected Categories?</h2>
