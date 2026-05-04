@@ -25,6 +25,7 @@ import { calculateBatchProductLandedCosts, convertInternationalExpenseToRwf } fr
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 import { getAllIntendedSellingPrices } from "@/lib/intended-pricing"
 import { cn } from "@/lib/utils"
+import { formatRWF } from "@/lib/utils"
 import { CheckIcon, ChevronLeft, CopyIcon, PackageOpen, Printer, SearchIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -377,20 +378,6 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         return products.filter((product) => selectedIdSet.has(product._id))
     }, [products, selectedProductIds])
     const intendedSellingPricesByProductId = React.useMemo(() => getAllIntendedSellingPrices(products), [products])
-    const totalProfit = React.useMemo(() => {
-        return selectedProducts.reduce((sum, product) => {
-            const preview = allocationPreviewByProductId.get(product._id)
-            const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
-            const landedUnitPrice = preview ? preview.landedCost : baseUnitPrice
-            const intendedSellingPrice = intendedSellingPricesByProductId[product._id]
-
-            if (typeof intendedSellingPrice !== "number") {
-                return sum
-            }
-
-            return sum + ((intendedSellingPrice - landedUnitPrice) * product.quantityInitial)
-        }, 0)
-    }, [allocationPreviewByProductId, intendedSellingPricesByProductId, selectedProducts])
 
     const availableProducts = React.useMemo(() => {
         return products.filter((product) => {
@@ -530,6 +517,21 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
 
         return previewMap
     }, [selectedProducts, parsedCosts])
+
+    const totalProfit = React.useMemo(() => {
+        return selectedProducts.reduce((sum, product) => {
+            const preview = allocationPreviewByProductId.get(product._id)
+            const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
+            const landedUnitPrice = preview ? preview.landedCost : baseUnitPrice
+            const intendedSellingPrice = intendedSellingPricesByProductId[product._id]
+
+            if (typeof intendedSellingPrice !== "number") {
+                return sum
+            }
+
+            return sum + ((intendedSellingPrice - landedUnitPrice) * product.quantityInitial)
+        }, 0)
+    }, [allocationPreviewByProductId, intendedSellingPricesByProductId, selectedProducts])
 
     const refreshProductsOnly = React.useCallback(async () => {
         const [allProducts, assignedProducts] = await Promise.all([
@@ -1079,7 +1081,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             <div className="overflow-hidden rounded-md border print:overflow-visible print:rounded-none print:border-0">
                 <div className="max-h-[calc(100vh-300px)] overflow-x-auto overflow-y-auto print:overflow-visible">
                     <Table className="min-w-275 print:min-w-0 print:w-full print:text-[11px]">
-                        <TableHeader className="sticky top-0 bg-background z-10 print:sticky-none">
+                        <TableHeader className="bg-black/5 sticky top-0 z-1 print:sticky-none">
                             <TableRow>
                                 {columnOrder.map((columnKey) => (
                                     <TableHead
@@ -1139,7 +1141,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         <div className="overflow-hidden rounded-md border print:overflow-visible print:rounded-none print:border-0">
             <div className="max-h-[calc(100vh-300px)] overflow-x-auto overflow-y-auto">
                 <Table className="min-w-275 print:min-w-0 print:w-full print:text-[11px]">
-                    <TableHeader className="sticky top-0 bg-background z-10 print:sticky-none">
+                    <TableHeader className="bg-black/5 sticky top-0 z-1 print:sticky-none">
                         <TableRow>
                             <TableHead className="w-12 text-center">#</TableHead>
                             <TableHead>Product</TableHead>

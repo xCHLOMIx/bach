@@ -1077,12 +1077,11 @@ export function BatchesPage() {
                             <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
                                     <TableHead className="w-12">
-                                        <input
-                                            type="checkbox"
+                                        <Checkbox
                                             className="rounded"
                                             checked={isAllBatchesSelected}
-                                            onChange={(event) => {
-                                                if (event.target.checked) {
+                                            onCheckedChange={(val) => {
+                                                if (val) {
                                                     setSelectedBatchIds(new Set(sortedBatches.map((b) => b._id)))
                                                     return
                                                 }
