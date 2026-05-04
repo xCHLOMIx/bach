@@ -168,7 +168,6 @@ export async function POST(request: NextRequest) {
     name,
     categoryId: categoryId || null,
     batchId: batchIdValue || null,
-    batchName: batchIdValue ? "" : formatPrettyDate(new Date()),
     quantityInitial,
     quantityRemaining: quantityInitial,
     unitPriceForeign,

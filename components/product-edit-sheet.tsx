@@ -90,6 +90,7 @@ export function ProductEditSheet({
     const [draggedEditImageId, setDraggedEditImageId] = React.useState<string | null>(null)
     const [editErrors, setEditErrors] = React.useState<Record<string, string>>({})
     const [isEditSubmitting, setIsEditSubmitting] = React.useState(false)
+    const editProductNameTextareaRef = React.useRef<HTMLTextAreaElement | null>(null)
 
     const [previewImages, setPreviewImages] = React.useState<string[]>([])
     const [previewImageIndex, setPreviewImageIndex] = React.useState(0)
@@ -119,6 +120,17 @@ export function ProductEditSheet({
         if (!Number.isFinite(value)) return ""
         return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
     }
+
+    const resizeEditProductNameTextarea = React.useCallback((element: HTMLTextAreaElement | null) => {
+        if (!element) return
+
+        element.style.height = "auto"
+        element.style.height = `${Math.max(element.scrollHeight, 44)}px`
+    }, [])
+
+    React.useLayoutEffect(() => {
+        resizeEditProductNameTextarea(editProductNameTextareaRef.current)
+    }, [editProductName, resizeEditProductNameTextarea])
 
     const canSubmitEditProduct =
         Boolean(editProductName.trim()) &&
@@ -442,7 +454,10 @@ export function ProductEditSheet({
                             <Textarea
                                 id="edit-name"
                                 placeholder="Product name"
-                                rows={3}
+                                rows={1}
+                                ref={editProductNameTextareaRef}
+                                onInput={(event) => resizeEditProductNameTextarea(event.currentTarget)}
+                                className="min-h-11 resize-none overflow-hidden"
                                 value={editProductName}
                                 onChange={(event) => setEditProductName(event.target.value)}
                             />

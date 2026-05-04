@@ -1871,45 +1871,146 @@ export function ProductsPage() {
 
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
-            <CardHeader className="flex items-center justify-between gap-3">
-                <div>
-                    <CardTitle className="text-2xl font-bold">Products</CardTitle>
-                    <CardDescription>Manage products, stock, and batch assignment</CardDescription>
-                </div>
-                <div className="flex items-center max-md:flex-col gap-2">
-                    <div className="flex rounded-md border p-1">
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant={viewMode === "list" ? "default" : "ghost"}
-                            onClick={() => setViewMode("list")}
-                            aria-label="List view"
-                            title="List view"
-                            className="h-8 gap-1 rounded-sm px-2"
-                        >
-                            <ListIcon className="h-4 w-4" />
-                            <span>List</span>
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant={viewMode === "grid" ? "default" : "ghost"}
-                            onClick={() => setViewMode("grid")}
-                            aria-label="Grid view"
-                            title="Grid view"
-                            className="h-8 gap-1 rounded-sm px-2"
-                        >
-                            <LayoutGridIcon className="h-4 w-4" />
-                            <span>Grid</span>
-                        </Button>
+            <CardHeader className="flex flex-col gap-4  pb-0">
+                <div className="flex justify-between w-full items-center gap-3">
+                    <div className="relative w-full min-w-0 flex-1 sm:max-w-md">
+                        <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            ref={productSearchInputRef}
+                            value={productSearchInput}
+                            onChange={(event) => setProductSearchInput(event.target.value)}
+                            placeholder="Search products"
+                            className="h-12 pr-18 pl-9"
+                        />
+                        {productSearchInput ? (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setProductSearchInput("")
+                                }}
+                                className="absolute right-1 top-1 bottom-1 flex w-10 items-center justify-center rounded-md bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700"
+                            >
+                                <XIcon className="h-4 w-4" />
+                            </button>
+                        ) : (
+                            <KbdGroup className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex">
+                                <Kbd>Ctrl</Kbd>
+                                <Kbd>F</Kbd>
+                            </KbdGroup>
+                        )}
                     </div>
-                    <AddProductSheet
-                        open={isAddProductSheetOpen}
-                        onOpenChange={handleAddProductSheetOpenChange}
-                        onProductCreated={loadProducts}
-                        triggerButton={<Button size={"lg"} className="h-10 px-6">Add Product</Button>}
-                    />
+                    <div className="flex items-center gap-2 max-md:flex-wrap">
+                        <div className="flex rounded-md border p-1">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={viewMode === "list" ? "default" : "ghost"}
+                                onClick={() => setViewMode("list")}
+                                aria-label="List view"
+                                title="List view"
+                                className="h-8 gap-1 rounded-sm px-2"
+                            >
+                                <ListIcon className="h-4 w-4" />
+                                <span>List</span>
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={viewMode === "grid" ? "default" : "ghost"}
+                                onClick={() => setViewMode("grid")}
+                                aria-label="Grid view"
+                                title="Grid view"
+                                className="h-8 gap-1 rounded-sm px-2"
+                            >
+                                <LayoutGridIcon className="h-4 w-4" />
+                                <span>Grid</span>
+                            </Button>
+                        </div>
+                        <AddProductSheet
+                            open={isAddProductSheetOpen}
+                            onOpenChange={handleAddProductSheetOpenChange}
+                            onProductCreated={loadProducts}
+                            triggerButton={<Button size={"lg"} className="h-10 px-6">Add Product</Button>}
+                        />
+                    </div>
                 </div>
+                {/* {selectedProductIds.size > 0 ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span className="font-medium text-primary">{selectedProductIds.size} selected</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-12 px-4"
+                                disabled={isAssigningSelectedToBatch}
+                                loading={isAssigningSelectedToBatch}
+                                loadingText="Adding"
+                                onClick={async () => {
+                                    setSelectedExistingBatchId("")
+                                    setShowAssignBatchConfirm(true)
+                                    setIsAssignBatchInfoLoading(true)
+                                    const selected = products.filter((p) => selectedProductIds.has(p._id))
+                                    const inBatch = selected.filter((p) => Boolean(p.batchId?._id))
+                                    setAssignBatchWarning({
+                                        productsInBatches: inBatch.length,
+                                    })
+                                    setIsAssignBatchInfoLoading(false)
+                                }}
+                            >
+                                Add to Batch
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-12 px-4"
+                                disabled={isAssigningSelectedToCategory}
+                                loading={isAssigningSelectedToCategory}
+                                loadingText="Adding"
+                                onClick={async () => {
+                                    setSelectedExistingCategoryId("")
+                                    setShowAssignCategoryConfirm(true)
+                                    setIsAssignCategoryInfoLoading(true)
+                                    const selected = products.filter((p) => selectedProductIds.has(p._id))
+                                    const inCategory = selected.filter((p) => Boolean(p.categoryId?._id))
+                                    setAssignCategoryWarning({
+                                        productsInCategories: inCategory.length,
+                                    })
+                                    setIsAssignCategoryInfoLoading(false)
+                                }}
+                            >
+                                Add to Category
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-12 px-4"
+                                disabled={selectedProducts.filter((product) => product.quantityRemaining > 0).length === 0}
+                                onClick={() => {
+                                    if (selectedProducts.length === 0) {
+                                        return
+                                    }
+                                    openBulkSaleModalForProducts(selectedProducts)
+                                }}
+                            >
+                                <ShoppingCartIcon className="h-4 w-4" />
+                                Sell Selected
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="destructive"
+                                className="h-12 px-4"
+                                disabled={selectedProducts.length === 0}
+                                onClick={handleDeleteSelectedProduct}
+                            >
+                                <Trash2Icon className="h-4 w-4" />
+                                Delete Selected
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-12 px-4" onClick={() => setSelectedProductIds(new Set())}>Clear Selection</Button>
+                        </div>
+                    </div>
+                ) : null} */}
             </CardHeader>
             <CardContent>
                 {isLoading ? (
@@ -1947,33 +2048,7 @@ export function ProductsPage() {
                     </div>
                 ) : viewMode === "list" ? (
                     <>
-                        <div className="mb-4 flex flex-wrap items-center gap-2">
-                            <div className="relative w-full sm:w-96">
-                                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    ref={productSearchInputRef}
-                                    value={productSearchInput}
-                                    onChange={(event) => setProductSearchInput(event.target.value)}
-                                    placeholder="Search products"
-                                    className="h-12 pr-18 pl-9"
-                                />
-                                {productSearchInput ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setProductSearchInput("")
-                                        }}
-                                        className="absolute right-1 top-1 bottom-1 flex w-10 items-center justify-center rounded-md bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700"
-                                    >
-                                        <XIcon className="h-4 w-4" />
-                                    </button>
-                                ) : (
-                                    <KbdGroup className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:flex">
-                                        <Kbd>Ctrl</Kbd>
-                                        <Kbd>F</Kbd>
-                                    </KbdGroup>
-                                )}
-                            </div>
+                        <div className="mb-4 flex w-full items-center gap-2">
                             <div className="flex w-full items-center gap-2 sm:w-auto">
                                 <h3 className="text-sm text-muted-foreground">Total</h3>
                                 <p className="text-sm font-semibold">{products.length}</p>
@@ -1984,6 +2059,78 @@ export function ProductsPage() {
                                     </>
                                 )}
                             </div>
+                            {selectedProductIds.size > 0 ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-12 px-4"
+                                        disabled={isAssigningSelectedToBatch}
+                                        loading={isAssigningSelectedToBatch}
+                                        loadingText="Adding"
+                                        onClick={async () => {
+                                            setSelectedExistingBatchId("")
+                                            setShowAssignBatchConfirm(true)
+                                            setIsAssignBatchInfoLoading(true)
+                                            const selected = products.filter((p) => selectedProductIds.has(p._id))
+                                            const inBatch = selected.filter((p) => Boolean(p.batchId?._id))
+                                            setAssignBatchWarning({
+                                                productsInBatches: inBatch.length,
+                                            })
+                                            setIsAssignBatchInfoLoading(false)
+                                        }}
+                                    >
+                                        Add to Batch
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-12 px-4"
+                                        disabled={isAssigningSelectedToCategory}
+                                        loading={isAssigningSelectedToCategory}
+                                        loadingText="Adding"
+                                        onClick={async () => {
+                                            setSelectedExistingCategoryId("")
+                                            setShowAssignCategoryConfirm(true)
+                                            setIsAssignCategoryInfoLoading(true)
+                                            const selected = products.filter((p) => selectedProductIds.has(p._id))
+                                            const inCategory = selected.filter((p) => Boolean(p.categoryId?._id))
+                                            setAssignCategoryWarning({
+                                                productsInCategories: inCategory.length,
+                                            })
+                                            setIsAssignCategoryInfoLoading(false)
+                                        }}
+                                    >
+                                        Add to Category
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-12 px-4"
+                                        disabled={selectedProducts.filter((product) => product.quantityRemaining > 0).length === 0}
+                                        onClick={() => {
+                                            if (selectedProducts.length === 0) {
+                                                return
+                                            }
+                                            openBulkSaleModalForProducts(selectedProducts)
+                                        }}
+                                    >
+                                        <ShoppingCartIcon className="h-4 w-4" />
+                                        Sell Selected
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        className="h-12 px-4"
+                                        disabled={selectedProducts.length === 0}
+                                        onClick={handleDeleteSelectedProduct}
+                                    >
+                                        <Trash2Icon className="h-4 w-4" />
+                                        Delete Selected
+                                    </Button>
+                                    <Button size="sm" variant="outline" className="h-12 px-4" onClick={() => setSelectedProductIds(new Set())}>Clear Selection</Button>
+                                </div>
+                            ) : null}
                             <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end sm:ml-auto">
                                 {(filterPriceMin || filterPriceMax || filterCategories.size > 0 || filterBatches.size > 0) && (
                                     <Button
@@ -2145,82 +2292,8 @@ export function ProductsPage() {
                                         <DropdownMenuCheckboxItem checked={visibleColumns.profit} onCheckedChange={(value) => handleColumnVisibilityChange("profit", Boolean(value))}>Profit</DropdownMenuCheckboxItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
-
-                                {selectedProductIds.size > 0 ? (
-                                    <>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-12 px-4"
-                                            disabled={isAssigningSelectedToBatch}
-                                            loading={isAssigningSelectedToBatch}
-                                            loadingText="Adding"
-                                            onClick={async () => {
-                                                setSelectedExistingBatchId("")
-                                                setShowAssignBatchConfirm(true)
-                                                setIsAssignBatchInfoLoading(true)
-                                                const selected = products.filter((p) => selectedProductIds.has(p._id))
-                                                const inBatch = selected.filter((p) => Boolean(p.batchId?._id))
-                                                setAssignBatchWarning({
-                                                    productsInBatches: inBatch.length,
-                                                })
-                                                setIsAssignBatchInfoLoading(false)
-                                            }}
-                                        >
-                                            Add to Batch
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-12 px-4"
-                                            disabled={isAssigningSelectedToCategory}
-                                            loading={isAssigningSelectedToCategory}
-                                            loadingText="Adding"
-                                            onClick={async () => {
-                                                setSelectedExistingCategoryId("")
-                                                setShowAssignCategoryConfirm(true)
-                                                setIsAssignCategoryInfoLoading(true)
-                                                const selected = products.filter((p) => selectedProductIds.has(p._id))
-                                                const inCategory = selected.filter((p) => Boolean(p.categoryId?._id))
-                                                setAssignCategoryWarning({
-                                                    productsInCategories: inCategory.length,
-                                                })
-                                                setIsAssignCategoryInfoLoading(false)
-                                            }}
-                                        >
-                                            Add to Category
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-12 px-4"
-                                            disabled={selectedProducts.filter((product) => product.quantityRemaining > 0).length === 0}
-                                            onClick={() => {
-                                                if (selectedProducts.length === 0) {
-                                                    return
-                                                }
-                                                openBulkSaleModalForProducts(selectedProducts)
-                                            }}
-                                        >
-                                            <ShoppingCartIcon className="h-4 w-4" />
-                                            Sell Selected
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="destructive"
-                                            className="h-12 px-4"
-                                            disabled={selectedProducts.length === 0}
-                                            onClick={handleDeleteSelectedProduct}
-                                        >
-                                            <Trash2Icon className="h-4 w-4" />
-                                            Delete Selected
-                                        </Button>
-                                        <Button size="sm" variant="outline" className="h-12 px-4" onClick={() => setSelectedProductIds(new Set())}>Clear Selection</Button>
-                                    </>
-                                ) : null}
                             </div>
                         </div>
-                        {/* Batch warning now handled in modal, not here */}
                         {showAssignBatchConfirm && (
                             <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 px-4" onClick={() => setShowAssignBatchConfirm(false)}>
                                 <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-950" onClick={(event) => event.stopPropagation()}>
