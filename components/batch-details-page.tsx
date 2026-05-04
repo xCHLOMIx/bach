@@ -377,6 +377,20 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         return products.filter((product) => selectedIdSet.has(product._id))
     }, [products, selectedProductIds])
     const intendedSellingPricesByProductId = React.useMemo(() => getAllIntendedSellingPrices(products), [products])
+    const totalProfit = React.useMemo(() => {
+        return selectedProducts.reduce((sum, product) => {
+            const preview = allocationPreviewByProductId.get(product._id)
+            const baseUnitPrice = product.unitPriceLocalRWF ?? product.purchasePriceRWF
+            const landedUnitPrice = preview ? preview.landedCost : baseUnitPrice
+            const intendedSellingPrice = intendedSellingPricesByProductId[product._id]
+
+            if (typeof intendedSellingPrice !== "number") {
+                return sum
+            }
+
+            return sum + ((intendedSellingPrice - landedUnitPrice) * product.quantityInitial)
+        }, 0)
+    }, [allocationPreviewByProductId, intendedSellingPricesByProductId, selectedProducts])
 
     const availableProducts = React.useMemo(() => {
         return products.filter((product) => {
@@ -1555,22 +1569,8 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
 
                     <div className="flex flex-wrap gap-3">
                         <div className="w-max rounded-md border p-3">
-                            <div className="flex items-center justify-between gap-2">
-                                <p className="text-xs text-muted-foreground">Tracking number</p>
-                                {form.trackingId ? (
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7"
-                                        onClick={copyTrackingNumber}
-                                        aria-label="Copy tracking number"
-                                    >
-                                        <CopyIcon className="h-4 w-4" />
-                                    </Button>
-                                ) : null}
-                            </div>
-                            <p className="mt-2 text-sm font-medium text-foreground">{form.trackingId || "Not set"}</p>
+                            <p className="text-xs text-muted-foreground">Total profit</p>
+                            <p className={cn("mt-2 text-sm font-medium", totalProfit >= 0 ? "text-primary" : "text-destructive")}>{formatRWF(Math.abs(totalProfit))} RWF</p>
                         </div>
                         <div className="w-max rounded-md border p-3">
                             <p className="text-xs text-muted-foreground">Purchase total</p>
@@ -1650,22 +1650,8 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
                         </div>
                     )}
                     <div className="w-max rounded-md border p-3">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs text-muted-foreground">Tracking number</p>
-                            {form.trackingId ? (
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7"
-                                    onClick={copyTrackingNumber}
-                                    aria-label="Copy tracking number"
-                                >
-                                    <CopyIcon className="h-4 w-4" />
-                                </Button>
-                            ) : null}
-                        </div>
-                        <p className="mt-2 text-sm font-medium text-foreground">{form.trackingId || "Not set"}</p>
+                        <p className="text-xs text-muted-foreground">Total profit</p>
+                        <p className={cn("mt-2 text-sm font-medium", totalProfit >= 0 ? "text-primary" : "text-destructive")}>{formatRWF(Math.abs(totalProfit))} RWF</p>
                     </div>
                     <div className="w-max rounded-md border p-3">
                         <p className="text-xs text-muted-foreground">Purchase total</p>
