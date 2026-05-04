@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
     Select,
     SelectContent,
@@ -13,7 +14,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { ImagePlusIcon, PlusIcon, XIcon } from "lucide-react"
+import { Box, Boxes, ImagePlusIcon, PlusIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 import { ProductSheetFrame } from "@/components/product-sheet-frame"
 import { FormattedNumberInput } from "@/components/formatted-number-input"
@@ -21,6 +22,7 @@ import { FormattedNumberInput } from "@/components/formatted-number-input"
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"] as const
 const NO_CATEGORY_VALUE = "__none__"
 const NO_BATCH_VALUE = "__none__"
+type PricingMode = "single" | "multiple"
 
 type AddProductSheetProps = {
     onProductCreated?: () => Promise<void> | void
@@ -71,6 +73,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
     const [externalLink, setExternalLink] = React.useState("")
     const [imageFiles, setImageFiles] = React.useState<File[]>([])
     const [draggedImageIndex, setDraggedImageIndex] = React.useState<number | null>(null)
+    const [unitPriceMode, setUnitPriceMode] = React.useState<PricingMode>("single")
     const productNameTextareaRef = React.useRef<HTMLTextAreaElement | null>(null)
 
     const isControlledOpen = typeof open === "boolean"
@@ -96,11 +99,21 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
         return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
     }
 
+    const parsedQuantityInitial = Number(stripCommas(quantityInitial)) || 0
+    const parsedUnitPriceInput = Number(stripCommas(unitPriceForeign)) || 0
+    const normalizedUnitPrice = React.useMemo(() => {
+        if (unitPriceMode === "multiple" && parsedQuantityInitial > 0) {
+            return parsedUnitPriceInput / parsedQuantityInitial
+        }
+
+        return parsedUnitPriceInput
+    }, [parsedQuantityInitial, parsedUnitPriceInput, unitPriceMode])
+
     const resizeProductNameTextarea = React.useCallback((element: HTMLTextAreaElement | null) => {
         if (!element) return
 
         element.style.height = "auto"
-        element.style.height = `${Math.max(element.scrollHeight, 44)}px`
+        element.style.height = `${Math.max(element.scrollHeight, 38)}px`
     }, [])
 
     React.useLayoutEffect(() => {
@@ -109,10 +122,29 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
 
     const buyingPricePreview = React.useMemo(() => {
         if (!unitPriceForeign || unitPriceForeign.trim() === "") return ""
-        const unit = Number(stripCommas(unitPriceForeign)) || 0
+        const unit = normalizedUnitPrice
         const rate = sourceCurrency === "RWF" ? 1 : Number(stripCommas(exchangeRate)) || 0
         return formatNumber(unit * rate)
-    }, [unitPriceForeign, exchangeRate, sourceCurrency])
+    }, [exchangeRate, normalizedUnitPrice, sourceCurrency, unitPriceForeign])
+
+    const handleUnitPriceModeChange = React.useCallback((nextMode: PricingMode) => {
+        if (nextMode === unitPriceMode) {
+            return
+        }
+
+        const currentValue = Number(stripCommas(unitPriceForeign)) || 0
+        if (parsedQuantityInitial > 0) {
+            const nextValue = nextMode === "multiple" && unitPriceMode === "single"
+                ? currentValue * parsedQuantityInitial
+                : nextMode === "single" && unitPriceMode === "multiple"
+                    ? currentValue / parsedQuantityInitial
+                    : currentValue
+
+            setUnitPriceForeign(formatNumber(nextValue))
+        }
+
+        setUnitPriceMode(nextMode)
+    }, [parsedQuantityInitial, unitPriceForeign, unitPriceMode])
 
     const imagePreviews = React.useMemo(() => {
         const previews = imageFiles.map((file) => URL.createObjectURL(file))
@@ -183,6 +215,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
         setBatchId("")
         setExternalLink("")
         setImageFiles([])
+        setUnitPriceMode("single")
         setErrors({})
     }
 
@@ -242,7 +275,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                 formData.append("categoryId", resolvedCategoryId)
             }
             formData.append("quantityInitial", quantityInitial)
-            formData.append("unitPriceForeign", stripCommas(unitPriceForeign))
+            formData.append("unitPriceForeign", stripCommas(String(normalizedUnitPrice)))
             formData.append("sourceCurrency", sourceCurrency)
             formData.append("exchangeRate", stripCommas(exchangeRate))
             formData.append("externalLink", externalLink)
@@ -307,7 +340,33 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
         >
             {isOpen ? (
                 <div className="grid gap-6 overflow-y-auto">
-                    <div className="grid gap-4 rounded-xl border m-4 p-4">
+                    <div className="grid gap-4 rounded-xl border mx-4 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <h3 className="text-sm font-semibold">Product Details</h3>
+                            <ToggleGroup
+                                type="single"
+                                value={unitPriceMode}
+                                onValueChange={(value) => {
+                                    if (value === "single" || value === "multiple") {
+                                        handleUnitPriceModeChange(value)
+                                    }
+                                }}
+                                variant="outline"
+                                size="sm"
+                                spacing={0}
+                                className="shrink-0"
+                            >
+                                <ToggleGroupItem value="single" aria-label="Single unit pricing" className="gap-1 px-2">
+                                    <Box className="h-3.5 w-3.5" />
+                                    <span>Single</span>
+                                </ToggleGroupItem>
+                                <ToggleGroupItem value="multiple" aria-label="Multiple unit pricing" className="gap-1 px-2">
+                                    <Boxes className="h-3.5 w-3.5" />
+                                    <span>Multiple</span>
+                                </ToggleGroupItem>
+                            </ToggleGroup>
+                        </div>
+
                         <Field>
                             <div className="flex items-center justify-between">
                                 <FieldLabel htmlFor="quick-product-name">Product name</FieldLabel>
@@ -319,7 +378,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                                 rows={1}
                                 ref={productNameTextareaRef}
                                 onInput={(event) => resizeProductNameTextarea(event.currentTarget)}
-                                className="min-h-10 resize-none overflow-hidden"
+                                className="py-2 resize-none overflow-hidden"
                                 value={name}
                                 onChange={(event) => setName(event.target.value)}
                             />
@@ -353,7 +412,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                                         type="text"
                                         inputMode="decimal"
                                         autoComplete="off"
-                                        placeholder="Price"
+                                        placeholder={unitPriceMode === "multiple" ? "Total price" : "Price"}
                                         value={unitPriceForeign}
                                         onValueChange={setUnitPriceForeign}
                                         className="h-11 rounded-r-none border-0 bg-transparent shadow-none focus-visible:border-0 focus-visible:ring-0"
@@ -373,6 +432,11 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                                         </Select>
                                     </div>
                                 </div>
+                                {unitPriceMode === "multiple" ? (
+                                    <p className="text-xs text-muted-foreground">
+                                        {parsedQuantityInitial > 0 ? `${formatNumber(normalizedUnitPrice)} RWF/unit` : "Enter initial stock to calculate per-unit price"}
+                                    </p>
+                                ) : null}
                                 {errors.sourceCurrency ? <FieldError className="text-xs text-destructive">{errors.sourceCurrency}</FieldError> : null}
                             </Field>
 
