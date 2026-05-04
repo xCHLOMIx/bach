@@ -541,7 +541,7 @@ export function ProductEditSheet({
                         <div className="grid gap-4 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
                             <Field>
                                 <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="edit-unit-price">Unit price</FieldLabel>
+                                    <FieldLabel htmlFor="edit-unit-price">{editUnitPriceMode === "multiple" ? "Total price" : "Unit price"}</FieldLabel>
                                     <FieldError className="text-destructive text-xs">{editErrors.unitPriceForeign}</FieldError>
                                 </div>
                                 <div className="flex rounded-lg border border-input bg-background focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">

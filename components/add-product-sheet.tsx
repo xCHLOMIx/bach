@@ -403,7 +403,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                         <div className="grid gap-4 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
                             <Field>
                                 <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="quick-product-unit-price">Unit price</FieldLabel>
+                                    <FieldLabel htmlFor="quick-product-unit-price">{unitPriceMode === "multiple" ? "Total price" : "Unit price"}</FieldLabel>
                                     <FieldError className="text-xs text-destructive">{errors.unitPriceForeign}</FieldError>
                                 </div>
                                 <div className="flex rounded-lg border border-input bg-background focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
