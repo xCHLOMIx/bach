@@ -740,7 +740,7 @@ export default function ProductDetailsPage() {
                     : "-"
                 }
               />
-              <DetailTile label="Initial Stock" value={formatNumber(product.quantityInitial)} />
+              <DetailTile label="Quantity" value={formatNumber(product.quantityInitial)} />
               <DetailTile label="Remaining Stock" value={formatNumber(product.quantityRemaining)} />
               <DetailTile label="Sold" value={formatNumber(soldCount)} />
               <DetailTile

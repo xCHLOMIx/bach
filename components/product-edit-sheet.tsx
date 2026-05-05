@@ -490,7 +490,7 @@ export function ProductEditSheet({
                         <div className="grid gap-4 md:grid-cols-2">
                             <Field>
                                 <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="edit-quantity">Initial stock</FieldLabel>
+                                    <FieldLabel htmlFor="edit-quantity">Quantity</FieldLabel>
                                     <FieldError className="text-destructive text-xs">{editErrors.quantityInitial}</FieldError>
                                 </div>
                                 <Input
@@ -498,7 +498,7 @@ export function ProductEditSheet({
                                     type="text"
                                     inputMode="numeric"
                                     autoComplete="off"
-                                    placeholder="Enter initial stock"
+                                    placeholder="Enter Quantity"
                                     value={editQuantityInitial}
                                     onChange={(event) => setEditQuantityInitial(toIntegerInput(event.target.value))}
                                 />

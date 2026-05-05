@@ -256,7 +256,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (quantityInitial < soldQuantity) {
         return errorResponse(
           {
-            quantityInitial: `Initial stock cannot be less than total sold (${soldQuantity})`,
+            quantityInitial: `Quantity cannot be less than total sold (${soldQuantity})`,
           },
           400
         )

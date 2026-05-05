@@ -353,7 +353,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                         <div className="grid gap-4 md:grid-cols-2">
                             <Field>
                                 <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="quick-product-quantity">Initial stock</FieldLabel>
+                                    <FieldLabel htmlFor="quick-product-quantity">Quantity</FieldLabel>
                                     <FieldError className="text-xs text-destructive">{errors.quantityInitial}</FieldError>
                                 </div>
                                 <Input
@@ -361,7 +361,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                                     type="text"
                                     inputMode="numeric"
                                     autoComplete="off"
-                                    placeholder="Enter initial stock"
+                                    placeholder="Enter Quantity"
                                     value={quantityInitial}
                                     className="h-11"
                                     onChange={(event) => setQuantityInitial(toIntegerInput(event.target.value))}
