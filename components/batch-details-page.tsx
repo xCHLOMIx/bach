@@ -1081,7 +1081,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
             <div className="overflow-hidden rounded-md border print:overflow-visible print:rounded-none print:border-0">
                 <div className="max-h-[calc(100vh-300px)] overflow-x-auto overflow-y-auto print:overflow-visible">
                     <Table className="min-w-275 print:min-w-0 print:w-full print:text-[11px]">
-                        <TableHeader className="bg-black/5 sticky top-0 z-1 print:sticky-none">
+                        <TableHeader className="bg-[#F2F2F2] sticky top-0 z-1 print:sticky-none">
                             <TableRow>
                                 {columnOrder.map((columnKey) => (
                                     <TableHead
@@ -1141,7 +1141,7 @@ export function BatchDetailsPage({ batchId }: { batchId: string }) {
         <div className="overflow-hidden rounded-md border print:overflow-visible print:rounded-none print:border-0">
             <div className="max-h-[calc(100vh-300px)] overflow-x-auto overflow-y-auto">
                 <Table className="min-w-275 print:min-w-0 print:w-full print:text-[11px]">
-                    <TableHeader className="bg-black/5 sticky top-0 z-1 print:sticky-none">
+                    <TableHeader className="bg-[#F2F2F2] sticky top-0 z-1 print:sticky-none">
                         <TableRow>
                             <TableHead className="w-12 text-center">#</TableHead>
                             <TableHead>Product</TableHead>
