@@ -14,7 +14,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Box, Boxes, ChartBarIcon, LayoutDashboardIcon, ListIcon, PinIcon, PinOffIcon } from "lucide-react"
+import { Box, Boxes, ChartBarIcon, LayoutDashboardIcon, Layers3Icon, ListIcon, PinIcon, PinOffIcon } from "lucide-react"
 import Image from "next/image"
 
 type BatchApiItem = {
@@ -54,6 +54,11 @@ const data = {
       url: "/app/batches",
       icon: <Boxes />,
     },
+    // {
+    //   title: "Groups",
+    //   url: "/app/groups",
+    //   icon: <Layers3Icon />,
+    // },
   ],
 }
 

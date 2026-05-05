@@ -1,6 +1,8 @@
 ﻿"use client"
+import * as React from "react"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardAction,
@@ -11,7 +13,7 @@ import {
 } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatRWF } from "@/lib/utils"
-import { TrendingUpIcon, TrendingDownIcon } from "lucide-react"
+import { EyeIcon, EyeOffIcon, TrendingUpIcon, TrendingDownIcon } from "lucide-react"
 
 type SectionCardStats = {
   products: number
@@ -25,6 +27,7 @@ type SectionCardStats = {
 }
 
 export function SectionCards({ stats }: { stats?: SectionCardStats }) {
+  const [showTotalProfit, setShowTotalProfit] = React.useState(false)
   const isLoading = !stats
   const profitTrend = stats?.profitTrend ?? "stable"
   const profitChangePercent = stats?.profitChangePercent ?? 0
@@ -139,13 +142,25 @@ export function SectionCards({ stats }: { stats?: SectionCardStats }) {
         <CardHeader>
           <CardDescription>Total Profit</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {formatRWF(stats?.totalProfit ?? 0)} RWF
+            {showTotalProfit ? `${formatRWF(stats?.totalProfit ?? 0)} RWF` : "******"}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline" className={profitBadgeClass}>
-              <ProfitTrendIcon />
-              {formattedProfitChange}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className={profitBadgeClass}>
+                <ProfitTrendIcon />
+                {formattedProfitChange}
+              </Badge>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setShowTotalProfit((current) => !current)}
+                aria-label={showTotalProfit ? "Hide total profit" : "Show total profit"}
+                title={showTotalProfit ? "Hide total profit" : "Show total profit"}
+              >
+                {showTotalProfit ? <EyeOffIcon /> : <EyeIcon />}
+              </Button>
+            </div>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">

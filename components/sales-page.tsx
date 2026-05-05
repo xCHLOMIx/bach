@@ -23,6 +23,8 @@ import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/
 import { PackageSearchIcon, XIcon } from "lucide-react"
 import { formatRWF } from "@/lib/utils"
 
+const GROUP_SALE_PRODUCT_IDS_KEY = "pending-group-sale-product-ids"
+
 type Sale = {
     _id: string
     quantity: number
@@ -160,6 +162,34 @@ export function SalesPage() {
     React.useEffect(() => {
         void loadProducts()
     }, [loadProducts])
+
+    React.useEffect(() => {
+        if (isLoadingProducts || products.length === 0 || typeof window === "undefined") {
+            return
+        }
+
+        const pendingProductIdsRaw = window.sessionStorage.getItem(GROUP_SALE_PRODUCT_IDS_KEY)
+        if (!pendingProductIdsRaw) {
+            return
+        }
+
+        try {
+            const pendingProductIds = JSON.parse(pendingProductIdsRaw) as string[]
+            const nextProductIds = products
+                .filter((product) => pendingProductIds.includes(product._id) && product.quantityRemaining > 0)
+                .map((product) => product._id)
+
+            if (nextProductIds.length > 0) {
+                setSelectedProductIds(new Set(nextProductIds))
+                setShowNewSaleModal(true)
+                setStep("product")
+            }
+        } catch {
+            // Ignore malformed draft payloads.
+        } finally {
+            window.sessionStorage.removeItem(GROUP_SALE_PRODUCT_IDS_KEY)
+        }
+    }, [isLoadingProducts, products])
 
     const openNewSaleModal = () => {
         setShowNewSaleModal(true)

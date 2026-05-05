@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
     Select,
     SelectContent,
@@ -14,7 +13,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Box, Boxes, ImagePlusIcon, PlusIcon, XIcon } from "lucide-react"
+import { ImagePlusIcon, PlusIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 import { ProductSheetFrame } from "@/components/product-sheet-frame"
 import { FormattedNumberInput } from "@/components/formatted-number-input"
@@ -22,7 +21,6 @@ import { FormattedNumberInput } from "@/components/formatted-number-input"
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"] as const
 const NO_CATEGORY_VALUE = "__none__"
 const NO_BATCH_VALUE = "__none__"
-type PricingMode = "single" | "multiple"
 
 type AddProductSheetProps = {
     onProductCreated?: () => Promise<void> | void
@@ -66,6 +64,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
     const [customCategoryName, setCustomCategoryName] = React.useState("")
     const [quantityInitial, setQuantityInitial] = React.useState("")
     const [unitPriceForeign, setUnitPriceForeign] = React.useState("")
+    const [totalPriceForeign, setTotalPriceForeign] = React.useState("")
     const [intendedSellingPrice, setIntendedSellingPriceInput] = React.useState("")
     const [sourceCurrency, setSourceCurrency] = React.useState<(typeof SOURCE_CURRENCY_OPTIONS)[number]>("USD")
     const [exchangeRate, setExchangeRate] = React.useState("")
@@ -73,7 +72,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
     const [externalLink, setExternalLink] = React.useState("")
     const [imageFiles, setImageFiles] = React.useState<File[]>([])
     const [draggedImageIndex, setDraggedImageIndex] = React.useState<number | null>(null)
-    const [unitPriceMode, setUnitPriceMode] = React.useState<PricingMode>("single")
+    const [activePriceField, setActivePriceField] = React.useState<"unit" | "total">("unit")
     const productNameTextareaRef = React.useRef<HTMLTextAreaElement | null>(null)
 
     const isControlledOpen = typeof open === "boolean"
@@ -101,13 +100,21 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
 
     const parsedQuantityInitial = Number(stripCommas(quantityInitial)) || 0
     const parsedUnitPriceInput = Number(stripCommas(unitPriceForeign)) || 0
+    const parsedTotalPriceInput = Number(stripCommas(totalPriceForeign)) || 0
     const normalizedUnitPrice = React.useMemo(() => {
-        if (unitPriceMode === "multiple" && parsedQuantityInitial > 0) {
-            return parsedUnitPriceInput / parsedQuantityInitial
+        if (activePriceField === "total" && parsedQuantityInitial > 0) {
+            return parsedTotalPriceInput / parsedQuantityInitial
         }
 
         return parsedUnitPriceInput
-    }, [parsedQuantityInitial, parsedUnitPriceInput, unitPriceMode])
+    }, [activePriceField, parsedQuantityInitial, parsedTotalPriceInput, parsedUnitPriceInput])
+    const normalizedTotalPrice = React.useMemo(() => {
+        if (activePriceField === "unit") {
+            return parsedUnitPriceInput * parsedQuantityInitial
+        }
+
+        return parsedTotalPriceInput
+    }, [activePriceField, parsedQuantityInitial, parsedTotalPriceInput, parsedUnitPriceInput])
 
     const resizeProductNameTextarea = React.useCallback((element: HTMLTextAreaElement | null) => {
         if (!element) return
@@ -121,30 +128,11 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
     }, [name, resizeProductNameTextarea])
 
     const buyingPricePreview = React.useMemo(() => {
-        if (!unitPriceForeign || unitPriceForeign.trim() === "") return ""
+        if (!unitPriceForeign && !totalPriceForeign) return ""
         const unit = normalizedUnitPrice
         const rate = sourceCurrency === "RWF" ? 1 : Number(stripCommas(exchangeRate)) || 0
         return formatNumber(unit * rate)
-    }, [exchangeRate, normalizedUnitPrice, sourceCurrency, unitPriceForeign])
-
-    const handleUnitPriceModeChange = React.useCallback((nextMode: PricingMode) => {
-        if (nextMode === unitPriceMode) {
-            return
-        }
-
-        const currentValue = Number(stripCommas(unitPriceForeign)) || 0
-        if (parsedQuantityInitial > 0) {
-            const nextValue = nextMode === "multiple" && unitPriceMode === "single"
-                ? currentValue * parsedQuantityInitial
-                : nextMode === "single" && unitPriceMode === "multiple"
-                    ? currentValue / parsedQuantityInitial
-                    : currentValue
-
-            setUnitPriceForeign(formatNumber(nextValue))
-        }
-
-        setUnitPriceMode(nextMode)
-    }, [parsedQuantityInitial, unitPriceForeign, unitPriceMode])
+    }, [exchangeRate, normalizedUnitPrice, sourceCurrency, totalPriceForeign, unitPriceForeign])
 
     const imagePreviews = React.useMemo(() => {
         const previews = imageFiles.map((file) => URL.createObjectURL(file))
@@ -215,14 +203,16 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
         setBatchId("")
         setExternalLink("")
         setImageFiles([])
-        setUnitPriceMode("single")
+        setUnitPriceForeign("")
+        setTotalPriceForeign("")
+        setActivePriceField("unit")
         setErrors({})
     }
 
     const canSubmit =
         Boolean(name.trim()) &&
         Boolean(quantityInitial.trim()) &&
-        Boolean(unitPriceForeign.trim()) &&
+        Boolean((activePriceField === "unit" ? unitPriceForeign.trim() : totalPriceForeign.trim())) &&
         (sourceCurrency === "RWF" || Boolean(exchangeRate.trim()))
 
     const submit = async () => {
@@ -341,31 +331,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
             {isOpen ? (
                 <div className="grid gap-6 overflow-y-auto">
                     <div className="grid gap-4 rounded-xl border mx-4 p-4">
-                        <div className="flex items-center justify-between gap-3">
-                            <h3 className="text-sm font-semibold">Product Details</h3>
-                            <ToggleGroup
-                                type="single"
-                                value={unitPriceMode}
-                                onValueChange={(value) => {
-                                    if (value === "single" || value === "multiple") {
-                                        handleUnitPriceModeChange(value)
-                                    }
-                                }}
-                                variant="outline"
-                                size="sm"
-                                spacing={0}
-                                className="shrink-0"
-                            >
-                                <ToggleGroupItem value="single" aria-label="Single unit pricing" className="gap-1 px-2">
-                                    <Box className="h-3.5 w-3.5" />
-                                    <span>Single</span>
-                                </ToggleGroupItem>
-                                <ToggleGroupItem value="multiple" aria-label="Multiple unit pricing" className="gap-1 px-2">
-                                    <Boxes className="h-3.5 w-3.5" />
-                                    <span>Multiple</span>
-                                </ToggleGroupItem>
-                            </ToggleGroup>
-                        </div>
+                        <h3 className="text-sm font-semibold">Product Details</h3>
 
                         <Field>
                             <div className="flex items-center justify-between">
@@ -384,80 +350,101 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                             />
                         </Field>
 
-                        <Field>
-                            <div className="flex items-center justify-between">
-                                <FieldLabel htmlFor="quick-product-quantity">Initial stock</FieldLabel>
-                                <FieldError className="text-xs text-destructive">{errors.quantityInitial}</FieldError>
-                            </div>
-                            <Input
-                                id="quick-product-quantity"
-                                type="text"
-                                inputMode="numeric"
-                                autoComplete="off"
-                                placeholder="Enter initial stock"
-                                value={quantityInitial}
-                                onChange={(event) => setQuantityInitial(toIntegerInput(event.target.value))}
-                            />
-                        </Field>
-
-                        <div className="grid gap-4 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+                        <div className="grid gap-4 md:grid-cols-2">
                             <Field>
                                 <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="quick-product-unit-price">{unitPriceMode === "multiple" ? "Total price" : "Unit price"}</FieldLabel>
-                                    <FieldError className="text-xs text-destructive">{errors.unitPriceForeign}</FieldError>
+                                    <FieldLabel htmlFor="quick-product-quantity">Initial stock</FieldLabel>
+                                    <FieldError className="text-xs text-destructive">{errors.quantityInitial}</FieldError>
                                 </div>
-                                <div className="flex rounded-lg border border-input bg-background focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
-                                    <FormattedNumberInput
-                                        id="quick-product-unit-price"
-                                        type="text"
-                                        inputMode="decimal"
-                                        autoComplete="off"
-                                        placeholder={unitPriceMode === "multiple" ? "Total price" : "Price"}
-                                        value={unitPriceForeign}
-                                        onValueChange={setUnitPriceForeign}
-                                        className="h-11 rounded-r-none border-0 bg-transparent shadow-none focus-visible:border-0 focus-visible:ring-0"
-                                    />
-                                    <div className="flex items-center rounded-r-lg border-l border-input bg-muted/30 px-2">
-                                        <Select value={sourceCurrency} onValueChange={(value) => setSourceCurrency(value as (typeof SOURCE_CURRENCY_OPTIONS)[number])}>
-                                            <SelectTrigger id="quick-product-currency" className="h-9 border-0 bg-transparent px-1 shadow-none focus:ring-0">
-                                                <SelectValue placeholder="Currency" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {SOURCE_CURRENCY_OPTIONS.map((currency) => (
-                                                    <SelectItem key={currency} value={currency}>
-                                                        {currency}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                                {unitPriceMode === "multiple" ? (
-                                    <p className="text-xs text-muted-foreground">
-                                        {parsedQuantityInitial > 0 ? `${formatNumber(normalizedUnitPrice)} RWF/unit` : "Enter initial stock to calculate per-unit price"}
-                                    </p>
-                                ) : null}
-                                {errors.sourceCurrency ? <FieldError className="text-xs text-destructive">{errors.sourceCurrency}</FieldError> : null}
+                                <Input
+                                    id="quick-product-quantity"
+                                    type="text"
+                                    inputMode="numeric"
+                                    autoComplete="off"
+                                    placeholder="Enter initial stock"
+                                    value={quantityInitial}
+                                    className="h-11"
+                                    onChange={(event) => setQuantityInitial(toIntegerInput(event.target.value))}
+                                />
                             </Field>
 
                             <Field>
                                 <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="quick-product-exchange-rate">Exchange rate</FieldLabel>
-                                    <FieldError className="text-xs text-destructive">{errors.exchangeRate}</FieldError>
+                                    <FieldLabel htmlFor="quick-product-total-price">Total price</FieldLabel>
+                                    <FieldError className="text-xs text-destructive">{errors.unitPriceForeign}</FieldError>
                                 </div>
                                 <FormattedNumberInput
-                                    id="quick-product-exchange-rate"
+                                    id="quick-product-total-price"
                                     type="text"
                                     inputMode="decimal"
                                     autoComplete="off"
-                                    placeholder={sourceCurrency === "RWF" ? "Rate to RWF" : "Rate to RWF"}
-                                    value={exchangeRate}
-                                    disabled={sourceCurrency === "RWF"}
-                                    onValueChange={setExchangeRate}
-                                    className="h-11"
+                                    placeholder="Total price"
+                                    value={activePriceField === "total" ? totalPriceForeign : formatNumber(normalizedTotalPrice)}
+                                    onFocus={() => setActivePriceField("total")}
+                                    onValueChange={setTotalPriceForeign}
+                                    readOnly={activePriceField !== "total"}
+                                    className={activePriceField === "total"
+                                        ? "h-11 bg-transparent"
+                                        : "h-11 bg-muted/60 text-muted-foreground"}
                                 />
                             </Field>
                         </div>
+
+                        <Field>
+                            <div className="flex items-center justify-between">
+                                <FieldLabel htmlFor="quick-product-unit-price">Unit price</FieldLabel>
+                                <FieldError className="text-xs text-destructive">{errors.unitPriceForeign}</FieldError>
+                            </div>
+                            <div className="flex rounded-lg border border-input bg-background focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+                                <FormattedNumberInput
+                                    id="quick-product-unit-price"
+                                    type="text"
+                                    inputMode="decimal"
+                                    autoComplete="off"
+                                    placeholder="Unit price"
+                                    value={activePriceField === "unit" ? unitPriceForeign : formatNumber(normalizedUnitPrice)}
+                                    onFocus={() => setActivePriceField("unit")}
+                                    onValueChange={setUnitPriceForeign}
+                                    readOnly={activePriceField !== "unit"}
+                                    className={activePriceField === "unit"
+                                        ? "h-11 rounded-r-none border-0 bg-transparent shadow-none focus-visible:border-0 focus-visible:ring-0"
+                                        : "h-11 rounded-r-none border-0 bg-muted/60 text-muted-foreground shadow-none focus-visible:border-0 focus-visible:ring-0"}
+                                />
+                                <div className="flex items-center rounded-r-lg border-l border-input bg-muted/30 px-2">
+                                    <Select value={sourceCurrency} onValueChange={(value) => setSourceCurrency(value as (typeof SOURCE_CURRENCY_OPTIONS)[number])}>
+                                        <SelectTrigger id="quick-product-unit-currency" className="h-9 border-0 bg-transparent px-1 shadow-none focus:ring-0">
+                                            <SelectValue placeholder="Currency" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {SOURCE_CURRENCY_OPTIONS.map((currency) => (
+                                                <SelectItem key={currency} value={currency}>
+                                                    {currency}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            {errors.sourceCurrency ? <FieldError className="text-xs text-destructive">{errors.sourceCurrency}</FieldError> : null}
+                        </Field>
+
+                        <Field>
+                            <div className="flex items-center justify-between">
+                                <FieldLabel htmlFor="quick-product-exchange-rate">Exchange rate</FieldLabel>
+                                <FieldError className="text-xs text-destructive">{errors.exchangeRate}</FieldError>
+                            </div>
+                            <FormattedNumberInput
+                                id="quick-product-exchange-rate"
+                                type="text"
+                                inputMode="decimal"
+                                autoComplete="off"
+                                placeholder={sourceCurrency === "RWF" ? "Rate to RWF" : "Rate to RWF"}
+                                value={exchangeRate}
+                                disabled={sourceCurrency === "RWF"}
+                                onValueChange={setExchangeRate}
+                                className="h-11"
+                            />
+                        </Field>
 
                         <div className="grid gap-4 md:grid-cols-2">
                             <Field>
