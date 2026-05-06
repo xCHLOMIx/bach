@@ -21,6 +21,7 @@ import { FormattedNumberInput } from "@/components/formatted-number-input"
 
 const SOURCE_CURRENCY_OPTIONS = ["USD", "RWF", "CNY", "AED"]
 const NO_CATEGORY_VALUE = "__none__"
+const NO_BATCH_VALUE = "__none__"
 
 type Category = { _id: string; name: string }
 type Batch = { _id: string; batchName: string }
@@ -682,11 +683,12 @@ export function ProductEditSheet({
                                     <FieldError className="text-destructive text-xs">{editErrors.batchId}</FieldError>
                                 </div>
                                 <div className="flex gap-2">
-                                    <Select value={editBatchId} onValueChange={setEditBatchId}>
+                                    <Select value={editBatchId || NO_BATCH_VALUE} onValueChange={(value) => setEditBatchId(value === NO_BATCH_VALUE ? "" : value)}>
                                         <SelectTrigger id="edit-batch" className="w-full">
                                             <SelectValue placeholder="Select batch" />
                                         </SelectTrigger>
                                         <SelectContent>
+                                            <SelectItem value={NO_BATCH_VALUE}>No batch</SelectItem>
                                             {batches.map((batch) => (
                                                 <SelectItem key={batch._id} value={batch._id}>
                                                     {batch.batchName}

@@ -134,6 +134,8 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
         return formatNumber(unit * rate)
     }, [exchangeRate, normalizedUnitPrice, sourceCurrency, totalPriceForeign, unitPriceForeign])
 
+    const hasPriceInput = Boolean(quantityInitial.trim() && (unitPriceForeign.trim() || totalPriceForeign.trim()))
+
     const imagePreviews = React.useMemo(() => {
         const previews = imageFiles.map((file) => URL.createObjectURL(file))
         return previews
@@ -379,7 +381,11 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                                     inputMode="decimal"
                                     autoComplete="off"
                                     placeholder="Total price"
-                                    value={activePriceField === "total" ? totalPriceForeign : formatNumber(normalizedTotalPrice)}
+                                    value={activePriceField === "total"
+                                        ? totalPriceForeign
+                                        : hasPriceInput
+                                            ? formatNumber(normalizedTotalPrice)
+                                            : ""}
                                     onFocus={() => setActivePriceField("total")}
                                     onValueChange={setTotalPriceForeign}
                                     readOnly={activePriceField !== "total"}
@@ -402,7 +408,11 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                                     inputMode="decimal"
                                     autoComplete="off"
                                     placeholder="Unit price"
-                                    value={activePriceField === "unit" ? unitPriceForeign : formatNumber(normalizedUnitPrice)}
+                                    value={activePriceField === "unit"
+                                        ? unitPriceForeign
+                                        : hasPriceInput
+                                            ? formatNumber(normalizedUnitPrice)
+                                            : ""}
                                     onFocus={() => setActivePriceField("unit")}
                                     onValueChange={setUnitPriceForeign}
                                     readOnly={activePriceField !== "unit"}
@@ -455,7 +465,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                                     id="quick-product-buying-price"
                                     className="h-11 flex items-center p-3 bg-muted rounded-md text-muted-foreground"
                                 >
-                                    {buyingPricePreview ? `${buyingPricePreview} RWF` : buyingPricePreview === "" ? "0" : `${buyingPricePreview} RWF`}
+                                    {buyingPricePreview ? `${buyingPricePreview} RWF` : ""}
                                 </div>
                             </Field>
 
