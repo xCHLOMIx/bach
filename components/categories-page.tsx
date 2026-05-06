@@ -668,7 +668,7 @@ export function CategoriesPage() {
                                                 <TableCell>{new Date(category.createdAt).toLocaleDateString()}</TableCell>
                                             )}
                                             {visibleColumns.actions && (
-                                                <TableCell className="flex gap-2 justify-end">
+                                                <TableCell className="flex gap-2">
                                                     {editingId === category._id ? (
                                                         <Button size="sm" onClick={saveEdit} disabled={isEditingCategoryUnchanged}>
                                                             Save
