@@ -70,6 +70,7 @@ const PRODUCTS_VISIBLE_COLUMNS_STORAGE_KEY = "products:visible-columns"
 const PRODUCTS_TABLE_STATE_STORAGE_KEY = "products:table-state"
 const PRODUCTS_COLUMN_ORDER_STORAGE_KEY = "products:column-order"
 const PRODUCTS_DETAIL_RETURN_SEARCH_STORAGE_KEY = "products:detail-return-search"
+const SELECT_BATCH_ASSIGNMENT_VALUE = "__select__"
 const NO_BATCH_ASSIGNMENT_VALUE = "__none__"
 const NO_CATEGORY_ASSIGNMENT_VALUE = "__none__"
 
@@ -1800,17 +1801,50 @@ export function ProductsPage() {
     )
 
     const assignSelectedProductsToExistingBatch = React.useCallback(async () => {
-        if (!selectedExistingBatchId || selectedProductIds.size === 0) {
+        if (selectedProductIds.size === 0) {
             return
         }
+
+        if (!selectedExistingBatchId || selectedExistingBatchId === SELECT_BATCH_ASSIGNMENT_VALUE) {
+            return
+        }
+
+        const selectedIds = Array.from(selectedProductIds)
 
         setIsAssigningSelectedToBatch(true)
 
         try {
+            if (selectedExistingBatchId === NO_BATCH_ASSIGNMENT_VALUE) {
+                const responses = await Promise.all(
+                    selectedIds.map((productId) => {
+                        const formData = new FormData()
+                        formData.append("batchId", "")
+
+                        return fetch(`/api/products/${productId}`, {
+                            method: "PATCH",
+                            body: formData,
+                        })
+                    })
+                )
+
+                const failedResponses = responses.filter((response) => !response.ok)
+                if (failedResponses.length > 0) {
+                    toast.error("Failed to remove some products from batch")
+                    return
+                }
+
+                setSelectedProductIds(new Set())
+                setSelectedExistingBatchId("")
+                await loadProducts(1)
+                setShowAssignBatchConfirm(false)
+                toast.success("Products set to no batch")
+                return
+            }
+
             const response = await fetch(`/api/batches/${selectedExistingBatchId}/products`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ productIds: Array.from(selectedProductIds) }),
+                body: JSON.stringify({ productIds: selectedIds }),
             })
 
             const data = await response.json().catch(() => null)
@@ -2306,14 +2340,15 @@ export function ProductsPage() {
 
                                     <div className="mt-4">
                                         <Select
-                                            value={selectedExistingBatchId || NO_BATCH_ASSIGNMENT_VALUE}
-                                            onValueChange={(value) => setSelectedExistingBatchId(value === NO_BATCH_ASSIGNMENT_VALUE ? "" : value)}
+                                            value={selectedExistingBatchId || SELECT_BATCH_ASSIGNMENT_VALUE}
+                                            onValueChange={setSelectedExistingBatchId}
                                         >
                                             <SelectTrigger className="w-full">
                                                 <SelectValue placeholder="Select batch" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value={NO_BATCH_ASSIGNMENT_VALUE}>Select batch</SelectItem>
+                                                <SelectItem value={SELECT_BATCH_ASSIGNMENT_VALUE}>Select batch</SelectItem>
+                                                <SelectItem value={NO_BATCH_ASSIGNMENT_VALUE}>No batch</SelectItem>
                                                 {batches.map((batch) => (
                                                     <SelectItem key={batch._id} value={batch._id}>
                                                         {batch.batchName}
@@ -2356,7 +2391,12 @@ export function ProductsPage() {
                                             onClick={async () => {
                                                 await assignSelectedProductsToExistingBatch()
                                             }}
-                                            disabled={!selectedExistingBatchId || isAssigningSelectedToBatch || isAssignBatchInfoLoading}
+                                            disabled={
+                                                !selectedExistingBatchId ||
+                                                selectedExistingBatchId === SELECT_BATCH_ASSIGNMENT_VALUE ||
+                                                isAssigningSelectedToBatch ||
+                                                isAssignBatchInfoLoading
+                                            }
                                             loading={isAssigningSelectedToBatch}
                                             loadingText={isAssigningSelectedToBatch ? "Assigning..." : undefined}
                                         >
