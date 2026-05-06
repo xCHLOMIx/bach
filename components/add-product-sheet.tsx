@@ -372,7 +372,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
 
                             <Field>
                                 <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="quick-product-total-price">Total price</FieldLabel>
+                                    <FieldLabel htmlFor="quick-product-total-price">Price all</FieldLabel>
                                     <FieldError className="text-xs text-destructive">{errors.unitPriceForeign}</FieldError>
                                 </div>
                                 <FormattedNumberInput
@@ -380,7 +380,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                                     type="text"
                                     inputMode="decimal"
                                     autoComplete="off"
-                                    placeholder="Total price"
+                                    placeholder="Price all"
                                     value={activePriceField === "total"
                                         ? totalPriceForeign
                                         : hasPriceInput
@@ -395,75 +395,75 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                                 />
                             </Field>
                         </div>
-
-                        <Field>
-                            <div className="flex items-center justify-between">
-                                <FieldLabel htmlFor="quick-product-unit-price">Unit price</FieldLabel>
-                                <FieldError className="text-xs text-destructive">{errors.unitPriceForeign}</FieldError>
-                            </div>
-                            <div className="flex rounded-lg border border-input bg-background focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+                        <div className="grid md:grid-cols-5 gap-3">
+                            <Field className="md:col-span-3">
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="quick-product-unit-price">Unit price</FieldLabel>
+                                    <FieldError className="text-xs text-destructive">{errors.unitPriceForeign}</FieldError>
+                                </div>
+                                <div className="flex rounded-lg border border-input bg-background focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+                                    <FormattedNumberInput
+                                        id="quick-product-unit-price"
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        placeholder="Unit price"
+                                        value={activePriceField === "unit"
+                                            ? unitPriceForeign
+                                            : hasPriceInput
+                                                ? formatNumber(normalizedUnitPrice)
+                                                : ""}
+                                        onFocus={() => setActivePriceField("unit")}
+                                        onValueChange={setUnitPriceForeign}
+                                        readOnly={activePriceField !== "unit"}
+                                        className={activePriceField === "unit"
+                                            ? "h-11 rounded-r-none border-0 bg-transparent shadow-none focus-visible:border-0 focus-visible:ring-0"
+                                            : "h-11 rounded-r-none border-0 bg-muted/60 text-muted-foreground shadow-none focus-visible:border-0 focus-visible:ring-0"}
+                                    />
+                                    <div className="flex items-center rounded-r-lg border-l border-input bg-muted/30 px-2">
+                                        <Select value={sourceCurrency} onValueChange={(value) => setSourceCurrency(value as (typeof SOURCE_CURRENCY_OPTIONS)[number])}>
+                                            <SelectTrigger id="quick-product-unit-currency" className="h-9 border-0 bg-transparent px-1 shadow-none focus:ring-0">
+                                                <SelectValue placeholder="Currency" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {SOURCE_CURRENCY_OPTIONS.map((currency) => (
+                                                    <SelectItem key={currency} value={currency}>
+                                                        {currency}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                {errors.sourceCurrency ? <FieldError className="text-xs text-destructive">{errors.sourceCurrency}</FieldError> : null}
+                            </Field>
+                            <Field className="md:col-span-2">
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="quick-product-exchange-rate">Exchange rate</FieldLabel>
+                                    <FieldError className="text-xs text-destructive">{errors.exchangeRate}</FieldError>
+                                </div>
                                 <FormattedNumberInput
-                                    id="quick-product-unit-price"
+                                    id="quick-product-exchange-rate"
                                     type="text"
                                     inputMode="decimal"
                                     autoComplete="off"
-                                    placeholder="Unit price"
-                                    value={activePriceField === "unit"
-                                        ? unitPriceForeign
-                                        : hasPriceInput
-                                            ? formatNumber(normalizedUnitPrice)
-                                            : ""}
-                                    onFocus={() => setActivePriceField("unit")}
-                                    onValueChange={setUnitPriceForeign}
-                                    readOnly={activePriceField !== "unit"}
-                                    className={activePriceField === "unit"
-                                        ? "h-11 rounded-r-none border-0 bg-transparent shadow-none focus-visible:border-0 focus-visible:ring-0"
-                                        : "h-11 rounded-r-none border-0 bg-muted/60 text-muted-foreground shadow-none focus-visible:border-0 focus-visible:ring-0"}
+                                    placeholder={sourceCurrency === "RWF" ? "Rate to RWF" : "Rate to RWF"}
+                                    value={exchangeRate}
+                                    disabled={sourceCurrency === "RWF"}
+                                    onValueChange={setExchangeRate}
+                                    className="h-11"
                                 />
-                                <div className="flex items-center rounded-r-lg border-l border-input bg-muted/30 px-2">
-                                    <Select value={sourceCurrency} onValueChange={(value) => setSourceCurrency(value as (typeof SOURCE_CURRENCY_OPTIONS)[number])}>
-                                        <SelectTrigger id="quick-product-unit-currency" className="h-9 border-0 bg-transparent px-1 shadow-none focus:ring-0">
-                                            <SelectValue placeholder="Currency" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {SOURCE_CURRENCY_OPTIONS.map((currency) => (
-                                                <SelectItem key={currency} value={currency}>
-                                                    {currency}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            {errors.sourceCurrency ? <FieldError className="text-xs text-destructive">{errors.sourceCurrency}</FieldError> : null}
-                        </Field>
-
-                        <Field>
-                            <div className="flex items-center justify-between">
-                                <FieldLabel htmlFor="quick-product-exchange-rate">Exchange rate</FieldLabel>
-                                <FieldError className="text-xs text-destructive">{errors.exchangeRate}</FieldError>
-                            </div>
-                            <FormattedNumberInput
-                                id="quick-product-exchange-rate"
-                                type="text"
-                                inputMode="decimal"
-                                autoComplete="off"
-                                placeholder={sourceCurrency === "RWF" ? "Rate to RWF" : "Rate to RWF"}
-                                value={exchangeRate}
-                                disabled={sourceCurrency === "RWF"}
-                                onValueChange={setExchangeRate}
-                                className="h-11"
-                            />
-                        </Field>
+                            </Field>
+                        </div>
 
                         <div className="grid gap-4 md:grid-cols-2">
-                            <Field>
+                            <Field className="w-full">
                                 <div className="flex items-center justify-between">
                                     <FieldLabel htmlFor="quick-product-buying-price">Buying price</FieldLabel>
                                 </div>
                                 <div
                                     id="quick-product-buying-price"
-                                    className="h-11 flex items-center p-3 bg-muted rounded-md text-muted-foreground"
+                                    className="h-11 flex items-center p-3 text-wrap max-w-full w-full bg-muted rounded-md text-muted-foreground"
                                 >
                                     {buyingPricePreview ? `${buyingPricePreview} RWF` : ""}
                                 </div>

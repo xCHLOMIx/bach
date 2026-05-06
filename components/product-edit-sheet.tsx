@@ -500,6 +500,7 @@ export function ProductEditSheet({
                                     inputMode="numeric"
                                     autoComplete="off"
                                     placeholder="Enter Quantity"
+                                    className="h-11"
                                     value={editQuantityInitial}
                                     onChange={(event) => setEditQuantityInitial(toIntegerInput(event.target.value))}
                                 />
@@ -507,7 +508,7 @@ export function ProductEditSheet({
 
                             <Field>
                                 <div className="flex items-center justify-between">
-                                    <FieldLabel htmlFor="edit-total-price">Total price</FieldLabel>
+                                    <FieldLabel htmlFor="edit-total-price">Price all</FieldLabel>
                                     <FieldError className="text-destructive text-xs">{editErrors.unitPriceForeign}</FieldError>
                                 </div>
                                 <FormattedNumberInput
@@ -515,7 +516,7 @@ export function ProductEditSheet({
                                     type="text"
                                     inputMode="decimal"
                                     autoComplete="off"
-                                    placeholder="Total price"
+                                    placeholder="Price all"
                                     value={editActivePriceField === "total" ? editTotalPriceForeign : formatNumber(normalizedEditTotalPrice)}
                                     onFocus={() => setEditActivePriceField("total")}
                                     onValueChange={setEditTotalPriceForeign}
@@ -526,63 +527,63 @@ export function ProductEditSheet({
                                 />
                             </Field>
                         </div>
+                        <div className="grid md:grid-cols-5 gap-3">
+                            <Field className="md:col-span-2">
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-unit-price">Unit price</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.unitPriceForeign}</FieldError>
+                                </div>
+                                <div className="flex rounded-lg border border-input bg-background focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+                                    <FormattedNumberInput
+                                        id="edit-unit-price"
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        placeholder="Unit price"
+                                        value={editActivePriceField === "unit" ? editUnitPriceForeign : formatNumber(normalizedEditUnitPrice)}
+                                        onFocus={() => setEditActivePriceField("unit")}
+                                        onValueChange={setEditUnitPriceForeign}
+                                        readOnly={editActivePriceField !== "unit"}
+                                        className={editActivePriceField === "unit"
+                                            ? "h-11 rounded-r-none border-0 bg-transparent shadow-none focus-visible:border-0 focus-visible:ring-0"
+                                            : "h-11 rounded-r-none border-0 bg-muted/60 text-muted-foreground shadow-none focus-visible:border-0 focus-visible:ring-0"}
+                                    />
+                                    <div className="flex items-center rounded-r-lg border-l border-input bg-muted/30 px-2">
+                                        <Select value={editSourceCurrency} onValueChange={setEditSourceCurrency}>
+                                            <SelectTrigger id="edit-unit-currency" className="h-9 border-0 bg-transparent px-1 shadow-none focus:ring-0">
+                                                <SelectValue placeholder="Currency" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {SOURCE_CURRENCY_OPTIONS.map((currency) => (
+                                                    <SelectItem key={currency} value={currency}>
+                                                        {currency}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                {editErrors.sourceCurrency ? <FieldError className="text-destructive text-xs">{editErrors.sourceCurrency}</FieldError> : null}
+                            </Field>
 
-                        <Field>
-                            <div className="flex items-center justify-between">
-                                <FieldLabel htmlFor="edit-unit-price">Unit price</FieldLabel>
-                                <FieldError className="text-destructive text-xs">{editErrors.unitPriceForeign}</FieldError>
-                            </div>
-                            <div className="flex rounded-lg border border-input bg-background focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+                            <Field className="md:col-span-2">
+                                <div className="flex items-center justify-between">
+                                    <FieldLabel htmlFor="edit-exchange-rate">Exchange rate</FieldLabel>
+                                    <FieldError className="text-destructive text-xs">{editErrors.exchangeRate}</FieldError>
+                                </div>
                                 <FormattedNumberInput
-                                    id="edit-unit-price"
+                                    id="edit-exchange-rate"
                                     type="text"
                                     inputMode="decimal"
                                     autoComplete="off"
-                                    placeholder="Unit price"
-                                    value={editActivePriceField === "unit" ? editUnitPriceForeign : formatNumber(normalizedEditUnitPrice)}
-                                    onFocus={() => setEditActivePriceField("unit")}
-                                    onValueChange={setEditUnitPriceForeign}
-                                    readOnly={editActivePriceField !== "unit"}
-                                    className={editActivePriceField === "unit"
-                                        ? "h-11 rounded-r-none border-0 bg-transparent shadow-none focus-visible:border-0 focus-visible:ring-0"
-                                        : "h-11 rounded-r-none border-0 bg-muted/60 text-muted-foreground shadow-none focus-visible:border-0 focus-visible:ring-0"}
+                                    placeholder="Rate to RWF"
+                                    value={editExchangeRate}
+                                    disabled={editSourceCurrency === "RWF"}
+                                    onValueChange={setEditExchangeRate}
+                                    className="h-11"
                                 />
-                                <div className="flex items-center rounded-r-lg border-l border-input bg-muted/30 px-2">
-                                    <Select value={editSourceCurrency} onValueChange={setEditSourceCurrency}>
-                                        <SelectTrigger id="edit-unit-currency" className="h-9 border-0 bg-transparent px-1 shadow-none focus:ring-0">
-                                            <SelectValue placeholder="Currency" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {SOURCE_CURRENCY_OPTIONS.map((currency) => (
-                                                <SelectItem key={currency} value={currency}>
-                                                    {currency}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            {editErrors.sourceCurrency ? <FieldError className="text-destructive text-xs">{editErrors.sourceCurrency}</FieldError> : null}
-                        </Field>
-
-                        <Field>
-                            <div className="flex items-center justify-between">
-                                <FieldLabel htmlFor="edit-exchange-rate">Exchange rate</FieldLabel>
-                                <FieldError className="text-destructive text-xs">{editErrors.exchangeRate}</FieldError>
-                            </div>
-                            <FormattedNumberInput
-                                id="edit-exchange-rate"
-                                type="text"
-                                inputMode="decimal"
-                                autoComplete="off"
-                                placeholder="Rate to RWF"
-                                value={editExchangeRate}
-                                disabled={editSourceCurrency === "RWF"}
-                                onValueChange={setEditExchangeRate}
-                                className="h-11"
-                            />
-                        </Field>
-
+                            </Field>
+                        </div>
                         <div className="grid gap-4 md:grid-cols-2">
                             <Field>
                                 <div className="flex items-center justify-between">
@@ -590,7 +591,7 @@ export function ProductEditSheet({
                                 </div>
                                 <div
                                     id="quick-product-buying-price"
-                                    className="h-11 flex items-center p-3 bg-muted rounded-md text-muted-foreground"
+                                    className="h-11 flex items-center p-3 text-wrap bg-muted rounded-md text-muted-foreground"
                                 >
                                     {buyingPricePreview ? `${buyingPricePreview} RWF` : buyingPricePreview === "" ? "0" : `${buyingPricePreview} RWF`}
                                 </div>
