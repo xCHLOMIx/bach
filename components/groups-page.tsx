@@ -24,6 +24,7 @@ type GroupRow = {
     type: "group" | "product"
     name: string
     productIds: string[]
+    productQuantities?: Record<string, number>
     productCount: number
     batchName: string
     createdAt: string
@@ -241,7 +242,16 @@ export function GroupsPage() {
                     }
                 }}
                 products={groupSheetProducts}
-                group={editingGroup ? { _id: editingGroup._id, name: editingGroup.name, productIds: editingGroup.productIds } : null}
+                group={
+                    editingGroup
+                        ? {
+                            _id: editingGroup._id,
+                            name: editingGroup.name,
+                            productIds: editingGroup.productIds,
+                            productQuantities: editingGroup.productQuantities,
+                        }
+                        : null
+                }
                 onSaved={load}
             />
         </div>

@@ -54,11 +54,11 @@ const data = {
       url: "/app/batches",
       icon: <Boxes />,
     },
-    // {
-    //   title: "Groups",
-    //   url: "/app/groups",
-    //   icon: <Layers3Icon />,
-    // },
+    {
+      title: "Groups",
+      url: "/app/groups",
+      icon: <Layers3Icon />,
+    },
   ],
 }
 

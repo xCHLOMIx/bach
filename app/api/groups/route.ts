@@ -8,20 +8,6 @@ import { GroupModel } from "@/models/Group"
 import { ProductModel } from "@/models/Product"
 import "@/models/Batch"
 
-type GroupRow = {
-  _id: string
-  type: "group" | "product"
-  name: string
-  productIds: string[]
-  productCount: number
-  batchName: string
-  createdAt: string
-  purchaseTotal: number
-  landedCostTotal: number
-  sellingPriceTotal: number
-  profitTotal: number
-}
-
 type GroupProduct = {
   _id: string
   name: string
@@ -33,13 +19,56 @@ type GroupProduct = {
   batchId?: { batchName?: string } | null
 }
 
-function summarizeProducts(products: GroupProduct[]) {
+type GroupItemInput = {
+  productId: string
+  quantity: number
+}
+
+function parseItemsInput(value: unknown): GroupItemInput[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  const itemsByProductId = new Map<string, number>()
+
+  for (const entry of value) {
+    const productId = String((entry as { productId?: unknown })?.productId ?? "").trim()
+    const quantity = Number((entry as { quantity?: unknown })?.quantity)
+    if (!productId) {
+      continue
+    }
+
+    itemsByProductId.set(productId, Math.floor(quantity))
+  }
+
+  return Array.from(itemsByProductId.entries()).map(([productId, quantity]) => ({ productId, quantity }))
+}
+
+function normalizeGroupItems(group: { productIds?: unknown[]; items?: Array<{ productId?: unknown; quantity?: unknown }> }, productsById: Map<string, GroupProduct>) {
+  const explicitItems = parseItemsInput(group.items)
+  if (explicitItems.length > 0) {
+    return explicitItems
+  }
+
+  const productIds = Array.isArray(group.productIds)
+    ? Array.from(new Set(group.productIds.map((id) => String(id))))
+    : []
+
+  return productIds
+    .filter((productId) => productsById.has(productId))
+    .map((productId) => ({
+      productId,
+      quantity: Math.max(0, productsById.get(productId)?.quantityRemaining ?? 0),
+    }))
+}
+
+function summarizeProducts(products: GroupProduct[], quantitiesByProductId: Record<string, number>) {
   const batchNames = Array.from(new Set(products.map((product) => product.batchId?.batchName?.trim()).filter(Boolean) as string[]))
   const batchName = batchNames.length === 0 ? "No batch" : batchNames.length === 1 ? batchNames[0] : "Multiple"
 
-  const purchaseTotal = products.reduce((sum, product) => sum + (product.purchasePriceRWF ?? 0) * Math.max(0, product.quantityRemaining ?? 0), 0)
-  const landedCostTotal = products.reduce((sum, product) => sum + (product.landedCost ?? 0) * Math.max(0, product.quantityRemaining ?? 0), 0)
-  const sellingPriceTotal = products.reduce((sum, product) => sum + (typeof product.intendedSellingPrice === "number" ? product.intendedSellingPrice : 0) * Math.max(0, product.quantityRemaining ?? 0), 0)
+  const purchaseTotal = products.reduce((sum, product) => sum + (product.purchasePriceRWF ?? 0) * Math.max(0, quantitiesByProductId[product._id] ?? 0), 0)
+  const landedCostTotal = products.reduce((sum, product) => sum + (product.landedCost ?? 0) * Math.max(0, quantitiesByProductId[product._id] ?? 0), 0)
+  const sellingPriceTotal = products.reduce((sum, product) => sum + (typeof product.intendedSellingPrice === "number" ? product.intendedSellingPrice : 0) * Math.max(0, quantitiesByProductId[product._id] ?? 0), 0)
 
   return {
     batchName,
@@ -50,17 +79,24 @@ function summarizeProducts(products: GroupProduct[]) {
   }
 }
 
-function mapGroupRows(groups: Array<{ _id: string; name: string; productIds: Types.ObjectId[]; createdAt: Date }>, productsById: Map<string, GroupProduct>) {
+function mapGroupRows(
+  groups: Array<{ _id: string; name: string; productIds: Types.ObjectId[]; items?: Array<{ productId?: unknown; quantity?: unknown }>; createdAt: Date }>,
+  productsById: Map<string, GroupProduct>
+) {
   return groups.map((group) => {
-    const groupProducts = group.productIds
-      .map((productId) => productsById.get(String(productId)))
+    const normalizedItems = normalizeGroupItems(group, productsById)
+    const quantityByProductId = Object.fromEntries(normalizedItems.map((item) => [item.productId, item.quantity]))
+
+    const groupProducts = normalizedItems
+      .map((item) => productsById.get(item.productId))
       .filter(Boolean) as GroupProduct[]
 
-    const summary = summarizeProducts(groupProducts)
+    const summary = summarizeProducts(groupProducts, quantityByProductId)
     return {
       _id: String(group._id),
       type: "group" as const,
       name: group.name,
+      productQuantities: quantityByProductId,
       productIds: groupProducts.map((product) => product._id),
       productCount: groupProducts.length,
       batchName: summary.batchName,
@@ -138,9 +174,14 @@ export async function POST(request: NextRequest) {
   const user = await getAuthorizedUser(request)
   if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
 
-  const body = (await request.json().catch(() => null)) as { name?: string; productIds?: string[] } | null
+  const body = (await request.json().catch(() => null)) as { name?: string; productIds?: string[]; items?: GroupItemInput[] } | null
   const name = String(body?.name ?? "").trim()
-  const productIds = Array.isArray(body?.productIds) ? Array.from(new Set(body.productIds.map((id) => String(id).trim()).filter(Boolean))) : []
+  const parsedItems = parseItemsInput(body?.items)
+  const fallbackProductIds = Array.isArray(body?.productIds) ? Array.from(new Set(body.productIds.map((id) => String(id).trim()).filter(Boolean))) : []
+  const items = parsedItems.length > 0
+    ? parsedItems
+    : fallbackProductIds.map((productId) => ({ productId, quantity: 1 }))
+  const productIds = items.map((item) => item.productId)
 
   const errors: FieldErrors = {}
   if (!name) {
@@ -152,6 +193,9 @@ export async function POST(request: NextRequest) {
   if (productIds.some((id) => !Types.ObjectId.isValid(id))) {
     errors.productIds = "One or more products are invalid"
   }
+  if (items.some((item) => !Number.isInteger(item.quantity) || item.quantity <= 0)) {
+    errors.productIds = "Selected quantities must be whole numbers greater than 0"
+  }
 
   if (Object.keys(errors).length > 0) {
     return errorResponse(errors, 400)
@@ -160,6 +204,15 @@ export async function POST(request: NextRequest) {
   const selectedProducts = await ProductModel.find({ _id: { $in: productIds }, userId: user._id }).lean().exec()
   if (selectedProducts.length !== productIds.length) {
     return errorResponse({ productIds: "One or more products were not found" }, 404)
+  }
+
+  const quantityByProductId = new Map(items.map((item) => [item.productId, item.quantity]))
+  const exceedsAvailable = selectedProducts.some((product) => {
+    const selectedQuantity = quantityByProductId.get(String(product._id)) ?? 0
+    return selectedQuantity > Math.max(0, product.quantityRemaining ?? 0)
+  })
+  if (exceedsAvailable) {
+    return errorResponse({ productIds: "One or more selected quantities exceed available stock" }, 400)
   }
 
   const existingGroups = await GroupModel.find({ userId: user._id }).lean().exec()
@@ -173,6 +226,7 @@ export async function POST(request: NextRequest) {
     userId: user._id,
     name,
     productIds,
+    items,
   })
 
   return successResponse({ group }, 201)
