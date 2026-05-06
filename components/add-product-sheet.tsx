@@ -608,7 +608,7 @@ export function AddProductSheet({ onProductCreated, open, onOpenChange, triggerB
                                         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border bg-background/70 transition-colors group-hover:border-primary/50">
                                             <ImagePlusIcon className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
                                         </div>
-                                        <div className="text-sm font-medium text-foreground">Add main image</div>
+                                        <div className="text-sm font-medium text-foreground">Add image</div>
                                         <div className="text-xs text-muted-foreground">Click to upload</div>
                                         <input
                                             type="file"
