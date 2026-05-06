@@ -86,8 +86,21 @@ export async function GET(request: NextRequest) {
     ProductModel.find({ userId: user._id }).populate("batchId", "batchName").sort({ createdAt: -1 }).lean().exec(),
   ])
 
-  const productsById = new Map<string, GroupProduct>(products.map((product) => [String(product._id), product as GroupProduct]))
-  const groupedProductIds = new Set(groups.flatMap((group) => group.productIds.map((productId) => String(productId))))
+  const productsById = new Map<string, GroupProduct>(products.map((product) => {
+    const gp: GroupProduct = {
+      _id: String(product._id),
+      name: product.name,
+      quantityRemaining: product.quantityRemaining ?? 0,
+      purchasePriceRWF: product.purchasePriceRWF ?? 0,
+      landedCost: product.landedCost ?? 0,
+      intendedSellingPrice: typeof product.intendedSellingPrice === 'number' ? product.intendedSellingPrice : null,
+      createdAt: new Date(product.createdAt as string | Date).toISOString(),
+      batchId: product.batchId ? { batchName: (product.batchId as { batchName?: string }).batchName } : null,
+    }
+
+    return [String(product._id), gp]
+  }))
+  const groupedProductIds = new Set(groups.flatMap((group) => group.productIds.map((productId: unknown) => String(productId))))
 
   const groupRows = mapGroupRows(groups, productsById)
   const standaloneRows = products
@@ -103,7 +116,7 @@ export async function GET(request: NextRequest) {
         name: product.name,
         productIds: [String(product._id)],
         productCount: 1,
-        batchName: product.batchId?.batchName?.trim() || "No batch",
+        batchName: (product.batchId as { batchName?: string } | null)?.batchName?.trim() || "No batch",
         createdAt: new Date(product.createdAt as string | Date).toISOString(),
         purchaseTotal,
         landedCostTotal,
@@ -150,7 +163,7 @@ export async function POST(request: NextRequest) {
   }
 
   const existingGroups = await GroupModel.find({ userId: user._id }).lean().exec()
-  const groupedProductIds = new Set(existingGroups.flatMap((group) => group.productIds.map((id) => String(id))))
+  const groupedProductIds = new Set(existingGroups.flatMap((group) => group.productIds.map((id: unknown) => String(id))))
   const overlapping = productIds.filter((id) => groupedProductIds.has(id))
   if (overlapping.length > 0) {
     return errorResponse({ productIds: "One or more selected products already belong to a group" }, 400)

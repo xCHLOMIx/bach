@@ -77,7 +77,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const otherGroups = await GroupModel.find({ userId: user._id, _id: { $ne: groupId } }).lean().exec()
-    const groupedProductIds = new Set(otherGroups.flatMap((entry) => entry.productIds.map((id) => String(id))))
+    const groupedProductIds = new Set(otherGroups.flatMap((entry) => entry.productIds.map((id: unknown) => String(id))))
     const overlapping = productIds.filter((id) => groupedProductIds.has(id))
     if (overlapping.length > 0) {
       return errorResponse({ productIds: "One or more selected products already belong to a group" }, 400)
