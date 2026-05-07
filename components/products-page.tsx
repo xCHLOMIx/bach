@@ -295,6 +295,7 @@ export function ProductsPage() {
     const [filterPriceMax, setFilterPriceMax] = React.useState("")
     const [filterCategories, setFilterCategories] = React.useState<Set<string>>(new Set())
     const [filterBatches, setFilterBatches] = React.useState<Set<string>>(new Set())
+    const [showOutOfStockProducts, setShowOutOfStockProducts] = React.useState(false)
 
     const openImagePreview = React.useCallback((images: string[], index: number) => {
         if (images.length === 0) {
@@ -1370,6 +1371,10 @@ export function ProductsPage() {
         const parsedPriceMax = filterPriceMax ? Number(stripCommas(filterPriceMax)) : null
 
         const filtered = products.filter((product) => {
+            if (!showOutOfStockProducts && product.quantityRemaining <= 0) {
+                return false
+            }
+
             if (normalizedSearch && !product.name.toLowerCase().includes(normalizedSearch)) {
                 return false
             }
@@ -1438,7 +1443,7 @@ export function ProductsPage() {
         })
 
         return sorted
-    }, [products, sortColumn, sortDirection, productSearch, filterPriceMin, filterPriceMax, filterCategories, filterBatches])
+    }, [products, sortColumn, sortDirection, productSearch, filterPriceMin, filterPriceMax, filterCategories, filterBatches, showOutOfStockProducts])
 
     const paginatedProducts = sortedFilteredProducts
     const selectedProducts = products.filter((product) => selectedProductIds.has(product._id))
@@ -2168,7 +2173,7 @@ export function ProductsPage() {
                                 </div>
                             ) : null}
                             <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end sm:ml-auto">
-                                {(filterPriceMin || filterPriceMax || filterCategories.size > 0 || filterBatches.size > 0) && (
+                                {(filterPriceMin || filterPriceMax || filterCategories.size > 0 || filterBatches.size > 0 || showOutOfStockProducts) && (
                                     <Button
                                         size="sm"
                                         variant="ghost"
@@ -2178,6 +2183,7 @@ export function ProductsPage() {
                                             setFilterPriceMax("")
                                             setFilterCategories(new Set())
                                             setFilterBatches(new Set())
+                                            setShowOutOfStockProducts(false)
                                         }}
                                     >
                                         Clear Filters
@@ -2279,6 +2285,20 @@ export function ProductsPage() {
                                                     )}
                                                 </div>
                                             </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">Stock</label>
+                                                <div className="flex items-center gap-2 rounded-md border p-3">
+                                                    <Checkbox
+                                                        id="show-out-of-stock-products"
+                                                        checked={showOutOfStockProducts}
+                                                        onCheckedChange={(checked) => setShowOutOfStockProducts(Boolean(checked))}
+                                                    />
+                                                    <label htmlFor="show-out-of-stock-products" className="text-sm cursor-pointer">
+                                                        Show out-of-stock products (quantity = 0)
+                                                    </label>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <div className="flex gap-2 border-t pt-6 px-6">
@@ -2290,6 +2310,7 @@ export function ProductsPage() {
                                                     setFilterPriceMax("")
                                                     setFilterCategories(new Set())
                                                     setFilterBatches(new Set())
+                                                    setShowOutOfStockProducts(false)
                                                     setProductSearch("")
                                                     setProductSearchInput("")
                                                 }}
@@ -2541,42 +2562,53 @@ export function ProductsPage() {
                                             </TableRow>
                                         ) : (
                                             paginatedProducts.map((product) => (
-                                                <TableRow
-                                                    key={product._id}
-                                                    className={selectedProductIds.has(product._id) ? "bg-primary/20 text-foreground hover:bg-primary/20 cursor-default" : "hover:bg-muted/40 cursor-default"}
-                                                    onClick={() => {
-                                                        setSelectedProductIds((current) => {
-                                                            const next = new Set(current)
-                                                            if (next.has(product._id)) {
-                                                                next.delete(product._id)
-                                                            } else {
-                                                                next.add(product._id)
-                                                            }
-                                                            return next
-                                                        })
-                                                    }}
-                                                >
-                                                    <TableCell onClick={(e) => e.stopPropagation()} className="p-3">
-                                                        <Checkbox
-                                                            checked={selectedProductIds.has(product._id)}
-                                                            onCheckedChange={(value) => {
-                                                                const newSelected = new Set(selectedProductIds)
-                                                                if (value) {
-                                                                    newSelected.add(product._id)
-                                                                } else {
-                                                                    newSelected.delete(product._id)
-                                                                }
-                                                                setSelectedProductIds(newSelected)
+                                                (() => {
+                                                    const isOutOfStock = product.quantityRemaining <= 0
+
+                                                    return (
+                                                        <TableRow
+                                                            key={product._id}
+                                                            className={cn(
+                                                                selectedProductIds.has(product._id)
+                                                                    ? "bg-primary/20 text-foreground hover:bg-primary/20 cursor-default"
+                                                                    : "hover:bg-muted/40 cursor-default",
+                                                                isOutOfStock && "opacity-60 blur-[1px]"
+                                                            )}
+                                                            onClick={() => {
+                                                                setSelectedProductIds((current) => {
+                                                                    const next = new Set(current)
+                                                                    if (next.has(product._id)) {
+                                                                        next.delete(product._id)
+                                                                    } else {
+                                                                        next.add(product._id)
+                                                                    }
+                                                                    return next
+                                                                })
                                                             }}
-                                                        />
-                                                    </TableCell>
-                                                    {orderedVisibleColumns.map((columnKey) => (
-                                                        <React.Fragment key={`${product._id}-${columnKey}`}>
-                                                            {renderProductColumnCell(product, columnKey)}
-                                                        </React.Fragment>
-                                                    ))}
-                                                    <TableCell onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</TableCell>
-                                                </TableRow>
+                                                        >
+                                                            <TableCell onClick={(e) => e.stopPropagation()} className="p-3">
+                                                                <Checkbox
+                                                                    checked={selectedProductIds.has(product._id)}
+                                                                    onCheckedChange={(value) => {
+                                                                        const newSelected = new Set(selectedProductIds)
+                                                                        if (value) {
+                                                                            newSelected.add(product._id)
+                                                                        } else {
+                                                                            newSelected.delete(product._id)
+                                                                        }
+                                                                        setSelectedProductIds(newSelected)
+                                                                    }}
+                                                                />
+                                                            </TableCell>
+                                                            {orderedVisibleColumns.map((columnKey) => (
+                                                                <React.Fragment key={`${product._id}-${columnKey}`}>
+                                                                    {renderProductColumnCell(product, columnKey)}
+                                                                </React.Fragment>
+                                                            ))}
+                                                            <TableCell onClick={(event) => event.stopPropagation()}>{renderProductActions(product)}</TableCell>
+                                                        </TableRow>
+                                                    )
+                                                })()
                                             ))
                                         )}
                                     </TableBody>
@@ -2601,7 +2633,10 @@ export function ProductsPage() {
                                     return (
                                         <div
                                             key={product._id}
-                                            className="cursor-pointer rounded-lg border bg-card p-4"
+                                            className={cn(
+                                                "cursor-pointer rounded-lg border bg-card p-4",
+                                                product.quantityRemaining <= 0 && "opacity-60 blur-[1px]"
+                                            )}
                                             role="link"
                                             tabIndex={0}
                                             onClick={() => {
