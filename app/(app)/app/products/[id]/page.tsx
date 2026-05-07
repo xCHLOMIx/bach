@@ -73,7 +73,7 @@ function DetailTile({
   emphasis?: boolean
 }) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-muted/30 p-4">
+    <div className={`rounded-2xl ${label == 'On Hand' ? "col-span-2" : ""} border border-border/60 bg-muted/30 p-4`}>
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         {label}
       </p>
@@ -740,8 +740,7 @@ export default function ProductDetailsPage() {
                     : "-"
                 }
               />
-              <DetailTile label="Quantity" value={formatNumber(product.quantityInitial)} />
-              <DetailTile label="Remaining Stock" value={formatNumber(product.quantityRemaining)} />
+              <DetailTile label="On Hand" value={formatNumber(product.quantityRemaining)} />
               <DetailTile label="Sold" value={formatNumber(soldCount)} />
               <DetailTile
                 label="Added"
