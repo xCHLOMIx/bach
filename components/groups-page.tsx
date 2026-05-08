@@ -130,15 +130,31 @@ export function GroupsPage() {
     }, [load])
 
     const groupsOnly = React.useMemo(() => rows.filter((r) => r.type === "group"), [rows])
-    const groupedProductIds = React.useMemo(() => new Set(groupsOnly.flatMap((row) => row.productIds)), [groupsOnly])
-    const groupSheetProducts = React.useMemo(() => {
-        if (!editingGroup) {
-            return products.filter((product) => !groupedProductIds.has(product._id))
+    const groupQuantitiesByProductId = React.useMemo(() => {
+        const nextTotals: Record<string, number> = {}
+
+        for (const row of groupsOnly) {
+            for (const [productId, quantity] of Object.entries(row.productQuantities ?? {})) {
+                nextTotals[productId] = (nextTotals[productId] ?? 0) + Math.max(0, Math.floor(quantity))
+            }
         }
 
-        const allowed = new Set(editingGroup.productIds)
-        return products.filter((product) => !groupedProductIds.has(product._id) || allowed.has(product._id))
-    }, [editingGroup, groupedProductIds, products])
+        return nextTotals
+    }, [groupsOnly])
+
+    const availableQuantitiesByProductId = React.useMemo(() => {
+        const nextAvailable: Record<string, number> = {}
+
+        for (const product of products) {
+            const allocatedQuantity = groupQuantitiesByProductId[product._id] ?? 0
+            const currentGroupQuantity = editingGroup?.productQuantities?.[product._id] ?? 0
+            nextAvailable[product._id] = Math.max(0, (product.quantityRemaining ?? 0) - allocatedQuantity + currentGroupQuantity)
+        }
+
+        return nextAvailable
+    }, [editingGroup, groupQuantitiesByProductId, products])
+
+    const groupSheetProducts = React.useMemo(() => products, [products])
 
     const filteredRows = React.useMemo(() => {
         const query = search.trim().toLowerCase()
@@ -286,7 +302,7 @@ export function GroupsPage() {
                             <p className="text-sm text-muted-foreground">Bundle products together and sell them as one setup.</p>
                         </div>
                     </div>
-                    <Button onClick={openCreateGroup} className="w-full h-12 px-6 lg:w-auto">Create new group</Button>
+                    <Button onClick={openCreateGroup} className="h-12 w-full px-6 lg:w-auto">Create new group</Button>
                 </div>
 
                 <div className="flex items-center gap-2 rounded-xl border bg-background px-3 py-2">
@@ -304,7 +320,7 @@ export function GroupsPage() {
                 <div className="overflow-hidden rounded-xl border">
                     <div className="overflow-x-auto">
                         <Table>
-                            <TableHeader className="bg-[#F2F2F2] sticky top-0 z-1">
+                            <TableHeader className="sticky top-0 z-10 bg-background">
                                 <TableRow>
                                     <TableHead className="w-12"></TableHead>
                                     <TableHead>Name</TableHead>
@@ -322,7 +338,7 @@ export function GroupsPage() {
                                 {isLoading ? (
                                     Array.from({ length: 5 }).map((_, index) => (
                                         <React.Fragment key={index}>
-                                            <TableRow>
+                                            <TableRow className="hover:bg-muted/40">
                                                 <TableCell><Skeleton className="h-4 w-6" /></TableCell>
                                                 <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                                                 <TableCell className="text-right"><Skeleton className="ml-auto h-4 w-10" /></TableCell>
@@ -370,7 +386,7 @@ export function GroupsPage() {
 
                                         return (
                                             <React.Fragment key={row._id}>
-                                                <TableRow>
+                                                <TableRow className="hover:bg-muted/40">
                                                     <TableCell className="w-12">
                                                         {row.type === "group" && (
                                                             <button
@@ -427,7 +443,7 @@ export function GroupsPage() {
                                                                                 <div className="flex-1 min-w-0">
                                                                                     <p className="font-medium text-foreground truncate">{product.name}</p>
                                                                                     <p className="text-xs text-muted-foreground">
-                                                                                        {quantity > 1 ? `${quantity} units in group` : "1 unit in group"} â€¢ Stock: {product.quantityRemaining}
+                                                                                        {quantity > 1 ? `${quantity} units in group` : "1 unit in group"} · Stock: {Math.max(0, availableQuantitiesByProductId[product._id] ?? product.quantityRemaining)}
                                                                                     </p>
                                                                                 </div>
                                                                                 <div className="text-right ml-4">
@@ -575,6 +591,7 @@ export function GroupsPage() {
                     }
                 }}
                 products={groupSheetProducts}
+                availableQuantities={availableQuantitiesByProductId}
                 group={
                     editingGroup
                         ? {

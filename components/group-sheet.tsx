@@ -24,6 +24,7 @@ type GroupSheetProps = {
     open: boolean
     onOpenChange: (open: boolean) => void
     products: GroupProduct[]
+    availableQuantities?: Record<string, number>
     group?: {
         _id: string
         name: string
@@ -37,7 +38,7 @@ function formatTotal(value: number) {
     return `${formatRWF(value)} RWF`
 }
 
-export function GroupSheet({ open, onOpenChange, products, group, onSaved }: GroupSheetProps) {
+export function GroupSheet({ open, onOpenChange, products, availableQuantities, group, onSaved }: GroupSheetProps) {
     const [name, setName] = React.useState("")
     const [search, setSearch] = React.useState("")
     const [selectedProductIds, setSelectedProductIds] = React.useState<Set<string>>(new Set())
@@ -62,7 +63,7 @@ export function GroupSheet({ open, onOpenChange, products, group, onSaved }: Gro
                 continue
             }
 
-            const maxQuantity = Math.max(0, product.quantityRemaining ?? 0)
+            const maxQuantity = Math.max(0, availableQuantities?.[product._id] ?? product.quantityRemaining ?? 0)
             const savedQuantity = group?.productQuantities?.[product._id]
             const baseQuantity = typeof savedQuantity === "number" ? savedQuantity : 1
             nextQuantities[product._id] = maxQuantity > 0 ? Math.min(maxQuantity, Math.max(1, Math.floor(baseQuantity))) : 0
@@ -73,15 +74,20 @@ export function GroupSheet({ open, onOpenChange, products, group, onSaved }: Gro
         setSelectedQuantities(nextQuantities)
         setSelectedQuantityInputs(nextQuantityInputs)
         setErrors({})
-    }, [group, open, products])
+    }, [availableQuantities, group, open, products])
 
     const visibleProducts = React.useMemo(() => {
         const query = search.trim().toLowerCase()
         return products.filter((product) => {
+            const availableQuantity = Math.max(0, availableQuantities?.[product._id] ?? product.quantityRemaining ?? 0)
+            const isSelected = selectedProductIds.has(product._id)
+
+            if (availableQuantity === 0 && !isSelected) return false
+
             if (!query) return true
             return [product.name, product.batchId?.batchName ?? ""].join(" ").toLowerCase().includes(query)
         })
-    }, [products, search])
+    }, [availableQuantities, products, search, selectedProductIds])
 
     const selectedCount = selectedProductIds.size
 
@@ -135,7 +141,7 @@ export function GroupSheet({ open, onOpenChange, products, group, onSaved }: Gro
 
         const selectedItems = Array.from(selectedProductIds).map((productId) => {
             const product = products.find((entry) => entry._id === productId)
-            const maxQuantity = Math.max(0, product?.quantityRemaining ?? 0)
+            const maxQuantity = Math.max(0, availableQuantities?.[productId] ?? product?.quantityRemaining ?? 0)
             const quantity = Math.floor(selectedQuantities[productId] ?? 0)
             return { productId, quantity, maxQuantity }
         })
@@ -221,7 +227,7 @@ export function GroupSheet({ open, onOpenChange, products, group, onSaved }: Gro
                                 <div className="divide-y divide-border">
                                     {visibleProducts.map((product) => {
                                         const isSelected = selectedProductIds.has(product._id)
-                                        const availableQuantity = Math.max(0, product.quantityRemaining ?? 0)
+                                        const availableQuantity = Math.max(0, availableQuantities?.[product._id] ?? product.quantityRemaining ?? 0)
                                         const selectedQuantity = selectedQuantities[product._id] ?? 1
                                         const quantity = Math.min(availableQuantity, Math.max(0, selectedQuantity))
                                         const groupValue = (product.purchasePriceRWF ?? 0) * quantity

@@ -4,6 +4,7 @@ import { Types } from "mongoose"
 import { connectToDatabase } from "@/lib/db"
 import { errorResponse, successResponse, type FieldErrors } from "@/lib/api"
 import { getAuthorizedUser } from "@/lib/auth-guard"
+import { GroupModel } from "@/models/Group"
 import { ProductModel } from "@/models/Product"
 import { SaleModel } from "@/models/Sale"
 
@@ -86,6 +87,18 @@ export async function POST(request: NextRequest) {
 
   product.quantityRemaining -= quantity
   await product.save()
+
+  if (product.quantityRemaining <= 0) {
+    await GroupModel.updateMany(
+      { userId: user._id, productIds: product._id },
+      {
+        $pull: {
+          productIds: product._id,
+          items: { productId: product._id },
+        },
+      }
+    )
+  }
 
   // Populate the sale in memory instead of fetching again
   const hydratedSale = {

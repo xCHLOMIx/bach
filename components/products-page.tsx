@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { WarningPanel } from "@/components/ui/warning-panel"
 import {
     Select,
     SelectContent,
@@ -240,6 +241,7 @@ export function ProductsPage() {
     const [saleProductSearch, setSaleProductSearch] = React.useState("")
     const [saleErrors, setSaleErrors] = React.useState<Record<string, string>>({})
     const [isSaleSubmitting, setIsSaleSubmitting] = React.useState(false)
+    const [saleLinkedGroupNames, setSaleLinkedGroupNames] = React.useState<string[]>([])
 
     const [editProductId, setEditProductId] = React.useState("")
     const [editProductName, setEditProductName] = React.useState("")
@@ -955,6 +957,7 @@ export function ProductsPage() {
         setSaleStep("product")
         setSaleMode("single")
         setSaleSelectedProduct(null)
+        setSaleLinkedGroupNames([])
         setSaleQuantity("")
         setSalePrice("")
         setBulkSaleRows([])
@@ -1167,6 +1170,7 @@ export function ProductsPage() {
             }
 
             toast.success("Sale recorded")
+            setSaleLinkedGroupNames([])
 
             setShowSaleModal(false)
             resetSaleDraft()
@@ -1183,6 +1187,38 @@ export function ProductsPage() {
         setSaleStep("details")
         setSaleErrors({})
     }
+
+    React.useEffect(() => {
+        if (!showSaleModal || saleMode !== "single" || saleStep !== "details" || !saleSelectedProduct) {
+            setSaleLinkedGroupNames([])
+            return
+        }
+
+        const controller = new AbortController()
+
+        void (async () => {
+            try {
+                const response = await fetch("/api/groups", { signal: controller.signal, cache: "no-store" })
+                if (!response.ok) {
+                    setSaleLinkedGroupNames([])
+                    return
+                }
+
+                const data = await response.json()
+                const linkedGroups = Array.isArray(data.rows)
+                    ? data.rows.filter((row: { type?: string; productIds?: string[]; name?: string }) => row.type === "group" && Array.isArray(row.productIds) && row.productIds.includes(saleSelectedProduct._id))
+                    : []
+
+                setSaleLinkedGroupNames(linkedGroups.map((row: { name?: string }) => row.name ?? "").filter(Boolean))
+            } catch (error) {
+                if ((error as Error).name !== "AbortError") {
+                    setSaleLinkedGroupNames([])
+                }
+            }
+        })()
+
+        return () => controller.abort()
+    }, [saleMode, saleSelectedProduct, saleStep, showSaleModal])
 
     const submitEditProduct = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -2805,6 +2841,13 @@ export function ProductsPage() {
                                             Available quantity: <span className="font-semibold text-foreground">{saleAvailableQuantity}</span>
                                         </p>
                                     </div>
+
+                                    {saleLinkedGroupNames.length > 0 ? (
+                                        <WarningPanel title="Group warning" className="mb-4">
+                                            This product is part of {saleLinkedGroupNames.length} group{saleLinkedGroupNames.length === 1 ? "" : "s"}.
+                                            If this sale uses up the stock, it will be removed from those group{saleLinkedGroupNames.length === 1 ? "" : "s"}.
+                                        </WarningPanel>
+                                    ) : null}
 
                                     <div className="space-y-4 mb-6">
                                         <div>

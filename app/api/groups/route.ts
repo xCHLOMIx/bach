@@ -44,6 +44,29 @@ function parseItemsInput(value: unknown): GroupItemInput[] {
   return Array.from(itemsByProductId.entries()).map(([productId, quantity]) => ({ productId, quantity }))
 }
 
+function buildAllocatedQuantitiesByProductId(groups: Array<{ _id: unknown; productIds?: unknown[]; items?: Array<{ productId?: unknown; quantity?: unknown }> }>, excludeGroupId?: string) {
+  const totals = new Map<string, number>()
+
+  for (const group of groups) {
+    if (excludeGroupId !== undefined && String(group._id) === excludeGroupId) {
+      continue
+    }
+
+    const groupItems = parseItemsInput(group.items)
+    const normalizedItems = groupItems.length > 0
+      ? groupItems
+      : Array.isArray(group.productIds)
+        ? Array.from(new Set(group.productIds.map((id) => String(id).trim()).filter(Boolean))).map((productId) => ({ productId, quantity: 1 }))
+        : []
+
+    for (const item of normalizedItems) {
+      totals.set(item.productId, (totals.get(item.productId) ?? 0) + Math.max(0, Math.floor(item.quantity)))
+    }
+  }
+
+  return totals
+}
+
 function normalizeGroupItems(group: { productIds?: unknown[]; items?: Array<{ productId?: unknown; quantity?: unknown }> }, productsById: Map<string, GroupProduct>) {
   const explicitItems = parseItemsInput(group.items)
   if (explicitItems.length > 0) {
@@ -201,25 +224,21 @@ export async function POST(request: NextRequest) {
     return errorResponse(errors, 400)
   }
 
+  const existingGroups = await GroupModel.find({ userId: user._id }).lean().exec()
   const selectedProducts = await ProductModel.find({ _id: { $in: productIds }, userId: user._id }).lean().exec()
   if (selectedProducts.length !== productIds.length) {
     return errorResponse({ productIds: "One or more products were not found" }, 404)
   }
 
   const quantityByProductId = new Map(items.map((item) => [item.productId, item.quantity]))
+  const allocatedQuantities = buildAllocatedQuantitiesByProductId(existingGroups)
   const exceedsAvailable = selectedProducts.some((product) => {
     const selectedQuantity = quantityByProductId.get(String(product._id)) ?? 0
-    return selectedQuantity > Math.max(0, product.quantityRemaining ?? 0)
+    const allocatedQuantity = allocatedQuantities.get(String(product._id)) ?? 0
+    return selectedQuantity > Math.max(0, (product.quantityRemaining ?? 0) - allocatedQuantity)
   })
   if (exceedsAvailable) {
     return errorResponse({ productIds: "One or more selected quantities exceed available stock" }, 400)
-  }
-
-  const existingGroups = await GroupModel.find({ userId: user._id }).lean().exec()
-  const groupedProductIds = new Set(existingGroups.flatMap((group) => group.productIds.map((id: unknown) => String(id))))
-  const overlapping = productIds.filter((id) => groupedProductIds.has(id))
-  if (overlapping.length > 0) {
-    return errorResponse({ productIds: "One or more selected products already belong to a group" }, 400)
   }
 
   const group = await GroupModel.create({
