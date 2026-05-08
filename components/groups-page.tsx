@@ -1,6 +1,7 @@
 ﻿"use client"
 
 import * as React from "react"
+import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -84,6 +85,14 @@ export function GroupsPage() {
     const [isSaving, setIsSaving] = React.useState(false)
 
     const stripCommas = (value: string) => value.replace(/,/g, "")
+
+    const buildProductDetailsHref = React.useCallback((productId: string) => {
+        const returnTo = "/app/groups"
+        const detailParams = new URLSearchParams()
+        detailParams.set("returnTo", returnTo)
+
+        return `/app/products/${productId}?${detailParams.toString()}`
+    }, [])
 
     const formatDecimalWithCommas = (value: string) => {
         if (!value) {
@@ -368,7 +377,7 @@ export function GroupsPage() {
                 <div className="overflow-hidden rounded-xl border">
                     <div className="min-w-245 overflow-x-auto overflow-y-auto max-h-[calc(100vh-300px)]">
                         <Table>
-                            <TableHeader className="sticky top-0 z-10 bg-background">
+                            <TableHeader className="sticky top-0 z-1 bg-background">
                                 <TableRow className="bg-muted hover:bg-muted">
                                     <TableHead className="w-12"></TableHead>
                                     <TableHead>Name</TableHead>
@@ -491,7 +500,12 @@ export function GroupsPage() {
                                                                         return (
                                                                             <div key={product._id} className="flex items-center justify-between p-3 bg-background rounded-lg border border-border/50">
                                                                                 <div className="flex-1 min-w-0">
-                                                                                    <p className="font-medium text-foreground truncate">{product.name}</p>
+                                                                                    <Link
+                                                                                        href={buildProductDetailsHref(product._id)}
+                                                                                        className="font-medium text-foreground truncate hover:underline"
+                                                                                    >
+                                                                                        {product.name}
+                                                                                    </Link>
                                                                                     <p className="text-xs text-muted-foreground">
                                                                                         {quantity > 1 ? `${quantity} units in group` : "1 unit in group"} · Stock: {Math.max(0, availableQuantitiesByProductId[product._id] ?? product.quantityRemaining)}
                                                                                     </p>
