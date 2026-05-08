@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Empty, EmptyHeader, EmptyContent, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
+import { WarningPanel } from "@/components/ui/warning-panel"
 import {
     Table,
     TableBody,
@@ -16,7 +17,7 @@ import {
 } from "@/components/ui/table"
 import { GroupSheet } from "@/components/group-sheet"
 import { formatRWF } from "@/lib/utils"
-import { Layers3Icon, SearchIcon, PencilIcon, ShoppingCartIcon, ChevronDownIcon, ChevronRightIcon, XIcon } from "lucide-react"
+import { Layers3Icon, SearchIcon, PencilIcon, ShoppingCartIcon, ChevronDownIcon, ChevronRightIcon, XIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 
 type GroupRow = {
@@ -74,6 +75,9 @@ export function GroupsPage() {
     const [expandedGroupIds, setExpandedGroupIds] = React.useState<Set<string>>(new Set())
     const [sellModalOpen, setSellModalOpen] = React.useState(false)
     const [sellModalGroup, setSellModalGroup] = React.useState<GroupRow | null>(null)
+    const [deleteModalOpen, setDeleteModalOpen] = React.useState(false)
+    const [deletingGroup, setDeletingGroup] = React.useState<GroupRow | null>(null)
+    const [isDeletingGroup, setIsDeletingGroup] = React.useState(false)
     const [bulkSaleRows, setBulkSaleRows] = React.useState<BulkSaleRow[]>([])
     const [bulkSaleRowErrors, setBulkSaleRowErrors] = React.useState<BulkSaleRowErrors>({})
     const [bulkSaleGeneralError, setBulkSaleGeneralError] = React.useState("")
@@ -211,6 +215,50 @@ export function GroupsPage() {
         setSellModalOpen(true)
     }
 
+    const openDeleteModal = (group: GroupRow) => {
+        setDeletingGroup(group)
+        setDeleteModalOpen(true)
+    }
+
+    const closeDeleteModal = () => {
+        if (isDeletingGroup) {
+            return
+        }
+
+        setDeleteModalOpen(false)
+        setDeletingGroup(null)
+    }
+
+    const handleDeleteGroup = async () => {
+        if (!deletingGroup || isDeletingGroup) {
+            return
+        }
+
+        setIsDeletingGroup(true)
+        try {
+            const response = await fetch(`/api/groups/${deletingGroup._id}`, {
+                method: "DELETE",
+            })
+
+            if (!response.ok) {
+                const data = await response.json().catch(() => null)
+                toast.error(data?.errors?.general ?? "Failed to delete group")
+                return
+            }
+
+            toast.success("Group deleted")
+            setDeleteModalOpen(false)
+            setDeletingGroup(null)
+            if (editingGroup?._id === deletingGroup._id) {
+                setEditingGroup(null)
+                setIsGroupSheetOpen(false)
+            }
+            await load()
+        } finally {
+            setIsDeletingGroup(false)
+        }
+    }
+
     const handleSaveSale = async () => {
         setIsSaving(true)
         setBulkSaleRowErrors({})
@@ -318,10 +366,10 @@ export function GroupsPage() {
 
             <div className="px-4 lg:px-6">
                 <div className="overflow-hidden rounded-xl border">
-                    <div className="overflow-x-auto">
+                    <div className="min-w-245 overflow-x-auto overflow-y-auto max-h-[calc(100vh-300px)]">
                         <Table>
                             <TableHeader className="sticky top-0 z-10 bg-background">
-                                <TableRow>
+                                <TableRow className="bg-muted hover:bg-muted">
                                     <TableHead className="w-12"></TableHead>
                                     <TableHead>Name</TableHead>
                                     <TableHead className="text-right">Products</TableHead>
@@ -427,6 +475,10 @@ export function GroupsPage() {
                                                                 <ShoppingCartIcon className="size-4" />
                                                                 Sell all
                                                             </Button>
+                                                            <Button type="button" variant="destructive" size="sm" onClick={() => openDeleteModal(row)}>
+                                                                <Trash2Icon className="size-4" />
+                                                                Delete
+                                                            </Button>
                                                         </div>
                                                     </TableCell>
                                                 </TableRow>
@@ -467,6 +519,45 @@ export function GroupsPage() {
                     </div>
                 </div>
             </div>
+
+            {deleteModalOpen && deletingGroup ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-in fade-in duration-200" onClick={closeDeleteModal}>
+                    <div className="modal-pop-in bg-card rounded-lg shadow-lg w-full max-w-md border border-border" onClick={(event) => event.stopPropagation()}>
+                        <div className="p-6">
+                            <div className="mb-4 flex items-center justify-between">
+                                <h2 className="text-lg font-semibold text-foreground">Delete group</h2>
+                                <button
+                                    type="button"
+                                    onClick={closeDeleteModal}
+                                    className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                    aria-label="Close delete modal"
+                                >
+                                    <XIcon className="h-4 w-4" />
+                                </button>
+                            </div>
+
+                            <div className="mb-4">
+                                <p className="text-sm text-muted-foreground">
+                                    This will delete <span className="font-semibold text-foreground">{deletingGroup.name}</span>.
+                                </p>
+                            </div>
+
+                            <WarningPanel title="Warning" className="mb-6">
+                                Deleting a group does not delete the products inside it. It only removes the group record.
+                            </WarningPanel>
+
+                            <div className="flex gap-3">
+                                <Button variant="outline" onClick={closeDeleteModal} className="flex-1" disabled={isDeletingGroup}>
+                                    Cancel
+                                </Button>
+                                <Button variant="destructive" onClick={handleDeleteGroup} className="flex-1" loading={isDeletingGroup} loadingText="Deleting group">
+                                    Delete group
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
 
             {sellModalOpen && (
                 <div
