@@ -427,7 +427,7 @@ export function GroupsPage() {
                                     </TableRow>
                                 ) : (
                                     filteredRows.map((row) => {
-                                        const isExpanded = expandedGroupIds.has(row._id)
+                                        const isExpanded = !expandedGroupIds.has(row._id)
                                         const groupProducts = row.productIds
                                             .map((productId) => productsById.get(productId))
                                             .filter(Boolean) as GroupProduct[]
@@ -442,11 +442,9 @@ export function GroupsPage() {
                                                                 className="p-1 hover:bg-muted rounded-md transition-colors"
                                                                 aria-label={isExpanded ? "Collapse" : "Expand"}
                                                             >
-                                                                {isExpanded ? (
-                                                                    <ChevronDownIcon className="size-4" />
-                                                                ) : (
-                                                                    <ChevronRightIcon className="size-4" />
-                                                                )}
+                                                                <ChevronDownIcon
+                                                                    className={`size-4 transition-transform duration-200 ${isExpanded ? "rotate-0" : "-rotate-90"}`}
+                                                                />
                                                             </button>
                                                         )}
                                                     </TableCell>
