@@ -930,8 +930,8 @@ export function BatchesPage() {
 
             {isLoading ? (
                 <div className="overflow-hidden rounded-xl border">
-                    <div className="min-w-200 overflow-x-auto">
-                        <Table>
+                    <div className="w-full overflow-x-auto">
+                        <Table className="min-w-200">
                             <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
                                     <TableHead className="w-12">
@@ -1072,8 +1072,8 @@ export function BatchesPage() {
                 </Empty>
             ) : (
                 <div className="overflow-hidden rounded-xl border">
-                    <div className="min-w-200 overflow-x-auto">
-                        <Table>
+                    <div className="w-full overflow-x-auto">
+                        <Table className="min-w-200">
                             <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
                                     <TableHead className="w-12">

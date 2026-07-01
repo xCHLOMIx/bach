@@ -521,8 +521,8 @@ export function CategoriesPage() {
 
             {isLoading ? (
                 <div className="overflow-hidden rounded-xl border">
-                    <div className="min-w-160 overflow-x-auto">
-                        <Table>
+                    <div className="w-full overflow-x-auto">
+                        <Table className="min-w-160">
                             <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
                                     <TableHead className="w-12">
@@ -559,8 +559,8 @@ export function CategoriesPage() {
                 </div>
             ) : (
                 <div className="overflow-hidden rounded-xl border">
-                    <div className="min-w-160 overflow-x-auto">
-                        <Table>
+                    <div className="w-full overflow-x-auto">
+                        <Table className="min-w-160">
                             <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
                                     <TableHead className="w-12">

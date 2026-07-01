@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import * as React from "react"
 import Link from "next/link"
@@ -375,8 +375,8 @@ export function GroupsPage() {
 
             <div className="px-4 lg:px-6">
                 <div className="overflow-hidden rounded-xl border">
-                    <div className="min-w-245 overflow-x-auto overflow-y-auto max-h-[calc(100vh-300px)]">
-                        <Table>
+                    <div className="w-full overflow-x-auto overflow-y-auto max-h-[calc(100vh-300px)]">
+                        <Table className="min-w-245">
                             <TableHeader className="sticky top-0 z-1 bg-background">
                                 <TableRow className="bg-muted hover:bg-muted">
                                     <TableHead className="w-12"></TableHead>
