@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
   const sortDirection = String(searchParams.get("sortDirection") ?? "asc") as "asc" | "desc"
 
   // Build filter object
-  const filter: Record<string, unknown> = { userId: user._id }
+  const filter: Record<string, unknown> = { userId: user.workspaceId }
 
   // Search filter
   if (search) {
@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
   }
 
   const product = await ProductModel.create({
-    userId: user._id,
+    userId: user.workspaceId,
     name,
     categoryId: categoryId || null,
     batchId: batchIdValue || null,

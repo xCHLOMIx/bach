@@ -83,14 +83,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const [product, soldAggregation] = await Promise.all([
-    ProductModel.findOne({ _id: productId, userId: user._id })
+    ProductModel.findOne({ _id: productId, userId: user.workspaceId })
       .populate("categoryId", "name")
       .populate("batchId", "batchName")
       .lean(),
     SaleModel.aggregate<{ totalSold: number }>([
       {
         $match: {
-          userId: user._id,
+          userId: user.workspaceId,
           productId: new Types.ObjectId(productId),
         },
       },
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   if (product.quantityRemaining !== reconciledQuantityRemaining) {
     await ProductModel.updateOne(
-      { _id: productId, userId: user._id },
+      { _id: productId, userId: user.workspaceId },
       { $set: { quantityRemaining: reconciledQuantityRemaining } }
     )
   }
@@ -218,13 +218,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   try {
     // Verify product belongs to user
-    const existingProduct = await ProductModel.findOne({ _id: productId, userId: user._id })
+    const existingProduct = await ProductModel.findOne({ _id: productId, userId: user.workspaceId })
     if (!existingProduct) {
       return errorResponse({ id: "Product not found" }, 404)
     }
 
     if (categoryId !== undefined && categoryId) {
-      const category = await CategoryModel.findOne({ _id: categoryId, userId: user._id }).lean()
+      const category = await CategoryModel.findOne({ _id: categoryId, userId: user.workspaceId }).lean()
       if (!category) {
         return errorResponse({ categoryId: "Category not found" }, 404)
       }
@@ -239,7 +239,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const soldAggregation = await SaleModel.aggregate<{ totalSold: number }>([
         {
           $match: {
-            userId: user._id,
+            userId: user.workspaceId,
             productId: new Types.ObjectId(productId),
           },
         },
@@ -408,14 +408,14 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
   try {
     // Verify product belongs to user
-    const product = await ProductModel.findOne({ _id: productId, userId: user._id }).populate("batchId", "batchName")
+    const product = await ProductModel.findOne({ _id: productId, userId: user.workspaceId }).populate("batchId", "batchName")
 
     if (!product) {
       return errorResponse({ id: "Product not found" }, 404)
     }
 
     // Check for sales
-    const salesCount = await SaleModel.countDocuments({ productId, userId: user._id })
+    const salesCount = await SaleModel.countDocuments({ productId, userId: user.workspaceId })
     const populatedBatch = product.batchId as { batchName?: string } | null
 
     // Prepare deletion data

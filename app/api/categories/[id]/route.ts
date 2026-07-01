@@ -64,13 +64,13 @@ export async function DELETE(
 
   const confirmDelete = request.nextUrl.searchParams.get("confirm") === "true"
 
-  const category = await CategoryModel.findOne({ _id: id, userId: user._id }).lean()
+  const category = await CategoryModel.findOne({ _id: id, userId: user.workspaceId }).lean()
   if (!category) {
     return errorResponse({ id: "Category not found" }, 404)
   }
 
   const productCount = await ProductModel.countDocuments({
-    userId: user._id,
+    userId: user.workspaceId,
     categoryId: id,
   })
 
@@ -84,9 +84,9 @@ export async function DELETE(
     })
   }
 
-  await CategoryModel.deleteOne({ _id: id, userId: user._id })
+  await CategoryModel.deleteOne({ _id: id, userId: user.workspaceId })
   await ProductModel.updateMany(
-    { userId: user._id, categoryId: id },
+    { userId: user.workspaceId, categoryId: id },
     { $set: { categoryId: null } }
   )
 

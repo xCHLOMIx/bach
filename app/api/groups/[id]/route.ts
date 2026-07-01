@@ -74,7 +74,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return errorResponse({ id: "Invalid group ID" }, 400)
   }
 
-  const group = await GroupModel.findOne({ _id: groupId, userId: user._id }).lean().exec()
+  const group = await GroupModel.findOne({ _id: groupId, userId: user.workspaceId }).lean().exec()
   if (!group) {
     return errorResponse({ id: "Group not found" }, 404)
   }
@@ -93,7 +93,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return errorResponse({ id: "Invalid group ID" }, 400)
   }
 
-  const group = await GroupModel.findOne({ _id: groupId, userId: user._id }).lean().exec()
+  const group = await GroupModel.findOne({ _id: groupId, userId: user.workspaceId }).lean().exec()
   if (!group) {
     return errorResponse({ id: "Group not found" }, 404)
   }
@@ -130,11 +130,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return errorResponse(errors, 400)
   }
 
-  const otherGroups = await GroupModel.find({ userId: user._id, _id: { $ne: groupId } }).lean().exec()
+  const otherGroups = await GroupModel.find({ userId: user.workspaceId, _id: { $ne: groupId } }).lean().exec()
   const allocatedQuantities = buildAllocatedQuantitiesByProductId(otherGroups)
 
   if (effectiveProductIds !== undefined) {
-    const selectedProducts = await ProductModel.find({ _id: { $in: effectiveProductIds }, userId: user._id }).lean().exec()
+    const selectedProducts = await ProductModel.find({ _id: { $in: effectiveProductIds }, userId: user.workspaceId }).lean().exec()
     if (selectedProducts.length !== effectiveProductIds.length) {
       return errorResponse({ productIds: "One or more products were not found" }, 404)
     }
@@ -158,7 +158,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (items !== undefined) updateData.items = items
 
   const updatedGroup = await GroupModel.findOneAndUpdate(
-    { _id: groupId, userId: user._id },
+    { _id: groupId, userId: user.workspaceId },
     { $set: updateData },
     { new: true }
   ).lean().exec()
@@ -177,7 +177,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     return errorResponse({ id: "Invalid group ID" }, 400)
   }
 
-  const deleted = await GroupModel.findOneAndDelete({ _id: groupId, userId: user._id }).lean().exec()
+  const deleted = await GroupModel.findOneAndDelete({ _id: groupId, userId: user.workspaceId }).lean().exec()
   if (!deleted) {
     return errorResponse({ id: "Group not found" }, 404)
   }

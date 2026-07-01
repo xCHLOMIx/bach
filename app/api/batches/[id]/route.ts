@@ -120,7 +120,7 @@ export async function PATCH(
 
   if (batchName) {
     const existingBatch = await BatchModel.findOne({
-      userId: user._id,
+      userId: user.workspaceId,
       _id: { $ne: batch._id },
       batchName: { $regex: `^${batchName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" },
     })
@@ -227,17 +227,17 @@ export async function DELETE(
   }
 
   try {
-    const batch = await BatchModel.findOne({ _id: id, userId: user._id })
+    const batch = await BatchModel.findOne({ _id: id, userId: user.workspaceId })
     if (!batch) {
       return errorResponse({ batchId: "Batch not found" }, 404)
     }
 
     // Get all products in this batch
-    const productsInBatch = await ProductModel.find({ batchId: id, userId: user._id }).lean()
+    const productsInBatch = await ProductModel.find({ batchId: id, userId: user.workspaceId }).lean()
     const productIds = productsInBatch.map((p) => p._id)
 
     // Count total sales for products in this batch
-    const salesCount = await SaleModel.countDocuments({ productId: { $in: productIds }, userId: user._id })
+    const salesCount = await SaleModel.countDocuments({ productId: { $in: productIds }, userId: user.workspaceId })
 
     // Prepare deletion data
     const deletionData = {

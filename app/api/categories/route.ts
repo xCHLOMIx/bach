@@ -14,8 +14,8 @@ export async function GET(request: NextRequest) {
 
   // Cache categories for 5 minutes (categories don't change frequently)
   const categories = await getOrCompute(
-    `categories:${user._id}`,
-    () => CategoryModel.find({ userId: user._id }).sort({ createdAt: -1 }).lean(),
+    `categories:${user.workspaceId}`,
+    () => CategoryModel.find({ userId: user.workspaceId }).sort({ createdAt: -1 }).lean(),
     300
   )
   
@@ -38,15 +38,15 @@ export async function POST(request: NextRequest) {
     return errorResponse(errors, 400)
   }
 
-  const exists = await CategoryModel.findOne({ userId: user._id, name }).lean()
+  const exists = await CategoryModel.findOne({ userId: user.workspaceId, name }).lean()
   if (exists) {
     return errorResponse({ name: "Category already exists" }, 409)
   }
 
-  const category = await CategoryModel.create({ userId: user._id, name })
+  const category = await CategoryModel.create({ userId: user.workspaceId, name })
   
   // Invalidate cache when new category is created
-  clearCacheByPrefix(`categories:${user._id}`)
+  clearCacheByPrefix(`categories:${user.workspaceId}`)
   
   return successResponse({ category }, 201)
 }

@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
       firstName: user.firstName,
       lastName: user.lastName,
       phoneNumber: user.phoneNumber,
+      isOwner: String(user._id) === String(user.workspaceId)
     },
   })
 }

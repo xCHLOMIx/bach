@@ -141,8 +141,8 @@ export async function GET(request: NextRequest) {
   const search = String(request.nextUrl.searchParams.get("search") ?? "").trim().toLowerCase()
 
   const [groups, products] = await Promise.all([
-    GroupModel.find({ userId: user._id }).sort({ createdAt: -1 }).lean().exec(),
-    ProductModel.find({ userId: user._id }).populate("batchId", "batchName").sort({ createdAt: -1 }).lean().exec(),
+    GroupModel.find({ userId: user.workspaceId }).sort({ createdAt: -1 }).lean().exec(),
+    ProductModel.find({ userId: user.workspaceId }).populate("batchId", "batchName").sort({ createdAt: -1 }).lean().exec(),
   ])
 
   const productsById = new Map<string, GroupProduct>(products.map((product) => {
@@ -224,8 +224,8 @@ export async function POST(request: NextRequest) {
     return errorResponse(errors, 400)
   }
 
-  const existingGroups = await GroupModel.find({ userId: user._id }).lean().exec()
-  const selectedProducts = await ProductModel.find({ _id: { $in: productIds }, userId: user._id }).lean().exec()
+  const existingGroups = await GroupModel.find({ userId: user.workspaceId }).lean().exec()
+  const selectedProducts = await ProductModel.find({ _id: { $in: productIds }, userId: user.workspaceId }).lean().exec()
   if (selectedProducts.length !== productIds.length) {
     return errorResponse({ productIds: "One or more products were not found" }, 404)
   }
@@ -242,7 +242,7 @@ export async function POST(request: NextRequest) {
   }
 
   const group = await GroupModel.create({
-    userId: user._id,
+    userId: user.workspaceId,
     name,
     productIds,
     items,

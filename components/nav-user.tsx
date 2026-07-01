@@ -1,8 +1,9 @@
-﻿"use client"
+"use client"
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { createPortal } from "react-dom"
 
 import {
   Avatar,
@@ -25,7 +26,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { EllipsisVerticalIcon, CircleUserRoundIcon, SettingsIcon, LogOutIcon } from "lucide-react"
+import { EllipsisVerticalIcon, CircleUserRoundIcon, SettingsIcon, LogOutIcon, UsersIcon } from "lucide-react"
 
 export function NavUser({
   user,
@@ -38,7 +39,7 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar()
   const router = useRouter()
-  const [currentUser, setCurrentUser] = React.useState(user)
+  const [currentUser, setCurrentUser] = React.useState({ ...user, isOwner: false })
   const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false)
 
   React.useEffect(() => {
@@ -56,6 +57,7 @@ export function NavUser({
           name: `${data.user.firstName} ${data.user.lastName}`,
           email: data.user.phoneNumber,
           avatar: user.avatar,
+          isOwner: data.user.isOwner,
         })
       } catch (error) {
         // Keep fallback sidebar user data if network/auth lookup fails.
@@ -137,6 +139,14 @@ export function NavUser({
                     Security
                   </Link>
                 </DropdownMenuItem>
+                {currentUser.isOwner && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/app/account?tab=members">
+                      <UsersIcon />
+                      Members
+                    </Link>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogoutClick}>
@@ -149,8 +159,8 @@ export function NavUser({
         </SidebarMenuItem>
       </SidebarMenu>
 
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 z-auto flex items-center justify-center bg-black/40" onClick={() => setShowLogoutConfirm(false)}>
+      {showLogoutConfirm && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowLogoutConfirm(false)}>
           <div className="bg-card rounded-lg shadow-lg p-6 max-w-sm mx-4 border border-border" onClick={(event) => event.stopPropagation()}>
             <h2 className="text-lg font-semibold text-foreground mb-2">
               Log out?
@@ -173,7 +183,8 @@ export function NavUser({
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

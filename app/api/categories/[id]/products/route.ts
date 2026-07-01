@@ -21,7 +21,7 @@ export async function POST(
     return errorResponse({ categoryId: "Invalid category id" }, 400)
   }
 
-  const category = await CategoryModel.findOne({ _id: id, userId: user._id }).lean()
+  const category = await CategoryModel.findOne({ _id: id, userId: user.workspaceId }).lean()
   if (!category) {
     return errorResponse({ categoryId: "Category not found" }, 404)
   }
@@ -40,7 +40,7 @@ export async function POST(
   }
 
   await ProductModel.updateMany(
-    { _id: { $in: productIds }, userId: user._id },
+    { _id: { $in: productIds }, userId: user.workspaceId },
     { $set: { categoryId: new Types.ObjectId(id) } }
   )
 

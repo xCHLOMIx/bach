@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   const days = daysStr ? parseInt(daysStr, 10) : null
 
   // Build query filter with optional date range
-  const query: any = { userId: user._id }
+  const query: any = { userId: user.workspaceId }
   if (days && days > 0) {
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - days)
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     return errorResponse(errors, 400)
   }
 
-  const product = await ProductModel.findOne({ _id: productId, userId: user._id })
+  const product = await ProductModel.findOne({ _id: productId, userId: user.workspaceId })
   if (!product) {
     return errorResponse({ productId: "Product not found" }, 404)
   }
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
   const profit = sellingPrice - landedCost
 
   const sale = await SaleModel.create({
-    userId: user._id,
+    userId: user.workspaceId,
     productId,
     quantity,
     sellingPrice,
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
 
   if (product.quantityRemaining <= 0) {
     await GroupModel.updateMany(
-      { userId: user._id, productIds: product._id },
+      { userId: user.workspaceId, productIds: product._id },
       {
         $pull: {
           productIds: product._id,

@@ -24,11 +24,11 @@ export async function GET(request: NextRequest) {
 
   // Fast simple queries instead of complex aggregation
   const [products, categories, batches, sales, latestSales] = await Promise.all([
-    ProductModel.countDocuments({ userId: user._id }),
-    CategoryModel.countDocuments({ userId: user._id }),
-    BatchModel.countDocuments({ userId: user._id }),
-    SaleModel.find({ userId: user._id }).select("profit quantity soldAt").lean(),
-    SaleModel.find({ userId: user._id }).populate("productId", "name").sort({ soldAt: -1 }).limit(8).lean(),
+    ProductModel.countDocuments({ userId: user.workspaceId }),
+    CategoryModel.countDocuments({ userId: user.workspaceId }),
+    BatchModel.countDocuments({ userId: user.workspaceId }),
+    SaleModel.find({ userId: user.workspaceId }).select("profit quantity soldAt").lean(),
+    SaleModel.find({ userId: user.workspaceId }).populate("productId", "name").sort({ soldAt: -1 }).limit(8).lean(),
   ])
 
   // Calculate stats in memory (faster for small-medium datasets)
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     profitChangePercent > 0 ? "up" : profitChangePercent < 0 ? "down" : "stable"
 
   const totalStock = await ProductModel.aggregate<{ total: number }>([
-    { $match: { userId: user._id } },
+    { $match: { userId: user.workspaceId } },
     { $group: { _id: null, total: { $sum: "$quantityRemaining" } } },
   ])
 

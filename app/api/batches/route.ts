@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
   const user = await getAuthorizedUser(request)
   if (!user) return errorResponse({ auth: "Unauthorized" }, 401)
 
-  const batches = await BatchModel.find({ userId: user._id }).sort({ createdAt: -1 }).lean()
+  const batches = await BatchModel.find({ userId: user.workspaceId }).sort({ createdAt: -1 }).lean()
 
   if (batches.length === 0) {
     return successResponse({ batches: [] })
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
   const batchIds = batches.map((batch) => batch._id)
   const itemCounts = await ProductModel.aggregate<{ _id: string; count: number }>([
-    { $match: { userId: user._id, batchId: { $in: batchIds } } },
+    { $match: { userId: user.workspaceId, batchId: { $in: batchIds } } },
     { $group: { _id: "$batchId", count: { $sum: 1 } } },
   ])
 
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
   }
   if (batchName) {
     const existingBatch = await BatchModel.findOne({
-      userId: user._id,
+      userId: user.workspaceId,
       batchName: { $regex: `^${batchName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" },
     })
 
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
     const formatPrettyDate = (d: Date) => new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(d)
 
     const batch = await BatchModel.create({
-      userId: user._id,
+      userId: user.workspaceId,
       batchName: batchName || formatPrettyDate(new Date()),
       trackingId,
       pickupMethod,

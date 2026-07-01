@@ -1,8 +1,9 @@
-﻿"use client"
+"use client"
 
 import React, { useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { Loader2, User, Lock } from "lucide-react"
+import { Loader2, User, Lock, Users, Trash2 } from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -10,14 +11,26 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table"
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
+import { Skeleton } from "@/components/ui/skeleton"
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 import { formatPhoneNumberInput, normalizePhoneNumber } from "@/lib/phone"
+import { MemberSheet } from "@/components/member-sheet"
 
 interface User {
     id: string
     firstName: string
     lastName: string
     phoneNumber: string
+    isOwner: boolean
 }
 
 export default function AccountPage() {
@@ -26,6 +39,61 @@ export default function AccountPage() {
     const [user, setUser] = useState<User | null>(null)
     const [isLoadingUser, setIsLoadingUser] = useState(true)
     const [activeTab, setActiveTab] = useState(searchParams.get("tab") ?? "profile")
+
+    interface Member {
+        _id: string
+        userId: {
+            _id: string
+            firstName: string
+            lastName: string
+            phoneNumber: string
+            createdAt: string
+        }
+    }
+    const [members, setMembers] = useState<Member[]>([])
+    const [isLoadingMembers, setIsLoadingMembers] = useState(false)
+    const [hasLoadedMembers, setHasLoadedMembers] = useState(false)
+
+    const loadMembers = async () => {
+        setIsLoadingMembers(true)
+        try {
+            const response = await fetch("/api/members")
+            if (response.ok) {
+                const data = await response.json()
+                setMembers(data.members || [])
+                setHasLoadedMembers(true)
+            }
+        } catch (error) {
+            console.error("Failed to load members:", error)
+        } finally {
+            setIsLoadingMembers(false)
+        }
+    }
+
+    useEffect(() => {
+        if (activeTab === "members" && !hasLoadedMembers && user) {
+            void loadMembers()
+        }
+    }, [activeTab, hasLoadedMembers, user])
+
+    const handleDeleteMember = async (memberId: string) => {
+        if (!confirm("Are you sure you want to remove this member?")) return
+        
+        try {
+            const response = await fetch(`/api/members/${memberId}`, {
+                method: "DELETE"
+            })
+            if (response.ok) {
+                toast.success("Member removed successfully")
+                void loadMembers()
+            } else {
+                toast.error("Failed to remove member")
+            }
+        } catch (error) {
+            console.error("Failed to delete member:", error)
+            toast.error("An error occurred")
+        }
+    }
 
     // Profile editing
     const [isEditingProfile, setIsEditingProfile] = useState(false)
@@ -215,14 +283,14 @@ export default function AccountPage() {
     }
 
     return (
-        <div className="container max-w-3xl p-8">
+        <div className="container p-8">
             <div className="mb-8">
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">Account</h1>
                 <p className="mt text-sm text-muted-foreground">Manage your personal information and account security</p>
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-max grid-cols-2">
+                <TabsList className={user.isOwner ? "grid w-max grid-cols-3" : "grid w-max grid-cols-2"}>
                     <TabsTrigger value="profile" className="gap-2">
                         <User className="size-4" />
                         Profile
@@ -231,6 +299,12 @@ export default function AccountPage() {
                         <Lock className="size-4" />
                         Security
                     </TabsTrigger>
+                    {user.isOwner && (
+                        <TabsTrigger value="members" className="gap-2">
+                            <Users className="size-4" />
+                            Members
+                        </TabsTrigger>
+                    )}
                 </TabsList>
 
                 {/* Profile Tab */}
@@ -418,6 +492,84 @@ export default function AccountPage() {
                         </CardContent>
                     </div>
                 </TabsContent>
+
+                {/* Members Tab */}
+                {user.isOwner && (
+                    <TabsContent value="members">
+                        <div className="mt-4">
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <div>
+                                    <CardTitle>Members</CardTitle>
+                                    <CardDescription>Manage members belonging to your business</CardDescription>
+                                </div>
+                                <MemberSheet onMemberAdded={() => loadMembers()} />
+                            </CardHeader>
+                            <CardContent className="mt-4">
+                                <div className="rounded-md border max-w-full overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Name</TableHead>
+                                                <TableHead>Phone Number</TableHead>
+                                                <TableHead>Date Added</TableHead>
+                                                <TableHead className="text-right">Actions</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {isLoadingMembers ? (
+                                                Array.from({ length: 3 }).map((_, i) => (
+                                                    <TableRow key={`member-loading-${i}`}>
+                                                        <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                        <TableCell><Skeleton className="h-4 w-12 ml-auto" /></TableCell>
+                                                    </TableRow>
+                                                ))
+                                            ) : members.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={4} className="h-48 text-center">
+                                                        <Empty>
+                                                            <EmptyHeader>
+                                                                <EmptyTitle>No members found</EmptyTitle>
+                                                                <EmptyDescription>
+                                                                    Get started by adding a new member to your business.
+                                                                </EmptyDescription>
+                                                            </EmptyHeader>
+                                                        </Empty>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ) : (
+                                                members.map((member) => (
+                                                    <TableRow key={member._id}>
+                                                        <TableCell className="font-medium">
+                                                            {member.userId.firstName} {member.userId.lastName}
+                                                        </TableCell>
+                                                        <TableCell>{member.userId.phoneNumber}</TableCell>
+                                                        <TableCell>
+                                                            {new Date(member.userId.createdAt).toLocaleDateString(undefined, {
+                                                                year: "numeric",
+                                                                month: "long",
+                                                                day: "numeric",
+                                                            })}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <MemberSheet member={member} onMemberAdded={() => loadMembers()} />
+                                                                <Button variant="ghost" size="icon" onClick={() => handleDeleteMember(member._id)}>
+                                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                                </Button>
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                        </div>
+                    </TabsContent>
+                )}
             </Tabs>
         </div>
     )
