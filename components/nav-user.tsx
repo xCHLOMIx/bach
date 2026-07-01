@@ -160,8 +160,8 @@ export function NavUser({
       </SidebarMenu>
 
       {showLogoutConfirm && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowLogoutConfirm(false)}>
-          <div className="bg-card rounded-lg shadow-lg p-6 max-w-sm mx-4 border border-border" onClick={(event) => event.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-in fade-in duration-200" onClick={() => setShowLogoutConfirm(false)}>
+          <div className="bg-card rounded-lg shadow-lg p-6 max-w-sm mx-4 border border-border animate-in zoom-in-95 slide-in-from-bottom-2 duration-200" onClick={(event) => event.stopPropagation()}>
             <h2 className="text-lg font-semibold text-foreground mb-2">
               Log out?
             </h2>

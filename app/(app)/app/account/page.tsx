@@ -24,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { preventImplicitSubmitOnEnter } from "@/lib/form-guard"
 import { formatPhoneNumberInput, normalizePhoneNumber } from "@/lib/phone"
 import { MemberSheet } from "@/components/member-sheet"
+import { createPortal } from "react-dom"
 
 interface User {
     id: string
@@ -53,6 +54,8 @@ export default function AccountPage() {
     const [members, setMembers] = useState<Member[]>([])
     const [isLoadingMembers, setIsLoadingMembers] = useState(false)
     const [hasLoadedMembers, setHasLoadedMembers] = useState(false)
+    const [memberToDelete, setMemberToDelete] = useState<string | null>(null)
+    const [isDeletingMember, setIsDeletingMember] = useState(false)
 
     const loadMembers = async () => {
         setIsLoadingMembers(true)
@@ -76,11 +79,12 @@ export default function AccountPage() {
         }
     }, [activeTab, hasLoadedMembers, user])
 
-    const handleDeleteMember = async (memberId: string) => {
-        if (!confirm("Are you sure you want to remove this member?")) return
+    const confirmDeleteMember = async () => {
+        if (!memberToDelete) return
+        setIsDeletingMember(true)
         
         try {
-            const response = await fetch(`/api/members/${memberId}`, {
+            const response = await fetch(`/api/members/${memberToDelete}`, {
                 method: "DELETE"
             })
             if (response.ok) {
@@ -92,6 +96,9 @@ export default function AccountPage() {
         } catch (error) {
             console.error("Failed to delete member:", error)
             toast.error("An error occurred")
+        } finally {
+            setIsDeletingMember(false)
+            setMemberToDelete(null)
         }
     }
 
@@ -272,8 +279,15 @@ export default function AccountPage() {
 
     if (isLoadingUser) {
         return (
-            <div className="flex h-screen items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="container p-8">
+                <div className="mb-8">
+                    <Skeleton className="h-8 w-32 mb-2" />
+                    <Skeleton className="h-4 w-64" />
+                </div>
+                <div className="space-y-4">
+                    <Skeleton className="h-10 w-[300px]" />
+                    <Skeleton className="h-[400px] w-full rounded-xl" />
+                </div>
             </div>
         )
     }
@@ -555,7 +569,7 @@ export default function AccountPage() {
                                                         <TableCell className="text-right">
                                                             <div className="flex items-center justify-end gap-2">
                                                                 <MemberSheet member={member} onMemberAdded={() => loadMembers()} />
-                                                                <Button variant="ghost" size="icon" onClick={() => handleDeleteMember(member._id)}>
+                                                                <Button variant="ghost" size="icon" onClick={() => setMemberToDelete(member._id)}>
                                                                     <Trash2 className="h-4 w-4 text-destructive" />
                                                                 </Button>
                                                             </div>
@@ -571,6 +585,36 @@ export default function AccountPage() {
                     </TabsContent>
                 )}
             </Tabs>
+
+            {memberToDelete && createPortal(
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-in fade-in duration-200" onClick={() => setMemberToDelete(null)}>
+                    <div className="bg-card rounded-lg shadow-lg p-6 max-w-sm mx-4 border border-border animate-in zoom-in-95 slide-in-from-bottom-2 duration-200" onClick={(event) => event.stopPropagation()}>
+                        <h2 className="text-lg font-semibold text-foreground mb-2">
+                            Remove Member?
+                        </h2>
+                        <p className="text-sm text-muted-foreground mb-6">
+                            Are you sure you want to remove this member from your business? They will lose access to all products and sales.
+                        </p>
+                        <div className="flex gap-3 justify-end">
+                            <Button
+                                variant="outline"
+                                onClick={() => setMemberToDelete(null)}
+                                disabled={isDeletingMember}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={confirmDeleteMember}
+                                disabled={isDeletingMember}
+                            >
+                                {isDeletingMember ? "Removing..." : "Remove"}
+                            </Button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     )
 }
