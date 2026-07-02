@@ -47,27 +47,18 @@ export async function POST(request: NextRequest) {
   // Check if a user with this phone number already exists
   let memberUser = await UserModel.findOne({ phoneNumber }).lean()
 
-  if (!memberUser) {
-    // Create new user if not exists
-    const hashedPassword = await bcrypt.hash(password, 10)
-    memberUser = await UserModel.create({
-      firstName,
-      lastName,
-      phoneNumber,
-      password: hashedPassword,
-    })
+  if (memberUser) {
+    return errorResponse({ phoneNumber: "A user with this phone number is already registered" }, 409)
   }
 
-  // Prevent adding oneself as a member
-  if (memberUser._id.toString() === currentUser._id.toString()) {
-    return errorResponse({ phoneNumber: "You cannot add yourself as a member" }, 400)
-  }
-
-  // Check if relationship already exists
-  const exists = await BusinessMemberModel.findOne({ ownerId: currentUser._id, userId: memberUser._id }).lean()
-  if (exists) {
-    return errorResponse({ general: "This user is already a member" }, 409)
-  }
+  // Create new user since it does not exist
+  const hashedPassword = await bcrypt.hash(password, 10)
+  memberUser = await UserModel.create({
+    firstName,
+    lastName,
+    phoneNumber,
+    password: hashedPassword,
+  })
 
   // Create relationship
   await BusinessMemberModel.create({
