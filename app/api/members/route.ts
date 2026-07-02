@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
   let memberUser = await UserModel.findOne({ phoneNumber }).lean()
 
   if (memberUser) {
-    return errorResponse({ phoneNumber: "A user with this phone number is already registered" }, 409)
+    return errorResponse({ phoneNumber: "Phone number already registered" }, 409)
   }
 
   // Create new user since it does not exist
