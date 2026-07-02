@@ -1949,7 +1949,7 @@ export function ProductsPage() {
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
             <CardHeader className="flex flex-col gap-4  pb-0">
-                <div className="flex justify-between w-full items-center gap-3">
+                <div className="flex justify-between w-full max-md:flex-col max-md:items-end items-center gap-3">
                     <div className="relative w-full min-w-0 flex-1 sm:max-w-md">
                         <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
@@ -2125,7 +2125,7 @@ export function ProductsPage() {
                     </div>
                 ) : viewMode === "list" ? (
                     <>
-                        <div className="mb-4 flex w-full items-center gap-2">
+                        <div className="mb-4 flex w-full max-md:flex-col items-center gap-2">
                             <div className="flex w-full items-center gap-2 sm:w-auto">
                                 <h3 className="text-sm text-muted-foreground">Total</h3>
                                 <p className="text-sm font-semibold">{products.length}</p>
